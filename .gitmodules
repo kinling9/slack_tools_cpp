@@ -1,0 +1,3 @@
+[submodule "src/thirdparty/re2"]
+	path = src/thirdparty/re2
+	url = https://github.com/google/re2.git

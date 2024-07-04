@@ -1,8 +1,14 @@
 #!/usr/bin/env python3
 from build import run_cmd, build, clean
 import os
+import argparse
 
 if __name__ == "__main__":
+
+    arg_parser = argparse.ArgumentParser()
+    arg_parser.add_argument("--debug", action="store_true")
+    
+    args = arg_parser.parse_args()
     files = os.listdir(os.getcwd())
     if "LICENSE" not in files:
         print("script should run in the root directory of the project")
@@ -11,5 +17,8 @@ if __name__ == "__main__":
     if "build" not in files:
         os.mkdir("build")
 
-    build()
-    run_cmd("./build/parser ./rpt/B005_allpath.rpt.gz")
+    build(args.debug)
+    if not args.debug:
+        run_cmd("./build/parser ./rpt/B005_allpath.rpt.gz")
+    else:
+        run_cmd("gdb ./build/parser")

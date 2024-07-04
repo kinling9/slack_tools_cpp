@@ -12,8 +12,9 @@ set(CMAKE_CXX_FLAGS_DEBUG "-g")
 set(CMAKE_CXX_FLAGS_RELEASE "-O3")
 
 find_package(Boost REQUIRED iostreams)
-find_package(re2 REQUIRED)
+# find_package(re2 REQUIRED PATHS /home/kinling9/packages/re2)
 
 add_executable(parser main.cpp)
 target_link_libraries(parser Boost::iostreams)
-target_link_libraries(parser re2::re2)
+add_subdirectory(thirdparty/re2)
+# target_link_libraries(parser re2::re2) 
