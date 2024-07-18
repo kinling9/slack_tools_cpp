@@ -34,7 +34,6 @@ RUN wget https://mirrors.aliyun.com/gnu/gcc/gcc-10.2.0/gcc-10.2.0.tar.xz && \
 RUN mkdir gcc-build && \
     cd gcc-build && \
     ../gcc-10.2.0/configure --enable-languages=c,c++ --prefix=/usr/local --disable-multilib && \
-    cd gcc-build && \
     make -j 8 && \
     make install && \
     cd .. && \
