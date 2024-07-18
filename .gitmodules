@@ -1,3 +1,6 @@
-[submodule "src/thirdparty/re2"]
-	path = src/thirdparty/re2
+[submodule "thirdparty/re2"]
+	path = thirdparty/re2
 	url = https://github.com/google/re2.git
+[submodule "thirdparty/abseil-cpp"]
+	path = thirdparty/abseil-cpp
+	url = https://github.com/abseil/abseil-cpp.git

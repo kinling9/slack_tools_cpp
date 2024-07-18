@@ -10,10 +10,10 @@ def run_cmd(cmd: str):
 
 def build(debug: bool = False):
     if debug:
-        run_cmd("cmake -S src -B build -GNinja -DCMAKE_BUILD_TYPE=Debug")
+        run_cmd("cmake -S . -B build -GNinja -DCMAKE_BUILD_TYPE=Debug")
         run_cmd("cmake --build build --config Debug")
     else:
-        run_cmd("cmake -S src -B build -GNinja")
+        run_cmd("cmake -S . -B build -GNinja")
         run_cmd("cmake --build build --config Release")
 
 def clean():
