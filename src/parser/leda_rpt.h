@@ -2,7 +2,6 @@
 #include <re2/re2.h>
 
 #include <condition_variable>
-#include <fstream>
 #include <iostream>
 #include <memory>
 #include <mutex>
@@ -16,6 +15,9 @@ class leda_rpt_parser {
  public:
   void parse_path(const std::vector<std::string> &path);
   void data_preparation(std::istream &instream);
+  void data_processing();
+  void parse(std::istream &instream);
+  void print_paths();
 
  private:
   std::queue<std::vector<std::string>> dataQueue;

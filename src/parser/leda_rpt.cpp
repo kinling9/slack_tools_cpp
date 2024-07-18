@@ -2,6 +2,7 @@
 #include <boost/convert/strtol.hpp>
 #include <boost/iostreams/copy.hpp>
 #include <iostream>
+#include <thread>
 
 #include "parser/leda_rpt.h"
 #include "utils/utils.h"
@@ -110,4 +111,38 @@ void leda_rpt_parser::data_preparation(std::istream &instream) {
   dataQueue.push(path);
   done = true;
   dataCondVar.notify_all();  // 通知可能在等待的处理线程
+}
+void leda_rpt_parser::data_processing() {
+  std::vector<std::string> path;
+  while (true) {
+    std::unique_lock<std::mutex> lock(dataMutex);
+    dataCondVar.wait(lock, [this] { return !dataQueue.empty() || done; });
+    if (dataQueue.empty() && done) {
+      break;
+    }
+    path = dataQueue.front();
+    dataQueue.pop();
+    lock.unlock();
+    parse_path(path);
+  }
+}
+
+void leda_rpt_parser::parse(std::istream &instream) {
+  std::thread producer([this, &instream] { data_preparation(instream); });
+  std::vector<std::thread> consumers;
+  for (int i = 0; i < 4; i++) {
+    consumers.emplace_back([this] { data_processing(); });
+  }
+  producer.join();
+  for (auto &consumer : consumers) {
+    consumer.join();
+  }
+}
+
+void leda_rpt_parser::print_paths() {
+  for (const auto &path : paths_) {
+    std::cout << "Startpoint: " << path->startpoint
+              << " Endpoint: " << path->endpoint << " Group: " << path->group
+              << " Clock: " << path->clock << "\n";
+  }
 }

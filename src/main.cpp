@@ -29,18 +29,13 @@ int main(int argc, char **argv) {
   // Convert streambuf to istream
   std::istream instream(&inbuf);
 
-  // std::thread producer(dataPreparation, std::ref(instream));
-  // std::vector<std::thread> consumers;
-  // for (int i = 0; i < 4; i++) {
-  //   consumers.emplace_back(dataProcessing);
-  // }
-  // producer.join();
-  // for (auto &consumer : consumers) {
-  //   consumer.join();
-  // }
-  // file.close();
-  // auto end = std::chrono::high_resolution_clock::now();
-  // std::chrono::duration<double> elapsed = end - start;
-  // std::cout << "Elapsed time: " << elapsed.count() << " s\n";
+  leda_rpt_parser parser;
+  parser.parse(instream);
+
+  file.close();
+  parser.print_paths();
+  auto end = std::chrono::high_resolution_clock::now();
+  std::chrono::duration<double> elapsed = end - start;
+  std::cout << "Elapsed time: " << elapsed.count() << " s\n";
   return 0;
 }
