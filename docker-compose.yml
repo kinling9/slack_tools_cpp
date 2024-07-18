@@ -1,10 +1,9 @@
-version: '3.8'
-
 services:
   cpp-build:
     build:
       context: .
       dockerfile: Dockerfile
-    # volumes:
-    #   - ./output:/output
-    # command: ["/bin/bash", "-c", "cp /output/YourExecutable /output"]
+    volumes:
+      - .:/app
+    command: ["python3", "./script/build.py", "--docker"]
+    # command: ["ls"]

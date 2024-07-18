@@ -50,6 +50,3 @@ RUN rm boost_1_84_0.tar.bz2 && \
 
 # Create a directory for the application
 WORKDIR /app
-
-# Copy the source code into the container
-COPY . /app
