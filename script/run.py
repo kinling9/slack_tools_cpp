@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
-from build import run_cmd, build, clean
+from build import run_cmd, build
 import os
+import sys
 import argparse
 
 if __name__ == "__main__":
@@ -19,6 +20,6 @@ if __name__ == "__main__":
 
     build(args.debug)
     if not args.debug:
-        run_cmd("./build/parser ./rpt/B005_allpath.rpt.gz")
+        run_cmd("./build/src/parser ./rpt/B005_allpath.rpt.gz")
     else:
-        run_cmd("gdb ./build/parser")
+        run_cmd("gdb ./build/src/parser")
