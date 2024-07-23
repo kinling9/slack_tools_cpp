@@ -1,39 +1,53 @@
-#include <boost/convert.hpp>
-#include <boost/convert/strtol.hpp>
-#include <boost/iostreams/copy.hpp>
-#include <boost/iostreams/filter/gzip.hpp>
-#include <boost/iostreams/filtering_streambuf.hpp>
+#include <argparse/argparse.hpp>
 #include <chrono>
 #include <fstream>
 #include <iostream>
-#include <queue>
-#include <string>
-#include <thread>
-#include <vector>
 
-#include "dm/dm.h"
 #include "parser/leda_rpt.h"
 #include "utils/utils.h"
+#include "yaml-cpp/yaml.h"
 
-int main(int argc, char **argv) {
-  if (argc < 2) {
-    std::cerr << "Usage: " << argv[0] << " <gzipped input file>" << std::endl;
-    return 0;
-  }
-  // Read from the first command line argument, assume it's gzipped
+int main(int argc, char** argv) {
+  argparse::ArgumentParser program("cpp_timing_analyser");
+  program.add_argument("yml").help("yml config file");
+
   auto start = std::chrono::high_resolution_clock::now();
-  std::ifstream file(argv[1], std::ios_base::in | std::ios_base::binary);
-  boost::iostreams::filtering_streambuf<boost::iostreams::input> inbuf;
-  inbuf.push(boost::iostreams::gzip_decompressor());
-  inbuf.push(file);
-  // Convert streambuf to istream
-  std::istream instream(&inbuf);
-
-  leda_rpt_parser parser;
-  parser.parse(instream);
-
-  file.close();
-  parser.print_paths();
+  try {
+    program.parse_args(argc, argv);
+  } catch (const std::exception& err) {
+    std::cerr << err.what() << std::endl;
+    std::cerr << program;
+    std::exit(1);
+  }
+  std::cout << program.get<std::string>("yml") << "\n";
+  YAML::Node config;
+  try {
+    config = YAML::LoadFile(program.get<std::string>("yml"));
+  } catch (const std::exception& err) {
+    std::cerr << err.what() << std::endl;
+    std::cerr << program;
+    std::exit(1);
+  }
+  std::cout << config << "\n";
+  auto mode = config["mode"].as<std::string>();
+  if (mode == "compare") {
+    auto types = config["type"].as<std::vector<std::string>>();
+    auto rpts = config["rpts"].as<std::vector<std::string>>();
+    if (rpts.size() != 2 && types.size() != 2) {
+      std::cerr << "Please provide two files for comparison\n";
+      std::exit(1);
+    }
+    if (types[0] != "leda" && types[1] != "leda") {
+      std::cerr << "Only leda_rpt is supported\n";
+      std::exit(1);
+    }
+    leda_rpt_parser parser0;
+    std::cout << "Parsing " << rpts[0] << "\n";
+    parser0.parse_file(rpts[0]);
+    std::cout << "Parsing " << rpts[1] << "\n";
+    leda_rpt_parser parser1;
+    parser1.parse_file(rpts[1]);
+  }
   auto end = std::chrono::high_resolution_clock::now();
   std::chrono::duration<double> elapsed = end - start;
   std::cout << "Elapsed time: " << elapsed.count() << " s\n";
