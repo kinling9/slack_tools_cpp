@@ -11,7 +11,7 @@ class comparator : public analyser {
 
  private:
   std::vector<std::shared_ptr<basedb>> _dbs;
-  std::vector<double> slack_diffs;
+  std::vector<double> _slack_diffs;
   const std::vector<double> _slack_margins = {0.01, 0.03, 0.05, 0.1};
   const std::vector<double> _match_percentages = {0.01, 0.03, 0.1, 0.5, 1};
 };

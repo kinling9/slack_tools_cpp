@@ -21,11 +21,9 @@ class parser {
   virtual void parse_path(const std::vector<std::string> &path) = 0;
 
  protected:
-  std::queue<std::vector<std::string>> dataQueue;
-  std::mutex dataMutex;
-  std::mutex resultMutex;
-  std::condition_variable dataCondVar;
-  bool done = false;  // 标志是否完成数据准备
-  std::vector<std::shared_ptr<Path>> paths_;
+  std::queue<std::vector<std::string>> _data_queue;
+  std::mutex _data_mutex;
+  std::condition_variable _data_cond_var;
+  bool _done = false;  // 标志是否完成数据准备
   basedb _db;
 };

@@ -1,6 +1,5 @@
 #include <argparse/argparse.hpp>
 #include <chrono>
-#include <fstream>
 #include <iostream>
 
 #include "analyser/comparator.h"

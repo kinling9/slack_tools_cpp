@@ -36,9 +36,9 @@ void parser::data_preparation(std::istream &instream) {
   while (std::getline(instream, line)) {
     if (RE2::FullMatch(line, start_pattern)) {
       if (start_flag) {
-        std::lock_guard<std::mutex> lock(dataMutex);
-        dataQueue.push(path);
-        dataCondVar.notify_one();  // 通知等待的数据处理线程
+        std::lock_guard<std::mutex> lock(_data_mutex);
+        _data_queue.push(path);
+        _data_cond_var.notify_one();  // 通知等待的数据处理线程
         path.clear();
       } else {
         path.clear();
@@ -47,21 +47,21 @@ void parser::data_preparation(std::istream &instream) {
     }
     path.emplace_back(line);
   }
-  std::lock_guard<std::mutex> lock(dataMutex);
-  dataQueue.push(path);
-  done = true;
-  dataCondVar.notify_all();  // 通知可能在等待的处理线程
+  std::lock_guard<std::mutex> lock(_data_mutex);
+  _data_queue.push(path);
+  _done = true;
+  _data_cond_var.notify_all();  // 通知可能在等待的处理线程
 }
 void parser::data_processing() {
   std::vector<std::string> path;
   while (true) {
-    std::unique_lock<std::mutex> lock(dataMutex);
-    dataCondVar.wait(lock, [this] { return !dataQueue.empty() || done; });
-    if (dataQueue.empty() && done) {
+    std::unique_lock<std::mutex> lock(_data_mutex);
+    _data_cond_var.wait(lock, [this] { return !_data_queue.empty() || _done; });
+    if (_data_queue.empty() && _done) {
       break;
     }
-    path = dataQueue.front();
-    dataQueue.pop();
+    path = _data_queue.front();
+    _data_queue.pop();
     lock.unlock();
     parse_path(path);
   }
@@ -80,7 +80,7 @@ void parser::parse(std::istream &instream) {
 }
 
 void parser::print_paths() {
-  for (const auto &path : paths_) {
+  for (const auto &path : _db.paths) {
     std::cout << "Startpoint: " << path->startpoint
               << " Endpoint: " << path->endpoint << " Group: " << path->group
               << " Clock: " << path->clock << " Slack: " << path->slack << "\n";

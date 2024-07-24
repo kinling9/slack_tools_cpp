@@ -14,28 +14,28 @@ void leda_rpt_parser::parse_path(const std::vector<std::string> &path) {
   for (const auto &line : path) {
     switch (iter) {
       case 0:
-        if (RE2::FullMatch(line, begin_pattern_, &pathObj->startpoint)) {
-          RE2::PartialMatch(line, clock_pattern_, &pathObj->clock);
+        if (RE2::FullMatch(line, _begin_pattern, &pathObj->startpoint)) {
+          RE2::PartialMatch(line, _clock_pattern, &pathObj->clock);
           iter++;
         }
         break;
       case 1:
-        if (RE2::FullMatch(line, end_pattern_, &pathObj->endpoint)) {
+        if (RE2::FullMatch(line, _end_pattern, &pathObj->endpoint)) {
           iter++;
         }
         break;
       case 2:
-        if (RE2::FullMatch(line, group_pattern_, &pathObj->group)) {
+        if (RE2::FullMatch(line, _group_pattern, &pathObj->group)) {
           iter++;
         }
         break;
       case 3:
-        if (RE2::FullMatch(line, path_type_pattern_)) {
+        if (RE2::FullMatch(line, _path_type_pattern)) {
           iter++;
         }
         break;
       case 4: {
-        if (RE2::FullMatch(line, at_pattern_)) {
+        if (RE2::FullMatch(line, _at_pattern)) {
           iter++;
           break;
         }
@@ -80,7 +80,7 @@ void leda_rpt_parser::parse_path(const std::vector<std::string> &path) {
         break;
       }
       case 5:
-        if (RE2::FullMatch(line, slack_pattern_, &path_slack)) {
+        if (RE2::FullMatch(line, _slack_pattern, &path_slack)) {
           iter++;
         }
         break;
