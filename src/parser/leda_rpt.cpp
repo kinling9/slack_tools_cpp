@@ -1,8 +1,6 @@
 #include <boost/convert.hpp>
 #include <boost/convert/strtol.hpp>
 #include <boost/iostreams/copy.hpp>
-#include <iostream>
-#include <thread>
 
 #include "parser/leda_rpt.h"
 #include "utils/utils.h"
@@ -12,6 +10,7 @@ void leda_rpt_parser::parse_path(const std::vector<std::string> &path) {
   std::shared_ptr<Pin> pinObj = std::make_shared<Pin>();
   std::shared_ptr<Net> netObj = std::make_shared<Net>();
   int iter = 0;
+  std::string path_slack;
   for (const auto &line : path) {
     switch (iter) {
       case 0:
@@ -78,10 +77,20 @@ void leda_rpt_parser::parse_path(const std::vector<std::string> &path) {
           pinObj->net = netObj;
           pathObj->path.push_back(pinObj);
         }
+        break;
       }
+      case 5:
+        if (RE2::FullMatch(line, slack_pattern_, &path_slack)) {
+          iter++;
+        }
+        break;
       default:
         break;
     }
   }
-  paths_.emplace_back(pathObj);
+  if (!path_slack.empty()) {
+    pathObj->slack =
+        boost::convert<double>(path_slack, boost::cnv::strtol()).value();
+  }
+  _db.paths.emplace_back(pathObj);
 }

@@ -3,6 +3,7 @@
 #include <fstream>
 #include <iostream>
 
+#include "analyser/comparator.h"
 #include "parser/leda_rpt.h"
 #include "utils/utils.h"
 #include "yaml-cpp/yaml.h"
@@ -47,6 +48,11 @@ int main(int argc, char** argv) {
     std::cout << "Parsing " << rpts[1] << "\n";
     leda_rpt_parser parser1;
     parser1.parse_file(rpts[1]);
+
+    configs cmp_config{config["compare_mode"].as<std::string>()};
+    comparator cmp(cmp_config, {std::make_shared<basedb>(parser0.get_db()),
+                                std::make_shared<basedb>(parser1.get_db())});
+    cmp.match();
   }
   auto end = std::chrono::high_resolution_clock::now();
   std::chrono::duration<double> elapsed = end - start;

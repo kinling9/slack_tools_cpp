@@ -33,12 +33,13 @@ class Path {
   std::string endpoint;
   std::string group;
   std::string clock;
+  double slack;
   std::vector<std::shared_ptr<Pin>> path;
 };
 
 class basedb {
  public:
-  std::vector<std::shared_ptr<Net>> nets;
-  std::vector<std::shared_ptr<Pin>> pins;
+  // std::vector<std::shared_ptr<Net>> nets;
+  // std::vector<std::shared_ptr<Pin>> pins;
   std::vector<std::shared_ptr<Path>> paths;
 };

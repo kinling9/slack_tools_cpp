@@ -18,4 +18,5 @@ class leda_rpt_parser : public parser {
   const RE2 group_pattern_{"^Path Group: (\\S*)"};
   const RE2 path_type_pattern_{"^Path Type: (\\S*)"};
   const RE2 clock_pattern_{"clocked\\s+by\\s+(.*?)\\)"};
+  const RE2 slack_pattern_{"^slack \\(\\S+\\)\\s+([0-9.-]*).*"};
 };

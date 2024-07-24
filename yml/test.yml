@@ -1,4 +1,4 @@
 mode: compare
 compare_mode: endpoint
-rpts: ["rpt/SEED_allpath.rpt.gz", "rpt/SEED_allpath.rpt2"]
+rpts: ["rpt/SEED_allpath.rpt.gz", "rpt/SEED_allpath.rpt.gz"]
 type: ["leda", "leda"]

@@ -24,8 +24,6 @@ void parser::parse_file(const std::string &filename) {
     parse(instream);
     file.close();
   }
-
-  print_paths();
 }
 
 // 数据准备线程函数
@@ -85,6 +83,6 @@ void parser::print_paths() {
   for (const auto &path : paths_) {
     std::cout << "Startpoint: " << path->startpoint
               << " Endpoint: " << path->endpoint << " Group: " << path->group
-              << " Clock: " << path->clock << "\n";
+              << " Clock: " << path->clock << " Slack: " << path->slack << "\n";
   }
 }

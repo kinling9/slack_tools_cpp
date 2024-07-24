@@ -1,6 +1,7 @@
 #include <boost/iostreams/device/file.hpp>
 #include <boost/iostreams/filter/gzip.hpp>
 #include <boost/iostreams/filtering_stream.hpp>
+#include <cmath>
 #include <iostream>
 
 #include "utils.h"
@@ -51,4 +52,24 @@ bool isgz(const std::string &filename) {
   }
 
   return false;
+}
+double variance(const std::vector<double> &arr, std::size_t n) {
+  // Compute mean (average of elements)
+  double sum = 0;
+  for (std::size_t i = 0; i < n; i++) {
+    sum += arr[i];
+  };
+  double mean = sum / (double)n;
+
+  // Compute sum squared
+  // differences with mean.
+  double sqDiff = 0;
+  for (std::size_t i = 0; i < n; i++) {
+    sqDiff += (arr[i] - mean) * (arr[i] - mean);
+  }
+  return sqDiff / n;
+}
+
+double standardDeviation(const std::vector<double> &arr, std::size_t n) {
+  return std::sqrt(variance(arr, n));
 }
