@@ -9,8 +9,11 @@ target_link_libraries(parser re2::re2)
 target_link_libraries(parser argparse)
 target_link_libraries(parser yaml-cpp::yaml-cpp)
 target_link_libraries(parser fmt::fmt)
-set_target_properties(
-  parser
-  PROPERTIES
-  DEBUG_POSTFIX "-debug"
-)
+
+if(CMAKE_BUILD_TYPE STREQUAL "Debug")
+    message(STATUS "Configuring for Debug build")
+    set_target_properties(parser PROPERTIES OUTPUT_NAME "parser-debug")
+elseif(CMAKE_BUILD_TYPE STREQUAL "Release")
+    message(STATUS "Configuring for Release build")
+    set_target_properties(parser PROPERTIES OUTPUT_NAME "parser")
+endif()

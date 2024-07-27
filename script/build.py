@@ -14,8 +14,17 @@ def build(debug: bool = False, docker: bool = False):
     if dir_build not in files:
         os.mkdir(dir_build)
     if docker:
+        if os.path.exists(f"{dir_build}/src/tools.tar.gz"):
+            os.remove(f"{dir_build}/src/tools.tar.gz")
         os.environ["CC"] = "/usr/local/bin/gcc"
         os.environ["CXX"] = "/usr/local/bin/g++"
+        run_cmd(f"cmake -S . -B {dir_build} -GNinja -DCMAKE_BUILD_TYPE=Debug")
+        run_cmd(f"cmake --build {dir_build} --config Debug -j 8")
+        run_cmd(f"cmake -S . -B {dir_build} -GNinja")
+        run_cmd(f"cmake --build {dir_build} --config Release -j 8")
+        run_cmd(f"tar -zcvf {dir_build}/src/tools.tar.gz {dir_build}/src/parser*")
+        return
+
     if debug:
         run_cmd(f"cmake -S . -B {dir_build} -GNinja -DCMAKE_BUILD_TYPE=Debug")
         run_cmd(f"cmake --build {dir_build} --config Debug -j 8")
