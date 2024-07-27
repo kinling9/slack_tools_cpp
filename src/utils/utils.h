@@ -4,6 +4,7 @@
 
 struct configs {
   std::string compare_mode;
+  std::string design_name;
 };
 std::vector<std::string_view> split_string_by_spaces(const std::string &str);
 bool isgz(const std::string &filename);

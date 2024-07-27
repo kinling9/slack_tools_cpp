@@ -77,6 +77,10 @@ void parser::parse(std::istream &instream) {
   for (auto &consumer : consumers) {
     consumer.join();
   }
+  std::sort(_db.paths.begin(), _db.paths.end(),
+            [](const std::shared_ptr<Path> &a, const std::shared_ptr<Path> &b) {
+              return a->slack < b->slack;
+            });
 }
 
 void parser::print_paths() {

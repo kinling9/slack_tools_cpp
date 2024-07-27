@@ -59,7 +59,6 @@ void leda_rpt_parser::parse_path(const std::vector<std::string> &path) {
                                      boost::cnv::strtol())
                   .value());
           pinObj = std::make_shared<Pin>(pin);
-          // std::cout << pinObj->cell << "\n";
           if (netObj->pins.second == nullptr) {
             netObj->pins.second = pinObj;
             pinObj->net = netObj;
