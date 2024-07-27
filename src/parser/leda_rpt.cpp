@@ -5,7 +5,8 @@
 #include "parser/leda_rpt.h"
 #include "utils/utils.h"
 
-void leda_rpt_parser::parse_path(const std::vector<std::string> &path) {
+std::shared_ptr<Path> leda_rpt_parser::parse_path(
+    const std::vector<std::string> &path) {
   std::shared_ptr<Path> pathObj = std::make_shared<Path>();
   std::shared_ptr<Pin> pinObj = std::make_shared<Pin>();
   std::shared_ptr<Net> netObj = std::make_shared<Net>();
@@ -91,5 +92,5 @@ void leda_rpt_parser::parse_path(const std::vector<std::string> &path) {
     pathObj->slack =
         boost::convert<double>(path_slack, boost::cnv::strtol()).value();
   }
-  _db.paths.emplace_back(pathObj);
+  return pathObj;
 }

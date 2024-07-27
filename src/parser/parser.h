@@ -18,7 +18,8 @@ class parser {
   void print_paths();
   const basedb &get_db() const { return _db; }
 
-  virtual void parse_path(const std::vector<std::string> &path) = 0;
+  virtual std::shared_ptr<Path> parse_path(
+      const std::vector<std::string> &path) = 0;
 
  protected:
   std::queue<std::vector<std::string>> _data_queue;

@@ -63,7 +63,10 @@ void parser::data_processing() {
     path = _data_queue.front();
     _data_queue.pop();
     lock.unlock();
-    parse_path(path);
+    auto path_obj = parse_path(path);
+    lock.lock();
+    _db.paths.emplace_back(path_obj);
+    lock.unlock();
   }
 }
 

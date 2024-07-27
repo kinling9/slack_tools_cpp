@@ -8,7 +8,7 @@
 
 class leda_rpt_parser : public parser {
  public:
-  void parse_path(const std::vector<std::string> &path);
+  std::shared_ptr<Path> parse_path(const std::vector<std::string> &path);
 
  private:
   const RE2 _at_pattern{"^data arrival time.*"};
