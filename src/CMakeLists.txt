@@ -9,3 +9,8 @@ target_link_libraries(parser re2::re2)
 target_link_libraries(parser argparse)
 target_link_libraries(parser yaml-cpp::yaml-cpp)
 target_link_libraries(parser fmt::fmt)
+set_target_properties(
+  parser
+  PROPERTIES
+  DEBUG_POSTFIX "-debug"
+)
