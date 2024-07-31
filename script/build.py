@@ -8,8 +8,9 @@ def run_cmd(cmd: str):
     print(f"Running: {cmd}")
     os.system(cmd)
 
+
 def build(debug: bool = False, docker: bool = False):
-    dir_build =  "build" + ("_docker" if docker else "")
+    dir_build = "build" + ("_docker" if docker else "")
     files = os.listdir(os.getcwd())
     if dir_build not in files:
         os.mkdir(dir_build)
@@ -32,6 +33,7 @@ def build(debug: bool = False, docker: bool = False):
         run_cmd(f"cmake -S . -B {dir_build} -GNinja")
         run_cmd(f"cmake --build {dir_build} --config Release -j 8")
 
+
 def clean():
     run_cmd("cmake --build build --target clean")
 
@@ -48,7 +50,6 @@ if __name__ == "__main__":
     if "LICENSE" not in files:
         print("script should run in the root directory of the project")
         sys.exit(1)
-
 
     if args.clean:
         clean()

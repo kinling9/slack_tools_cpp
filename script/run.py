@@ -8,7 +8,7 @@ if __name__ == "__main__":
 
     arg_parser = argparse.ArgumentParser()
     arg_parser.add_argument("--debug", action="store_true")
-    
+
     args = arg_parser.parse_args()
     files = os.listdir(os.getcwd())
     if "LICENSE" not in files:
