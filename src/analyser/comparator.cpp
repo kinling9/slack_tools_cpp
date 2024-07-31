@@ -48,7 +48,7 @@ void comparator::match() {
       auto diff_slack = path->slack - path_maps[1][endpoint]->slack;
       _slack_diffs.push_back(diff_slack);
       for (std::size_t i = 0; i < _slack_margins.size(); i++) {
-        if (diff_slack < _slack_margins[i] * period) {
+        if (abs(diff_slack) < _slack_margins[i] * period) {
           diff_nums[i]++;
         }
       }
@@ -58,6 +58,9 @@ void comparator::match() {
   for (std::size_t i = 0; i < _slack_margins.size(); i++) {
     diff_ratios[i] = static_cast<double>(diff_nums[i]) / path_nums[0];
   }
+  auto tmpf = std::fopen("output/tmp.txt", "w");
+  fmt::print(tmpf, "{}", fmt::join(_slack_diffs, "\n"));
+  std::fclose(tmpf);
 
   int mismatch = _dbs[0]->paths.size() - _slack_diffs.size();
   double average_slack_diff =

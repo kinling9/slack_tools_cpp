@@ -9,27 +9,29 @@ def run_cmd(cmd: str):
     os.system(cmd)
 
 
-def build(debug: bool = False, docker: bool = False):
+def build(docker: bool = False):
     dir_build = "build" + ("_docker" if docker else "")
+    dir_build_debug = dir_build + "_debug"
     files = os.listdir(os.getcwd())
     if dir_build not in files:
         os.mkdir(dir_build)
     if docker:
-        if os.path.exists(f"{dir_build}/src/tools.tar.gz"):
-            os.remove(f"{dir_build}/src/tools.tar.gz")
+        if os.path.exists(f"tools.tar.gz"):
+            os.remove(f"tools.tar.gz")
         os.environ["CC"] = "/usr/local/bin/gcc"
         os.environ["CXX"] = "/usr/local/bin/g++"
-        run_cmd(f"cmake -S . -B {dir_build} -GNinja -DCMAKE_BUILD_TYPE=Debug")
-        run_cmd(f"cmake --build {dir_build} --config Debug -j 8")
+        run_cmd(f"cmake -S . -B {dir_build_debug} -GNinja -DCMAKE_BUILD_TYPE=Debug")
+        run_cmd(f"cmake --build {dir_build_debug} --config Debug -j 8")
         run_cmd(f"cmake -S . -B {dir_build} -GNinja")
         run_cmd(f"cmake --build {dir_build} --config Release -j 8")
-        run_cmd(f"tar -zcvf {dir_build}/src/tools.tar.gz {dir_build}/src/parser*")
+        run_cmd(
+            f"tar -zcvf tools.tar.gz {dir_build}/src/parser {dir_build_debug}/src/parser-debug"
+        )
         return
 
-    if debug:
-        run_cmd(f"cmake -S . -B {dir_build} -GNinja -DCMAKE_BUILD_TYPE=Debug")
-        run_cmd(f"cmake --build {dir_build} --config Debug -j 8")
     else:
+        run_cmd(f"cmake -S . -B {dir_build_debug} -GNinja -DCMAKE_BUILD_TYPE=Debug")
+        run_cmd(f"cmake --build {dir_build_debug} --config Debug -j 8")
         run_cmd(f"cmake -S . -B {dir_build} -GNinja")
         run_cmd(f"cmake --build {dir_build} --config Release -j 8")
 
@@ -42,7 +44,6 @@ if __name__ == "__main__":
 
     arg_parser = argparse.ArgumentParser()
     arg_parser.add_argument("--clean", action="store_true")
-    arg_parser.add_argument("--debug", action="store_true")
     arg_parser.add_argument("--docker", action="store_true")
     args = arg_parser.parse_args()
 
@@ -54,4 +55,4 @@ if __name__ == "__main__":
     if args.clean:
         clean()
     else:
-        build(args.debug, args.docker)
+        build(args.docker)
