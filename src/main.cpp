@@ -2,13 +2,9 @@
 #include <fmt/ranges.h>
 
 #include <argparse/argparse.hpp>
-#include <chrono>
 #include <iostream>
 
-#include "absl/container/flat_hash_set.h"
-#include "analyser/comparator.h"
 #include "flow/flow_control.h"
-#include "parser/leda_rpt.h"
 #include "utils/design_cons.h"
 #include "utils/utils.h"
 #include "yaml-cpp/yaml.h"
