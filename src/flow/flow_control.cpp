@@ -52,7 +52,16 @@ void flow_control::parse_yml(std::string yml_file) {
       std::exit(1);
     }
     design = designs.begin()->data();
-    _configs = configs{config["compare_mode"].as<std::string>(), design};
+    _configs = configs{.compare_mode = config["compare_mode"].as<std::string>(),
+                       .design_name = design};
+    if (config["slack_margins"]) {
+      _configs.slack_margins =
+          config["slack_margins"].as<std::vector<double>>();
+    }
+    if (config["match_percentages"]) {
+      _configs.match_percentages =
+          config["match_percentages"].as<std::vector<double>>();
+    }
   }
 }
 

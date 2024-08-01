@@ -15,10 +15,10 @@ void comparator::match() {
   std::vector<std::string> headers = {"Design",   "Path num 1", "Path num 2",
                                       "NVP1",     "NVP2",       "Not found",
                                       "Avg diff", "Var diff"};
-  for (const auto &margin : _slack_margins) {
+  for (const auto &margin : _configs.slack_margins) {
     headers.push_back(fmt::format("Diff < {}", margin));
   }
-  for (const auto &percentage : _match_percentages) {
+  for (const auto &percentage : _configs.match_percentages) {
     headers.push_back(fmt::format("Match {}%", percentage * 100));
   }
 

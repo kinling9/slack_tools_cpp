@@ -2,5 +2,5 @@ mode: compare
 compare_mode: endpoint
 rpts: ["rpt/B005_allpath.rpt.gz", "rpt/B005_allpath2.rpt.gz"]
 type: ["leda", "leda"]
-slack_margins: [0.01, 0.03, 0.05, 0.1]
+slack_margins: [0.01, 0.03, 0.05, 0.1, 1]
 match_percentages: [0.01, 0.03, 0.1, 0.5, 1]
