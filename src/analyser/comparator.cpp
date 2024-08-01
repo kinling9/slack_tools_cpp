@@ -42,20 +42,20 @@ void comparator::match() {
   }
 
   _slack_diffs.reserve(_dbs[0]->paths.size());
-  std::vector<int> diff_nums(_slack_margins.size(), 0);
+  std::vector<int> diff_nums(_configs.slack_margins.size(), 0);
   for (const auto &[endpoint, path] : path_maps[0]) {
     if (path_maps[1].find(endpoint) != path_maps[1].end()) {
       auto diff_slack = path->slack - path_maps[1][endpoint]->slack;
       _slack_diffs.push_back(diff_slack);
-      for (std::size_t i = 0; i < _slack_margins.size(); i++) {
-        if (abs(diff_slack) < _slack_margins[i] * period) {
+      for (std::size_t i = 0; i < _configs.slack_margins.size(); i++) {
+        if (abs(diff_slack) < _configs.slack_margins[i] * period) {
           diff_nums[i]++;
         }
       }
     }
   }
-  std::vector<double> diff_ratios(_slack_margins.size(), 0.0);
-  for (std::size_t i = 0; i < _slack_margins.size(); i++) {
+  std::vector<double> diff_ratios(_configs.slack_margins.size(), 0.0);
+  for (std::size_t i = 0; i < _configs.slack_margins.size(); i++) {
     diff_ratios[i] = static_cast<double>(diff_nums[i]) / path_nums[0];
   }
 
@@ -66,9 +66,9 @@ void comparator::match() {
   double variance_slack_diff =
       standardDeviation(_slack_diffs, _slack_diffs.size());
 
-  std::vector<double> match_ratios(_match_percentages.size(), 0.0);
-  for (std::size_t i = 0; i < _match_percentages.size(); i++) {
-    double percentage = _match_percentages[i];
+  std::vector<double> match_ratios(_configs.match_percentages.size(), 0.0);
+  for (std::size_t i = 0; i < _configs.match_percentages.size(); i++) {
+    double percentage = _configs.match_percentages[i];
     std::vector<absl::flat_hash_set<std::string>> percent_sets(2);
     for (int j = 0; j < 2; j++) {
       for (std::size_t k = 0; k < _dbs[j]->paths.size() * percentage; k++) {
