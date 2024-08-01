@@ -8,6 +8,7 @@ class comparator : public analyser {
              const std::vector<std::shared_ptr<basedb>> &dbs)
       : analyser(configs), _dbs(dbs) {};
   void match();
+  void gen_map();
 
  private:
   std::vector<std::shared_ptr<basedb>> _dbs;

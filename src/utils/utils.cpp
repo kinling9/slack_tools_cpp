@@ -73,3 +73,20 @@ double variance(const std::vector<double> &arr, std::size_t n) {
 double standardDeviation(const std::vector<double> &arr, std::size_t n) {
   return std::sqrt(variance(arr, n));
 }
+
+void run_function(const std::string &func_name, std::function<void()> func) {
+  auto start_elapsed = std::chrono::high_resolution_clock::now();
+  std::clock_t start_cpu = std::clock();
+
+  // Call the function with provided arguments
+  func();
+
+  std::clock_t end_cpu = std::clock();
+  auto end_elapsed = std::chrono::high_resolution_clock::now();
+  std::chrono::duration<double> elapsed_seconds = end_elapsed - start_elapsed;
+  double cpu_seconds = double(end_cpu - start_cpu) / CLOCKS_PER_SEC;
+
+  // Print the results
+  fmt::print("Finish {}, Elapsed time: {} seconds, CPU time: {} seconds\n",
+             func_name, elapsed_seconds.count(), cpu_seconds);
+}
