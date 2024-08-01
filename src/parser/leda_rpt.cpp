@@ -44,6 +44,7 @@ std::shared_ptr<Path> leda_rpt_parser::parse_path(
         std::vector<std::string_view> tokens = split_string_by_spaces(line);
         if (tokens.size() == 8) {
           Pin pin;
+          pin.name = std::string(tokens[0]);
           pin.cell = std::string(tokens[1].substr(1, tokens[1].size() - 2));
           pin.trans =
               boost::convert<double>(tokens[2], boost::cnv::strtol()).value();

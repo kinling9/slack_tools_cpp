@@ -27,25 +27,20 @@ void comparator::match() {
   design_cons &cons = design_cons::get_instance();
   auto period = cons.get_period(_configs.design_name);
 
-  std::vector<absl::flat_hash_map<std::string, std::shared_ptr<Path>>>
-      path_maps(2);
-  if (_configs.compare_mode == "endpoint") {
-    for (int i = 0; i < 2; i++) {
-      path_nums[i] = _dbs[i]->paths.size();
-      for (const auto &path : _dbs[i]->paths) {
-        path_maps[i][path->endpoint] = path;
-        if (path->slack < 0) {
-          ++nvps[i];
-        }
+  for (int i = 0; i < 2; i++) {
+    path_nums[i] = _dbs[i]->paths.size();
+    for (const auto &path : _dbs[i]->paths) {
+      if (path->slack < 0) {
+        ++nvps[i];
       }
     }
   }
 
   _slack_diffs.reserve(_dbs[0]->paths.size());
   std::vector<int> diff_nums(_configs.slack_margins.size(), 0);
-  for (const auto &[endpoint, path] : path_maps[0]) {
-    if (path_maps[1].find(endpoint) != path_maps[1].end()) {
-      auto diff_slack = path->slack - path_maps[1][endpoint]->slack;
+  for (const auto &[key, path] : _path_maps[0]) {
+    if (_path_maps[1].find(key) != _path_maps[1].end()) {
+      auto diff_slack = path->slack - _path_maps[1][key]->slack;
       _slack_diffs.push_back(diff_slack);
       for (std::size_t i = 0; i < _configs.slack_margins.size(); i++) {
         if (abs(diff_slack) < _configs.slack_margins[i] * period) {
@@ -86,7 +81,8 @@ void comparator::match() {
   }
 
   std::filesystem::path output_dir = "output";
-  auto csv_path = output_dir / "compare.csv";
+  auto csv_path = output_dir / fmt::format("{}_{}.csv", _configs.design_name,
+                                           _configs.compare_mode);
   std::filesystem::create_directories(output_dir);
   auto out_file = std::fopen(csv_path.c_str(), "w");
   fmt::print(out_file, "{}\n", fmt::join(headers, ","));
@@ -95,4 +91,46 @@ void comparator::match() {
              average_slack_diff, variance_slack_diff,
              fmt::join(diff_ratios, ","), fmt::join(match_ratios, ","));
   std::fclose(out_file);
+}
+
+void comparator::gen_map() {
+  std::function<std::string(std::shared_ptr<Path>)> key_generator;
+  if (_configs.compare_mode == "endpoint") {
+    key_generator = [](const std::shared_ptr<Path> &path) {
+      return path->endpoint;
+    };
+  } else if (_configs.compare_mode == "startpoint") {
+    fmt::print(
+        "Warning: startpoint comparison will lose paths with the same "
+        "startpoint!\n");
+    key_generator = [](const std::shared_ptr<Path> &path) {
+      return path->startpoint;
+    };
+  } else if (_configs.compare_mode == "full_path") {
+    key_generator = [](const std::shared_ptr<Path> &path) {
+      std::vector<std::string> full_path(path->path.size());
+      std::transform(path->path.begin(), path->path.end(), full_path.begin(),
+                     [](const std::shared_ptr<Pin> &pin) { return pin->name; });
+      auto output = fmt::format("{}", fmt::join(full_path, "->"));
+      return output;
+    };
+  } else if (_configs.compare_mode == "start_end") {
+    key_generator = [](const std::shared_ptr<Path> &path) {
+      return fmt::format("{}->{}", path->startpoint, path->endpoint);
+    };
+  } else {
+    throw std::runtime_error("Invalid compare mode");
+  }
+  for (const auto &db : _dbs) {
+    absl::flat_hash_map<std::string, std::shared_ptr<Path>> path_map;
+    for (const auto &path : db->paths) {
+      path_map[key_generator(path)] = path;
+    }
+    _path_maps.push_back(path_map);
+  }
+}
+
+void comparator::analyse() {
+  gen_map();
+  match();
 }

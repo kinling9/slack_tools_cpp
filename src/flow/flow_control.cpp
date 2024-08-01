@@ -76,7 +76,7 @@ void flow_control::parse_rpt(std::string rpt_file, std::string rpt_type) {
 
 void flow_control::analyse() {
   comparator cmp(_configs, _dbs);
-  cmp.match();
+  cmp.analyse();
 }
 
 void flow_control::run() {
