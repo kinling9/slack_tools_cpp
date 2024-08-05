@@ -23,4 +23,5 @@ class comparator : public analyser {
 
  private:
   absl::flat_hash_map<std::string, std::vector<std::shared_ptr<basedb>>> _dbs;
+  std::vector<std::string> _headers;
 };

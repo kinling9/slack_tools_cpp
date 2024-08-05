@@ -15,17 +15,6 @@ void comparator::match(
     const std::vector<absl::flat_hash_map<std::string, std::shared_ptr<Path>>>
         &path_maps,
     const std::vector<std::shared_ptr<basedb>> &dbs) {
-  // output headers
-  std::vector<std::string> headers = {"Design",   "Path num 1", "Path num 2",
-                                      "NVP1",     "NVP2",       "Not found",
-                                      "Avg diff", "Var diff"};
-  for (const auto &margin : _configs.slack_margins) {
-    headers.push_back(fmt::format("Diff < {}", margin));
-  }
-  for (const auto &percentage : _configs.match_percentages) {
-    headers.push_back(fmt::format("Match {}%", percentage * 100));
-  }
-
   std::vector<int> nvps(2, 0);
   std::vector<int> path_nums(2, 0);
   design_cons &cons = design_cons::get_instance();
@@ -90,7 +79,7 @@ void comparator::match(
       output_dir / fmt::format("{}_{}.csv", design, _configs.compare_mode);
   std::filesystem::create_directories(output_dir);
   auto out_file = std::fopen(csv_path.c_str(), "w");
-  fmt::print(out_file, "{}\n", fmt::join(headers, ","));
+  fmt::print(out_file, "{}\n", fmt::join(_headers, ","));
   fmt::print(out_file, "{},{},{},{},{},{},{},{}", design,
              fmt::join(path_nums, ","), fmt::join(nvps, ","), mismatch,
              average_slack_diff, variance_slack_diff,
@@ -141,5 +130,17 @@ void comparator::analyse() {
       gen_map(dbs[i], path_maps[i]);
     }
     match(design, path_maps, dbs);
+  }
+}
+
+void comparator::gen_headers() {
+  // output headers
+  _headers = {"Design", "Path num 1", "Path num 2", "NVP1",
+              "NVP2",   "Not found",  "Avg diff",   "Var diff"};
+  for (const auto &margin : _configs.slack_margins) {
+    _headers.push_back(fmt::format("Diff < {}", margin));
+  }
+  for (const auto &percentage : _configs.match_percentages) {
+    _headers.push_back(fmt::format("Match {}%", percentage * 100));
   }
 }
