@@ -11,7 +11,7 @@
 
 class parser {
  public:
-  void parse_file(const std::string &filename);
+  bool parse_file(const std::string &filename);
   void parse(std::istream &instream);
   void data_preparation(std::istream &instream);
   void data_processing();

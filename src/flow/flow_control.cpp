@@ -110,8 +110,11 @@ std::shared_ptr<basedb> flow_control::parse_rpt(std::string rpt_file,
   if (rpt_type == "leda") {
     leda_rpt_parser parser;
     fmt::print("Parsing {}\n", rpt_file);
-    parser.parse_file(rpt_file);
-    cur_db = std::make_shared<basedb>(parser.get_db());
+    if (parser.parse_file(rpt_file)) {
+      cur_db = std::make_shared<basedb>(parser.get_db());
+    } else {
+      cur_db = nullptr;
+    }
   }
   return cur_db;
 }
@@ -128,7 +131,15 @@ void flow_control::run() {
   for (const auto& [design, rpt_group] : _rpts) {
     std::vector<std::shared_ptr<basedb>> db_group;
     for (const auto& [rpt, type] : rpt_group) {
-      db_group.emplace_back(parse_rpt(rpt, type));
+      const auto& db = parse_rpt(rpt, type);
+      if (db != nullptr) {
+        db_group.push_back(db);
+      }
+    }
+    if (db_group.size() != 2) {
+      fmt::print("The number of valid reports for design {} is not 2, skip.\n",
+                 design);
+      continue;
     }
     _dbs.insert({design, db_group});
   }

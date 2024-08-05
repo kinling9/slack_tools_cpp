@@ -37,7 +37,7 @@ std::vector<std::string_view> split_string_by_spaces(const std::string &str) {
 bool isgz(const std::string &filename) {
   std::ifstream file(filename, std::ios::binary);
   if (!file.is_open()) {
-    std::cerr << "Could not open the file!" << std::endl;
+    fmt::print("Cannot open file {}\n", filename);
     return false;
   }
 

@@ -8,11 +8,15 @@
 #include "re2/re2.h"
 #include "utils/utils.h"
 
-void parser::parse_file(const std::string &filename) {
+bool parser::parse_file(const std::string &filename) {
   std::ifstream file(filename, std::ios_base::in | std::ios_base::binary);
   if (!isgz(filename)) {
     file.close();
     std::ifstream simple_file(filename);
+
+    if (!simple_file.is_open()) {
+      return false;
+    }
     parse(simple_file);
     simple_file.close();
   } else {
@@ -24,6 +28,7 @@ void parser::parse_file(const std::string &filename) {
     parse(instream);
     file.close();
   }
+  return true;
 }
 
 // 数据准备线程函数
