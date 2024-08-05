@@ -3,8 +3,9 @@
 #include <vector>
 
 struct configs {
+  std::string mode;
   std::string compare_mode;
-  std::string design_name;
+  // std::vector<std::string> design_names;
 
   // default values
   std::vector<double> slack_margins = {0.01, 0.03, 0.05, 0.1};

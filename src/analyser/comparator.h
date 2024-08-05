@@ -7,15 +7,20 @@
 class comparator : public analyser {
  public:
   comparator(const configs &configs,
-             const std::vector<std::shared_ptr<basedb>> &dbs)
+             const absl::flat_hash_map<
+                 std::string, std::vector<std::shared_ptr<basedb>>> &dbs)
       : analyser(configs), _dbs(dbs) {};
-  void match();
-  void gen_map();
+  void match(
+      const std::string &design,
+      const std::vector<absl::flat_hash_map<std::string, std::shared_ptr<Path>>>
+          &path_maps,
+      const std::vector<std::shared_ptr<basedb>> &dbs);
+  void gen_map(
+      const std::shared_ptr<basedb> &db,
+      absl::flat_hash_map<std::string, std::shared_ptr<Path>> &path_map);
+  void gen_headers();
   void analyse() override;
 
  private:
-  std::vector<std::shared_ptr<basedb>> _dbs;
-  std::vector<double> _slack_diffs;
-  std::vector<absl::flat_hash_map<std::string, std::shared_ptr<Path>>>
-      _path_maps;
+  absl::flat_hash_map<std::string, std::vector<std::shared_ptr<basedb>>> _dbs;
 };
