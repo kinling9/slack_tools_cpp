@@ -8,6 +8,7 @@
 
 class invs_rpt_parser : public parser {
  public:
+  invs_rpt_parser() : parser("Path \\d+") {}
   std::shared_ptr<Path> parse_path(const std::vector<std::string> &path);
 
  private:
