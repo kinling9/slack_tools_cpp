@@ -35,7 +35,7 @@ bool parser::parse_file(const std::string &filename) {
 void parser::data_preparation(std::istream &instream) {
   std::string line;
   std::vector<std::string> data;
-  RE2 start_pattern("^Startpoint: .*");
+  RE2 start_pattern(_start_pattern);
   std::vector<std::string> path;
   bool start_flag = false;
   while (std::getline(instream, line)) {

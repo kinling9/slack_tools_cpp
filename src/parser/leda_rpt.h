@@ -8,6 +8,7 @@
 
 class leda_rpt_parser : public parser {
  public:
+  leda_rpt_parser() : parser("Startpoint: .*") {}
   std::shared_ptr<Path> parse_path(const std::vector<std::string> &path);
 
  private:

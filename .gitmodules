@@ -1,18 +1,18 @@
 [submodule "thirdparty/re2"]
-	path = thirdparty/re2
-	url = https://github.com/google/re2.git
+  path = thirdparty/re2
+  url = git@github.com:kinling9/re2.git
 [submodule "thirdparty/abseil-cpp"]
-	path = thirdparty/abseil-cpp
-	url = https://github.com/abseil/abseil-cpp.git
+  path = thirdparty/abseil-cpp
+  url = https://github.com/abseil/abseil-cpp.git
 [submodule "rpt"]
-	path = rpt
-	url = https://github.com/Mr-shunshun/rpt_dir_module.git
+  path = rpt
+  url = git@github.com:kinling9/benchmark_rpts.git
 [submodule "thirdparty/argparse"]
-	path = thirdparty/argparse
-	url = https://github.com/p-ranav/argparse.git
+  path = thirdparty/argparse
+  url = https://github.com/p-ranav/argparse.git
 [submodule "thirdparty/yaml-cpp"]
-	path = thirdparty/yaml-cpp
-	url = https://github.com/jbeder/yaml-cpp.git
+  path = thirdparty/yaml-cpp
+  url = https://github.com/jbeder/yaml-cpp.git
 [submodule "thirdparty/fmt"]
-	path = thirdparty/fmt
-	url = https://github.com/fmtlib/fmt.git
+  path = thirdparty/fmt
+  url = https://github.com/fmtlib/fmt.git
