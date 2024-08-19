@@ -12,6 +12,8 @@
 class parser {
  public:
   parser(const std::string &start_pattern) : _start_pattern(start_pattern) {}
+  parser(const std::string &start_pattern, int num_consumers)
+      : _start_pattern(start_pattern), _num_consumers(num_consumers) {}
   bool parse_file(const std::string &filename);
   void parse(std::istream &instream);
   void data_preparation(std::istream &instream);
@@ -29,4 +31,5 @@ class parser {
   bool _done = false;  // 标志是否完成数据准备
   basedb _db;
   std::string _start_pattern;
+  int _num_consumers = 4;
 };

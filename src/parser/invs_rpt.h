@@ -8,15 +8,16 @@
 
 class invs_rpt_parser : public parser {
  public:
-  invs_rpt_parser() : parser("Path \\d+") {}
+  invs_rpt_parser() : parser("^Path\\s+\\d+.*") {}
+  invs_rpt_parser(int num_consumers)
+      : parser("Path\\s+\\d+.*", num_consumers) {}
   std::shared_ptr<Path> parse_path(const std::vector<std::string> &path);
 
  private:
-  // const RE2 _at_pattern{"^data arrival time.*"};
-  // const RE2 _begin_pattern{"^Startpoint: (\\S*) .*"};
-  // const RE2 _end_pattern{"^Endpoint: (\\S*) .*"};
-  // const RE2 _group_pattern{"^Path Group: (\\S*)"};
-  // const RE2 _path_type_pattern{"^Path Type: (\\S*)"};
-  // const RE2 _clock_pattern{"clocked\\s+by\\s+(.*?)\\)"};
-  // const RE2 _slack_pattern{"^slack \\(\\S+\\)\\s+([0-9.-]*).*"};
+  const RE2 _split_pattern{"^\\s+-+.*"};
+  const RE2 _begin_pattern{"^Beginpoint:\\s+(\\S*)\\s+.*"};
+  const RE2 _end_pattern{"^Endpoint:\\s+(\\S*)\\s+.*"};
+  const RE2 _group_pattern{"^Path Groups: {(\\S*)}"};
+  const RE2 _clock_pattern{"triggered by\\s+leading edge of\\s+'(.*)'"};
+  const RE2 _slack_pattern{"^= Slack Time\\s+([0-9\\.-]*).*"};
 };

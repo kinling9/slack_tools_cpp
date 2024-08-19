@@ -4,6 +4,7 @@
 #include "absl/container/flat_hash_set.h"
 #include "analyser/comparator.h"
 #include "flow/flow_control.h"
+#include "parser/invs_rpt.h"
 #include "parser/leda_rpt.h"
 #include "utils/design_cons.h"
 #include "utils/utils.h"
@@ -27,10 +28,6 @@ void flow_control::parse_yml(std::string yml_file) {
     auto rpts = config["rpts"].as<std::vector<std::vector<std::string>>>();
     if (types.size() != 2) {
       throw fmt::system_error(errno, "Please provide two files for comparison");
-      std::exit(1);
-    }
-    if (types[0] != "leda" && types[1] != "leda") {
-      throw fmt::system_error(errno, "Currently, only leda_rpt is supported");
       std::exit(1);
     }
     for (std::size_t i = 0; i < rpts.size(); i++) {
@@ -107,14 +104,26 @@ void flow_control::parse_yml(std::string yml_file) {
 std::shared_ptr<basedb> flow_control::parse_rpt(std::string rpt_file,
                                                 std::string rpt_type) {
   std::shared_ptr<basedb> cur_db;
+  fmt::print("Parsing {}\n", rpt_file);
   if (rpt_type == "leda") {
     leda_rpt_parser parser;
-    fmt::print("Parsing {}\n", rpt_file);
     if (parser.parse_file(rpt_file)) {
       cur_db = std::make_shared<basedb>(parser.get_db());
     } else {
       cur_db = nullptr;
     }
+  } else if (rpt_type == "invs") {
+    invs_rpt_parser parser(1);
+    if (parser.parse_file(rpt_file)) {
+      cur_db = std::make_shared<basedb>(parser.get_db());
+    } else {
+      cur_db = nullptr;
+    }
+  } else {
+    throw fmt::system_error(errno, "The report type {} is not supported, skip.",
+                            rpt_type);
+    std::exit(1);
+    cur_db = nullptr;
   }
   return cur_db;
 }

@@ -57,6 +57,7 @@ void parser::data_preparation(std::istream &instream) {
   _done = true;
   _data_cond_var.notify_all();  // 通知可能在等待的处理线程
 }
+
 void parser::data_processing() {
   std::vector<std::string> path;
   while (true) {
@@ -78,7 +79,7 @@ void parser::data_processing() {
 void parser::parse(std::istream &instream) {
   std::thread producer([this, &instream] { data_preparation(instream); });
   std::vector<std::thread> consumers;
-  for (int i = 0; i < 4; i++) {
+  for (int i = 0; i < _num_consumers; i++) {
     consumers.emplace_back([this] { data_processing(); });
   }
   producer.join();
