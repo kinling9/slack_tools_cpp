@@ -3,7 +3,9 @@
 
 #include "absl/container/flat_hash_set.h"
 #include "analyser/comparator.h"
+#include "analyser/existence_checker.h"
 #include "flow/flow_control.h"
+#include "parser/def_parser.h"
 #include "parser/invs_rpt.h"
 #include "parser/leda_rpt.h"
 #include "utils/design_cons.h"
@@ -98,6 +100,13 @@ void flow_control::parse_yml(std::string yml_file) {
       _configs.match_percentages =
           config["match_percentages"].as<std::vector<double>>();
     }
+  } else if (mode == "cell in def") {
+    _configs = configs{.mode = mode};
+    _rpt_defs = config["rpt_defs"].as<std::vector<std::vector<std::string>>>();
+    _rpt_type = config["rpt_type"].as<std::string>();
+  } else {
+    throw fmt::system_error(errno, "The mode {} is not supported, skip.", mode);
+    std::exit(1);
   }
 }
 
@@ -128,29 +137,51 @@ std::shared_ptr<basedb> flow_control::parse_rpt(std::string rpt_file,
   return cur_db;
 }
 
-void flow_control::analyse(std::string mode) {
-  if (mode == "compare") {
+void flow_control::analyse() {
+  if (_configs.mode == "compare") {
     comparator cmp(_configs, _dbs);
     cmp.analyse();
+  } else if (_configs.mode == "cell in def") {
+    existence_checker checker(_configs);
+    for (const auto& rpt_def : _rpt_defs) {
+      const auto& rpt = rpt_def[0];
+      const auto& def = rpt_def[1];
+      const auto& db = parse_rpt(rpt, _rpt_type);
+      def_parser parser;
+      parser.parse_file(def);
+      checker.check_existence(parser.get_map(), db);
+    }
+  } else {
+    throw fmt::system_error(errno, "The mode {} is not supported, skip.",
+                            _configs.mode);
+    std::exit(1);
+  }
+}
+
+void flow_control::parse() {
+  if (_configs.mode == "compare") {
+    for (const auto& [design, rpt_group] : _rpts) {
+      std::vector<std::shared_ptr<basedb>> db_group;
+      for (const auto& [rpt, type] : rpt_group) {
+        const auto& db = parse_rpt(rpt, type);
+        if (db != nullptr) {
+          db_group.push_back(db);
+        }
+      }
+      if (db_group.size() != 2) {
+        fmt::print(
+            "The number of valid reports for design {} is not 2, skip.\n",
+            design);
+        continue;
+      }
+      _dbs.insert({design, db_group});
+    }
   }
 }
 
 void flow_control::run() {
+  // TODO: rewrite to handle the data sharing between classes
   parse_yml(_yml);
-  for (const auto& [design, rpt_group] : _rpts) {
-    std::vector<std::shared_ptr<basedb>> db_group;
-    for (const auto& [rpt, type] : rpt_group) {
-      const auto& db = parse_rpt(rpt, type);
-      if (db != nullptr) {
-        db_group.push_back(db);
-      }
-    }
-    if (db_group.size() != 2) {
-      fmt::print("The number of valid reports for design {} is not 2, skip.\n",
-                 design);
-      continue;
-    }
-    _dbs.insert({design, db_group});
-  }
-  analyse(_configs.mode);
+  parse();
+  analyse();
 }
