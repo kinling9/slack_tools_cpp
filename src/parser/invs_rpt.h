@@ -4,13 +4,13 @@
 #include <string>
 #include <vector>
 
-#include "parser/parser.h"
+#include "parser/rpt_parser.h"
 
-class invs_rpt_parser : public parser {
+class invs_rpt_parser : public rpt_parser {
  public:
-  invs_rpt_parser() : parser("^Path\\s+\\d+.*") {}
+  invs_rpt_parser() : rpt_parser("^Path\\s+\\d+.*") {}
   invs_rpt_parser(int num_consumers)
-      : parser("Path\\s+\\d+.*", num_consumers) {}
+      : rpt_parser("Path\\s+\\d+.*", num_consumers) {}
   std::shared_ptr<Path> parse_path(const std::vector<std::string> &path);
 
  private:
@@ -20,4 +20,5 @@ class invs_rpt_parser : public parser {
   const RE2 _group_pattern{"^Path Groups: {(\\S*)}"};
   const RE2 _clock_pattern{"triggered by\\s+leading edge of\\s+'(.*)'"};
   const RE2 _slack_pattern{"^= Slack Time\\s+([0-9\\.-]*).*"};
+  const RE2 _with_net_pattern{"^.*Net.*"};
 };

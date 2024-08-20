@@ -9,10 +9,11 @@
 
 #include "dm/dm.h"
 
-class parser {
+class rpt_parser {
  public:
-  parser(const std::string &start_pattern) : _start_pattern(start_pattern) {}
-  parser(const std::string &start_pattern, int num_consumers)
+  rpt_parser(const std::string &start_pattern)
+      : _start_pattern(start_pattern) {}
+  rpt_parser(const std::string &start_pattern, int num_consumers)
       : _start_pattern(start_pattern), _num_consumers(num_consumers) {}
   bool parse_file(const std::string &filename);
   void parse(std::istream &instream);

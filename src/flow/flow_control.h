@@ -12,14 +12,18 @@ class flow_control {
   void run();
   void parse_yml(std::string yml_file);
   std::shared_ptr<basedb> parse_rpt(std::string rpt_file, std::string rpt_type);
-  void analyse(std::string mode);
+  void parse();
+  void analyse();
 
  private:
   std::string _yml;
   configs _configs;
-  std::shared_ptr<analyser> _analyser;
+  // compare mode
   absl::flat_hash_map<std::string, std::vector<std::shared_ptr<basedb>>> _dbs;
   absl::flat_hash_map<std::string,
                       std::vector<std::pair<std::string, std::string>>>
       _rpts;
+  // def mode
+  std::vector<std::vector<std::string>> _rpt_defs;
+  std::string _rpt_type;
 };
