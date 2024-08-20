@@ -1,5 +1,6 @@
 #pragma once
 #include <absl/container/flat_hash_map.h>
+#include <re2/re2.h>
 
 #include "analyser/analyser.h"
 #include "dm/dm.h"
@@ -13,4 +14,5 @@ class existence_checker : public analyser {
       const std::shared_ptr<basedb> &db);
 
  private:
+  const RE2 _pin_pattern{"(.*)/[^/]*"};
 };
