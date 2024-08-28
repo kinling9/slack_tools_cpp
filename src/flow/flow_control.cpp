@@ -102,6 +102,9 @@ void flow_control::parse_yml(std::string yml_file) {
       _configs.match_percentages =
           config["match_percentages"].as<std::vector<double>>();
     }
+    if (config["match_paths"]) {
+      _configs.match_paths = config["match_paths"].as<std::size_t>();
+    }
   } else if (mode == "cell in def") {
     _rpt_defs = config["rpt_defs"].as<std::vector<std::vector<std::string>>>();
     _rpt_type = config["rpt_type"].as<std::string>();

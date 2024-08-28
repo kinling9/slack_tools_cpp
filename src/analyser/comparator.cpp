@@ -122,6 +122,9 @@ void comparator::gen_map(
   } else {
     throw std::runtime_error("Invalid compare mode");
   }
+  if (_configs.match_paths > 0 && _configs.match_paths < db->paths.size()) {
+    db->paths.resize(_configs.match_paths);
+  }
   for (const auto &path : db->paths) {
     path_map[key_generator(path)] = path;
   }
