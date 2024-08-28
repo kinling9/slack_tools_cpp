@@ -1,0 +1,13 @@
+{
+  "version": "0.2.0",
+  "configurations": [
+    {
+      "name": "Launch debugger",
+      "type": "lldb",
+      "request": "launch",
+      "cwd": "${workspaceFolder}",
+      "args": ["yml/test.yml"],
+      "program": "build_debug/src/parser-debug"
+    }
+  ]
+}
