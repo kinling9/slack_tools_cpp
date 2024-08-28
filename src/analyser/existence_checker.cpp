@@ -6,7 +6,10 @@
 void existence_checker::check_existence(
     const absl::flat_hash_map<std::string, std::string> &cell_maps,
     const std::shared_ptr<basedb> &db) {
-  auto fmt_file = std::fopen("invalid_pins.txt", "w");
+  std::filesystem::path output_dir = "output";
+  auto check_file = output_dir / "invalid_pins.txt";
+  std::filesystem::create_directories(output_dir);
+  auto fmt_file = std::fopen(check_file.c_str(), "w");
   for (const auto &path : db->paths) {
     for (const auto &pin : path->path) {
       std::string cell_name;
