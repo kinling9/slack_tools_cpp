@@ -4,8 +4,6 @@
 #include <fmt/core.h>
 #include <fmt/ranges.h>
 
-#include <filesystem>
-
 #include "analyser/comparator.h"
 #include "utils/design_cons.h"
 #include "utils/utils.h"
@@ -19,6 +17,7 @@ void comparator::match(
   std::vector<int> path_nums(2, 0);
   design_cons &cons = design_cons::get_instance();
   auto period = cons.get_period(design);
+  absl::flat_hash_map<std::string, std::string> row;
 
   for (int i = 0; i < 2; i++) {
     path_nums[i] = dbs[i]->paths.size();
@@ -74,17 +73,23 @@ void comparator::match(
                       std::min(percent_sets[0].size(), percent_sets[1].size());
   }
 
-  std::filesystem::path output_dir = "output";
-  auto csv_path =
-      output_dir / fmt::format("{}_{}.csv", design, _configs.compare_mode);
-  std::filesystem::create_directories(output_dir);
-  auto out_file = std::fopen(csv_path.c_str(), "w");
-  fmt::print(out_file, "{}\n", fmt::join(_headers, ","));
-  fmt::print(out_file, "{},{},{},{},{},{},{},{}", design,
-             fmt::join(path_nums, ","), fmt::join(nvps, ","), mismatch,
-             average_slack_diff, variance_slack_diff,
-             fmt::join(diff_ratios, ","), fmt::join(match_ratios, ","));
-  std::fclose(out_file);
+  row["Design"] = design;
+  for (int i = 0; i < 2; i++) {
+    row[fmt::format("Path num {}", i + 1)] = std::to_string(path_nums[i]);
+    row[fmt::format("NVP{}", i + 1)] = std::to_string(nvps[i]);
+  }
+  row["Not found"] = std::to_string(mismatch);
+  row["Avg diff"] = std::to_string(average_slack_diff);
+  row["Var diff"] = std::to_string(variance_slack_diff);
+  for (std::size_t i = 0; i < _configs.slack_margins.size(); i++) {
+    row[fmt::format("Diff < {}", _configs.slack_margins[i])] =
+        std::to_string(diff_ratios[i]);
+  }
+  for (std::size_t i = 0; i < _configs.match_percentages.size(); i++) {
+    row[fmt::format("Match {}%", _configs.match_percentages[i] * 100)] =
+        std::to_string(match_ratios[i]);
+  }
+  _writer.add_row(row);
 }
 
 void comparator::gen_map(
@@ -123,6 +128,7 @@ void comparator::gen_map(
 }
 
 void comparator::analyse() {
+  gen_headers();
   for (const auto &[design, dbs] : _dbs) {
     std::vector<absl::flat_hash_map<std::string, std::shared_ptr<Path>>>
         path_maps(2);
@@ -131,6 +137,7 @@ void comparator::analyse() {
     }
     match(design, path_maps, dbs);
   }
+  _writer.write();
 }
 
 void comparator::gen_headers() {
@@ -143,4 +150,5 @@ void comparator::gen_headers() {
   for (const auto &percentage : _configs.match_percentages) {
     _headers.push_back(fmt::format("Match {}%", percentage * 100));
   }
+  _writer.set_headers(_headers);
 }

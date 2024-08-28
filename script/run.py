@@ -20,6 +20,6 @@ if __name__ == "__main__":
 
     build(args.debug)
     if not args.debug:
-        run_cmd("./build/src/parser ./rpt/B005_allpath.rpt.gz")
+        run_cmd("./build/src/slack_tool yml/leda_test.yml")
     else:
-        run_cmd("gdb ./build/src/parser")
+        run_cmd("gdb ./build/src/slack_tool")

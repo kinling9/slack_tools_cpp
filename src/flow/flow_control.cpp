@@ -9,7 +9,6 @@
 #include "parser/invs_rpt.h"
 #include "parser/leda_rpt.h"
 #include "utils/design_cons.h"
-#include "utils/utils.h"
 #include "yaml-cpp/yaml.h"
 
 void flow_control::parse_yml(std::string yml_file) {
