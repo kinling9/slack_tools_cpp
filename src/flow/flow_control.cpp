@@ -24,6 +24,10 @@ void flow_control::parse_yml(std::string yml_file) {
   fmt::print("Parsing {}\n", yml_file);
   std::cout << config << "\n";
   auto mode = config["mode"].as<std::string>();
+  _configs = configs{.mode = mode};
+  if (config["output_dir"]) {
+    _configs.output_dir = config["output_dir"].as<std::string>();
+  }
   if (mode == "compare") {
     auto types = config["type"].as<std::vector<std::string>>();
     auto rpts = config["rpts"].as<std::vector<std::vector<std::string>>>();
@@ -66,8 +70,7 @@ void flow_control::parse_yml(std::string yml_file) {
             {design, {{rpt_group[0], types[0]}, {rpt_group[1], types[1]}}});
       }
     }
-    _configs = configs{
-        .mode = mode, .compare_mode = config["compare_mode"].as<std::string>()};
+    _configs.compare_mode = config["compare_mode"].as<std::string>();
     for (std::size_t i = 0; i < _rpts.size(); i++) {
       std::string design;
       absl::flat_hash_set<std::string> designs;
@@ -100,7 +103,6 @@ void flow_control::parse_yml(std::string yml_file) {
           config["match_percentages"].as<std::vector<double>>();
     }
   } else if (mode == "cell in def") {
-    _configs = configs{.mode = mode};
     _rpt_defs = config["rpt_defs"].as<std::vector<std::vector<std::string>>>();
     _rpt_type = config["rpt_type"].as<std::string>();
   } else {

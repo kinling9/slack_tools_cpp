@@ -32,7 +32,7 @@ void csv_writer::add_row(
 }
 
 void csv_writer::write() {
-  std::filesystem::path output_dir = "output";
+  std::filesystem::path output_dir = _output_dir;
   auto csv_path = output_dir / _filename;
   std::filesystem::create_directories(output_dir);
   auto out_file = std::fopen(csv_path.c_str(), "w");

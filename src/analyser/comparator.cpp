@@ -128,6 +128,7 @@ void comparator::gen_map(
 }
 
 void comparator::analyse() {
+  _writer.set_output_dir(_configs.output_dir);
   gen_headers();
   for (const auto &[design, dbs] : _dbs) {
     std::vector<absl::flat_hash_map<std::string, std::shared_ptr<Path>>>

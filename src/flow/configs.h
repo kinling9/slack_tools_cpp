@@ -5,6 +5,7 @@
 struct configs {
   std::string mode;
   std::string compare_mode;
+  std::string output_dir = "output";
   // std::vector<std::string> design_names;
 
   // default values
