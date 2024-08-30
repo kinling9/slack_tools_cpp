@@ -35,7 +35,7 @@ bool rpt_parser::parse_file(const std::string &filename) {
 void rpt_parser::data_preparation(std::istream &instream) {
   std::string line;
   std::vector<std::string> data;
-  RE2 start_pattern(_start_pattern);
+  const RE2 start_pattern(_start_pattern);
   std::vector<std::string> path;
   bool start_flag = false;
   while (std::getline(instream, line)) {
