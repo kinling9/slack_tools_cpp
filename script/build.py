@@ -25,7 +25,7 @@ def build(docker: bool = False):
         run_cmd(f"cmake -S . -B {dir_build} -GNinja")
         run_cmd(f"cmake --build {dir_build} --config Release -j 8")
         run_cmd(
-            f"tar -zcvf tools.tar.gz {dir_build}/src/parser {dir_build_debug}/src/parser-debug"
+            f"tar -zcvf tools.tar.gz {dir_build}/src/slack_tool {dir_build_debug}/src/slack_tool-debug"
         )
         return
 

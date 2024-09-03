@@ -1,5 +1,7 @@
 #include <fmt/core.h>
 
+#include <filesystem>
+
 #include "analyser/existence_checker.h"
 #include "re2/re2.h"
 
