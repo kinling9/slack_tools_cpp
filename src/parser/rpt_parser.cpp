@@ -28,6 +28,7 @@ bool rpt_parser::parse_file(const std::string &filename) {
     parse(instream);
     file.close();
   }
+  _db.tool = _tool_name;
   return true;
 }
 

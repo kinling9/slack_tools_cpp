@@ -3,6 +3,7 @@
 
 #include "analyser/analyser.h"
 #include "dm/dm.h"
+#include "utils/mbff_pattern.h"
 
 class comparator : public analyser {
  public:
@@ -24,4 +25,5 @@ class comparator : public analyser {
  private:
   absl::flat_hash_map<std::string, std::vector<std::shared_ptr<basedb>>> _dbs;
   std::vector<std::string> _headers;
+  mbff_pattern _mbff;
 };

@@ -8,9 +8,9 @@
 
 class leda_rpt_parser : public rpt_parser {
  public:
-  leda_rpt_parser() : rpt_parser("Startpoint: .*") {}
+  leda_rpt_parser() : rpt_parser("leda", "Startpoint: .*") {}
   leda_rpt_parser(int num_consumers)
-      : rpt_parser("Startpoint: .*", num_consumers) {}
+      : rpt_parser("leda", "Startpoint: .*", num_consumers) {}
   std::shared_ptr<Path> parse_path(const std::vector<std::string> &path);
 
  private:

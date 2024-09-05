@@ -1,3 +1,5 @@
+#include <fmt/ranges.h>
+
 #include <argparse/argparse.hpp>
 #include <iostream>
 
@@ -8,8 +10,6 @@
 #include "yaml-cpp/yaml.h"
 
 int main(int argc, char** argv) {
-  mbff_pattern mbff("yml/mbff_pattern.yml");
-  return 0;
   argparse::ArgumentParser program("cpp_timing_analyser");
   program.add_argument("yml").help("yml config file");
 

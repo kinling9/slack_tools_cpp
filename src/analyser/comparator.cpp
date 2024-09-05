@@ -95,29 +95,44 @@ void comparator::match(
 void comparator::gen_map(
     const std::shared_ptr<basedb> &db,
     absl::flat_hash_map<std::string, std::shared_ptr<Path>> &path_map) {
-  std::function<std::string(std::shared_ptr<Path>)> key_generator;
+  std::function<std::vector<std::string>(std::shared_ptr<Path>)> key_generator;
   if (_configs.compare_mode == "endpoint") {
-    key_generator = [](const std::shared_ptr<Path> &path) {
-      return path->endpoint;
+    key_generator =
+        [&](const std::shared_ptr<Path> &path) -> std::vector<std::string> {
+      return _mbff.get_ff_names(db->tool, path->endpoint);
     };
   } else if (_configs.compare_mode == "startpoint") {
     fmt::print(
         "Warning: startpoint comparison will lose paths with the same "
         "startpoint!\n");
-    key_generator = [](const std::shared_ptr<Path> &path) {
-      return path->startpoint;
+    key_generator =
+        [&](const std::shared_ptr<Path> &path) -> std::vector<std::string> {
+      return {path->startpoint};
     };
   } else if (_configs.compare_mode == "full_path") {
-    key_generator = [](const std::shared_ptr<Path> &path) {
-      std::vector<std::string> full_path(path->path.size());
-      std::transform(path->path.begin(), path->path.end(), full_path.begin(),
+    key_generator =
+        [&](const std::shared_ptr<Path> &path) -> std::vector<std::string> {
+      std::vector<std::string> full_path(path->path.size() - 1);
+      std::transform(path->path.begin(), std::prev(path->path.end(), 1),
+                     full_path.begin(),
                      [](const std::shared_ptr<Pin> &pin) { return pin->name; });
       auto output = fmt::format("{}", fmt::join(full_path, "->"));
-      return output;
+      auto last_ff = _mbff.get_ff_names(db->tool, path->path.back()->name);
+      std::vector<std::string> output_vec;
+      for (const auto &ff : last_ff) {
+        output_vec.push_back(fmt::format("{}->{}", output, ff));
+      }
+      return output_vec;
     };
   } else if (_configs.compare_mode == "start_end") {
-    key_generator = [](const std::shared_ptr<Path> &path) {
-      return fmt::format("{}->{}", path->startpoint, path->endpoint);
+    key_generator =
+        [&](const std::shared_ptr<Path> &path) -> std::vector<std::string> {
+      auto last_ff = _mbff.get_ff_names(db->tool, path->endpoint);
+      std::vector<std::string> output_vec;
+      for (const auto &ff : last_ff) {
+        output_vec.push_back(fmt::format("{}->{}", path->startpoint, ff));
+      }
+      return output_vec;
     };
   } else {
     throw std::runtime_error("Invalid compare mode");
@@ -126,12 +141,18 @@ void comparator::gen_map(
     db->paths.resize(_configs.match_paths);
   }
   for (const auto &path : db->paths) {
-    path_map[key_generator(path)] = path;
+    auto keys = key_generator(path);
+    for (const auto &key : keys) {
+      path_map[key] = path;
+    }
   }
 }
 
 void comparator::analyse() {
   _writer.set_output_dir(_configs.output_dir);
+  if (_configs.enable_mbff) {
+    _mbff.load_pattern("yml/mbff_pattern.yml");
+  }
   gen_headers();
   for (const auto &[design, dbs] : _dbs) {
     std::vector<absl::flat_hash_map<std::string, std::shared_ptr<Path>>>

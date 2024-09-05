@@ -8,9 +8,9 @@
 
 class invs_rpt_parser : public rpt_parser {
  public:
-  invs_rpt_parser() : rpt_parser("^Path\\s+\\d+.*") {}
+  invs_rpt_parser() : rpt_parser("invs", "^Path\\s+\\d+.*") {}
   invs_rpt_parser(int num_consumers)
-      : rpt_parser("Path\\s+\\d+.*", num_consumers) {}
+      : rpt_parser("invs", "Path\\s+\\d+.*", num_consumers) {}
   std::shared_ptr<Path> parse_path(const std::vector<std::string> &path);
 
  private:

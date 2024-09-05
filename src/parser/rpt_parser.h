@@ -11,10 +11,13 @@
 
 class rpt_parser {
  public:
-  rpt_parser(const std::string &start_pattern)
-      : _start_pattern(start_pattern) {}
-  rpt_parser(const std::string &start_pattern, int num_consumers)
-      : _start_pattern(start_pattern), _num_consumers(num_consumers) {}
+  rpt_parser(const std::string &tool_name, const std::string &start_pattern)
+      : _tool_name(tool_name), _start_pattern(start_pattern) {}
+  rpt_parser(const std::string &tool_name, const std::string &start_pattern,
+             int num_consumers)
+      : _tool_name(tool_name),
+        _start_pattern(start_pattern),
+        _num_consumers(num_consumers) {}
   bool parse_file(const std::string &filename);
   void parse(std::istream &instream);
   void data_preparation(std::istream &instream);
@@ -31,6 +34,7 @@ class rpt_parser {
   std::condition_variable _data_cond_var;
   bool _done = false;  // 标志是否完成数据准备
   basedb _db;
-  std::string _start_pattern;
   int _num_consumers = 4;
+  std::string _tool_name;
+  std::string _start_pattern;
 };

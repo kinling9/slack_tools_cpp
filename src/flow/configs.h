@@ -6,6 +6,7 @@ struct configs {
   std::string mode;
   std::string compare_mode;
   std::string output_dir = "output";
+  bool enable_mbff = false;
   // std::vector<std::string> design_names;
 
   // default values
