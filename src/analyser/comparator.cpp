@@ -4,6 +4,8 @@
 #include <fmt/core.h>
 #include <fmt/ranges.h>
 
+#include <ranges>
+
 #include "analyser/comparator.h"
 #include "utils/design_cons.h"
 #include "utils/utils.h"
@@ -33,10 +35,8 @@ void comparator::match(
   std::vector<int> diff_nums(_configs.slack_margins.size(), 0);
   absl::flat_hash_set<std::shared_ptr<Path>> path_set;
   for (const auto &[key, path] : path_maps[0]) {
-    fmt::print("key {} ", key);
     if (path_maps[1].find(key) != path_maps[1].end() &&
         path_set.find(path) == path_set.end()) {
-      fmt::print("match!\n");
       path_set.emplace(path);
       auto diff_slack = path->slack - path_maps[1].at(key)->slack;
       slack_diffs.push_back(diff_slack);
@@ -45,21 +45,11 @@ void comparator::match(
           diff_nums[i]++;
         }
       }
-    } else if (path_set.find(path) != path_set.end()) {
-      fmt::print("skip!\n");
-    } else {
-      fmt::print("miss!\n");
     }
   }
   std::vector<double> diff_ratios(_configs.slack_margins.size(), 0.0);
   for (std::size_t i = 0; i < _configs.slack_margins.size(); i++) {
     diff_ratios[i] = static_cast<double>(diff_nums[i]) / path_nums[0];
-  }
-
-  for (const auto &path : dbs[0]->paths) {
-    if (path_set.find(path) == path_set.end()) {
-      fmt::print("Endpoint {}\n", path->endpoint);
-    }
   }
 
   int mismatch = dbs[0]->paths.size() - slack_diffs.size();
@@ -73,9 +63,18 @@ void comparator::match(
   for (std::size_t i = 0; i < _configs.match_percentages.size(); i++) {
     double percentage = _configs.match_percentages[i];
     std::vector<absl::flat_hash_set<std::string>> percent_sets(2);
+    std::vector<std::size_t> path_nums = {
+        static_cast<std::size_t>(dbs[0]->paths.size() * percentage),
+        static_cast<std::size_t>(dbs[1]->paths.size() * percentage)};
     for (int j = 0; j < 2; j++) {
-      for (std::size_t k = 0; k < dbs[j]->paths.size() * percentage; k++) {
-        percent_sets[j].insert(dbs[j]->paths[k]->endpoint);
+      // for (std::size_t k = 0; k < dbs[j]->paths.size() * percentage; k++) {
+      //   percent_sets[j].insert(dbs[j]->paths[k]->endpoint);
+      // }
+      absl::flat_hash_map<std::string, std::shared_ptr<Path>> path_map;
+      gen_map(dbs[j]->tool, dbs[j]->paths | std::views::take(path_nums[j]),
+              path_map);
+      for (const auto &key : path_map | std::views::keys) {
+        percent_sets[j].insert(key);
       }
     }
     absl::flat_hash_set<std::string> intersection;
@@ -85,7 +84,7 @@ void comparator::match(
       }
     }
     match_ratios[i] = static_cast<double>(intersection.size()) /
-                      std::min(percent_sets[0].size(), percent_sets[1].size());
+                      std::min(path_nums[0], path_nums[1]);
   }
 
   row["Design"] = design;
@@ -108,13 +107,13 @@ void comparator::match(
 }
 
 void comparator::gen_map(
-    const std::shared_ptr<basedb> &db,
+    const std::string &tool, std::ranges::input_range auto &&paths,
     absl::flat_hash_map<std::string, std::shared_ptr<Path>> &path_map) {
   std::function<std::vector<std::string>(std::shared_ptr<Path>)> key_generator;
   if (_configs.compare_mode == "endpoint") {
     key_generator =
         [&](const std::shared_ptr<Path> &path) -> std::vector<std::string> {
-      return _mbff.get_ff_names(db->tool, path->endpoint);
+      return _mbff.get_ff_names(tool, path->endpoint);
     };
   } else if (_configs.compare_mode == "startpoint") {
     fmt::print(
@@ -132,7 +131,7 @@ void comparator::gen_map(
                      full_path.begin(),
                      [](const std::shared_ptr<Pin> &pin) { return pin->name; });
       auto output = fmt::format("{}", fmt::join(full_path, "->"));
-      auto last_ff = _mbff.get_ff_names(db->tool, path->path.back()->name);
+      auto last_ff = _mbff.get_ff_names(tool, path->path.back()->name);
       std::vector<std::string> output_vec;
       for (const auto &ff : last_ff) {
         output_vec.push_back(fmt::format("{}->{}", output, ff));
@@ -142,7 +141,7 @@ void comparator::gen_map(
   } else if (_configs.compare_mode == "start_end") {
     key_generator =
         [&](const std::shared_ptr<Path> &path) -> std::vector<std::string> {
-      auto last_ff = _mbff.get_ff_names(db->tool, path->endpoint);
+      auto last_ff = _mbff.get_ff_names(tool, path->endpoint);
       std::vector<std::string> output_vec;
       for (const auto &ff : last_ff) {
         output_vec.push_back(fmt::format("{}->{}", path->startpoint, ff));
@@ -152,15 +151,12 @@ void comparator::gen_map(
   } else {
     throw std::runtime_error("Invalid compare mode");
   }
-  if (_configs.match_paths > 0 && _configs.match_paths < db->paths.size()) {
-    db->paths.resize(_configs.match_paths);
-  }
-  for (const auto &path : db->paths) {
+  std::ranges::for_each(paths, [&](const std::shared_ptr<Path> &path) {
     auto keys = key_generator(path);
     for (const auto &key : keys) {
       path_map[key] = path;
     }
-  }
+  });
 }
 
 void comparator::analyse() {
@@ -173,7 +169,9 @@ void comparator::analyse() {
     std::vector<absl::flat_hash_map<std::string, std::shared_ptr<Path>>>
         path_maps(2);
     for (int i = 0; i < 2; i++) {
-      gen_map(dbs[i], path_maps[i]);
+      gen_map(dbs[i]->tool,
+              dbs[i]->paths | std::views::take(_configs.match_paths),
+              path_maps[i]);
     }
     fmt::print("finish gen map\n");
     match(design, path_maps, dbs);
