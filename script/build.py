@@ -30,6 +30,9 @@ def build(docker: bool = False):
         run_cmd(
             f"tar -zcvf tools.tar.gz {dir_build}/src/slack_tool {dir_build_debug}/src/slack_tool-debug yml/design_period.yml"
         )
+        run_cmd(
+            r'sed -i "s/set(Boost_USE_STATIC_LIBS ON)/# set(Boost_USE_STATIC_LIBS ON)/g" CMakeLists.txt'
+        )
         return
 
     else:
