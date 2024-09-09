@@ -31,8 +31,13 @@ void comparator::match(
   std::vector<double> slack_diffs;
   slack_diffs.reserve(dbs[0]->paths.size());
   std::vector<int> diff_nums(_configs.slack_margins.size(), 0);
+  absl::flat_hash_set<std::shared_ptr<Path>> path_set;
   for (const auto &[key, path] : path_maps[0]) {
-    if (path_maps[1].find(key) != path_maps[1].end()) {
+    fmt::print("key {} ", key);
+    if (path_maps[1].find(key) != path_maps[1].end() &&
+        path_set.find(path) == path_set.end()) {
+      fmt::print("match!\n");
+      path_set.emplace(path);
       auto diff_slack = path->slack - path_maps[1].at(key)->slack;
       slack_diffs.push_back(diff_slack);
       for (std::size_t i = 0; i < _configs.slack_margins.size(); i++) {
@@ -40,11 +45,21 @@ void comparator::match(
           diff_nums[i]++;
         }
       }
+    } else if (path_set.find(path) != path_set.end()) {
+      fmt::print("skip!\n");
+    } else {
+      fmt::print("miss!\n");
     }
   }
   std::vector<double> diff_ratios(_configs.slack_margins.size(), 0.0);
   for (std::size_t i = 0; i < _configs.slack_margins.size(); i++) {
     diff_ratios[i] = static_cast<double>(diff_nums[i]) / path_nums[0];
+  }
+
+  for (const auto &path : dbs[0]->paths) {
+    if (path_set.find(path) == path_set.end()) {
+      fmt::print("Endpoint {}\n", path->endpoint);
+    }
   }
 
   int mismatch = dbs[0]->paths.size() - slack_diffs.size();
@@ -160,6 +175,7 @@ void comparator::analyse() {
     for (int i = 0; i < 2; i++) {
       gen_map(dbs[i], path_maps[i]);
     }
+    fmt::print("finish gen map\n");
     match(design, path_maps, dbs);
   }
   _writer.write();

@@ -11,7 +11,7 @@ set(CMAKE_CXX_FLAGS "-Wall -Wextra")
 set(CMAKE_CXX_FLAGS_DEBUG "-g")
 set(CMAKE_CXX_FLAGS_RELEASE "-O3")
 # set(CMAKE_INCLUDE_CURRENT_DIR ON)
-set(Boost_USE_STATIC_LIBS ON)
+# set(Boost_USE_STATIC_LIBS ON)
 set(ABSL_PROPAGATE_CXX_STD ON)
 
 find_package(Boost REQUIRED iostreams)
