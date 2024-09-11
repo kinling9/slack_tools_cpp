@@ -5,16 +5,18 @@
 #include "utils/csv_writer.h"
 
 class analyser {
- public:
+public:
   analyser(const configs &configs)
       : _configs(configs),
-        _writer(configs.match_paths == 0
+        _writer(configs.match_paths == std::numeric_limits<std::size_t>::max()
                     ? fmt::format("{}.csv", configs.compare_mode)
                     : fmt::format("{}_{}.csv", configs.compare_mode,
-                                  configs.match_paths)) {}
+                                  configs.match_paths)) {
+    _writer.set_output_dir(_configs.output_dir);
+  }
   virtual void analyse() = 0;
 
- protected:
+protected:
   configs _configs;
   csv_writer _writer;
 };

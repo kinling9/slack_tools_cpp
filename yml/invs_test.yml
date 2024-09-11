@@ -3,8 +3,9 @@ compare_mode: full_path # [endpoint, startpoint, start_end, full_path]
 rpts: 
   - ["rpt/invs_rpts/z80_core_top_N7_LEC_preCTS_place.tarpt.gz", "rpt/invs_rpts/z80_core_top_N7_LEC_preCTS_popt.tarpt.gz"]
   - ["rpt/invs_rpts/axi4lscope.simple.gz", "rpt/invs_rpts/axi4lscope.simple.gz"]
-type: ["invs", "invs"]
+tools: ["invs", "invs"]
 slack_margins: [0.01, 0.03, 0.05, 0.1, 1]
 match_percentages: [0.01, 0.03, 0.1, 0.5, 1]
 output_dir: output
 match_paths: 10
+enable_mbff: True

@@ -25,5 +25,5 @@ class flow_control {
       _rpts;
   // def mode
   std::vector<std::vector<std::string>> _rpt_defs;
-  std::string _rpt_type;
+  std::string _rpt_tool;
 };

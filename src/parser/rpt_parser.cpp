@@ -1,10 +1,11 @@
+#include "parser/rpt_parser.h"
+
 #include <boost/iostreams/copy.hpp>
 #include <boost/iostreams/filter/gzip.hpp>
 #include <boost/iostreams/filtering_streambuf.hpp>
 #include <fstream>
 #include <thread>
 
-#include "parser/rpt_parser.h"
 #include "re2/re2.h"
 #include "utils/utils.h"
 
@@ -28,6 +29,7 @@ bool rpt_parser::parse_file(const std::string &filename) {
     parse(instream);
     file.close();
   }
+  _db.tool = _tool_name;
   return true;
 }
 

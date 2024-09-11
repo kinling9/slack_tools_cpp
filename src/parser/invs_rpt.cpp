@@ -1,3 +1,5 @@
+#include "parser/invs_rpt.h"
+
 #include <fmt/ranges.h>
 
 #include <boost/convert.hpp>
@@ -5,7 +7,6 @@
 #include <boost/iostreams/copy.hpp>
 
 #include "dm/dm.h"
-#include "parser/invs_rpt.h"
 #include "utils/utils.h"
 
 enum block {

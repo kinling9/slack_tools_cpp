@@ -20,12 +20,18 @@ def build(docker: bool = False):
             os.remove(f"tools.tar.gz")
         os.environ["CC"] = "/usr/local/bin/gcc"
         os.environ["CXX"] = "/usr/local/bin/g++"
+        run_cmd(
+            r'sed -i "s/# set(Boost_USE_STATIC_LIBS ON)/set(Boost_USE_STATIC_LIBS ON)/g" CMakeLists.txt'
+        )
         run_cmd(f"cmake -S . -B {dir_build_debug} -GNinja -DCMAKE_BUILD_TYPE=Debug")
         run_cmd(f"cmake --build {dir_build_debug} --config Debug -j 8")
         run_cmd(f"cmake -S . -B {dir_build} -GNinja")
         run_cmd(f"cmake --build {dir_build} --config Release -j 8")
         run_cmd(
             f"tar -zcvf tools.tar.gz {dir_build}/src/slack_tool {dir_build_debug}/src/slack_tool-debug yml/design_period.yml"
+        )
+        run_cmd(
+            r'sed -i "s/set(Boost_USE_STATIC_LIBS ON)/# set(Boost_USE_STATIC_LIBS ON)/g" CMakeLists.txt'
         )
         return
 

@@ -1,10 +1,11 @@
+#include "flow/flow_control.h"
+
 #include <fmt/core.h>
 #include <fmt/ranges.h>
 
 #include "absl/container/flat_hash_set.h"
 #include "analyser/comparator.h"
 #include "analyser/existence_checker.h"
-#include "flow/flow_control.h"
 #include "parser/def_parser.h"
 #include "parser/invs_rpt.h"
 #include "parser/leda_rpt.h"
@@ -29,9 +30,9 @@ void flow_control::parse_yml(std::string yml_file) {
     _configs.output_dir = config["output_dir"].as<std::string>();
   }
   if (mode == "compare") {
-    auto types = config["type"].as<std::vector<std::string>>();
+    auto tools = config["tools"].as<std::vector<std::string>>();
     auto rpts = config["rpts"].as<std::vector<std::vector<std::string>>>();
-    if (types.size() != 2) {
+    if (tools.size() != 2) {
       throw fmt::system_error(errno, "Please provide two files for comparison");
       std::exit(1);
     }
@@ -67,7 +68,7 @@ void flow_control::parse_yml(std::string yml_file) {
         }
         design = designs.begin()->data();
         _rpts.insert(
-            {design, {{rpt_group[0], types[0]}, {rpt_group[1], types[1]}}});
+            {design, {{rpt_group[0], tools[0]}, {rpt_group[1], tools[1]}}});
       }
     }
     _configs.compare_mode = config["compare_mode"].as<std::string>();
@@ -105,9 +106,12 @@ void flow_control::parse_yml(std::string yml_file) {
     if (config["match_paths"]) {
       _configs.match_paths = config["match_paths"].as<std::size_t>();
     }
+    if (config["enable_mbff"]) {
+      _configs.enable_mbff = config["enable_mbff"].as<bool>();
+    }
   } else if (mode == "cell in def") {
     _rpt_defs = config["rpt_defs"].as<std::vector<std::vector<std::string>>>();
-    _rpt_type = config["rpt_type"].as<std::string>();
+    _rpt_tool = config["tool"].as<std::string>();
   } else {
     throw fmt::system_error(errno, "The mode {} is not supported, skip.", mode);
     std::exit(1);
@@ -115,17 +119,17 @@ void flow_control::parse_yml(std::string yml_file) {
 }
 
 std::shared_ptr<basedb> flow_control::parse_rpt(std::string rpt_file,
-                                                std::string rpt_type) {
+                                                std::string rpt_tool) {
   std::shared_ptr<basedb> cur_db;
   fmt::print("Parsing {}\n", rpt_file);
-  if (rpt_type == "leda") {
+  if (rpt_tool == "leda") {
     leda_rpt_parser parser;
     if (parser.parse_file(rpt_file)) {
       cur_db = std::make_shared<basedb>(parser.get_db());
     } else {
       cur_db = nullptr;
     }
-  } else if (rpt_type == "invs") {
+  } else if (rpt_tool == "invs") {
     invs_rpt_parser parser(1);
     if (parser.parse_file(rpt_file)) {
       cur_db = std::make_shared<basedb>(parser.get_db());
@@ -134,7 +138,7 @@ std::shared_ptr<basedb> flow_control::parse_rpt(std::string rpt_file,
     }
   } else {
     throw fmt::system_error(errno, "The report type {} is not supported, skip.",
-                            rpt_type);
+                            rpt_tool);
     std::exit(1);
     cur_db = nullptr;
   }
@@ -150,7 +154,7 @@ void flow_control::analyse() {
     for (const auto& rpt_def : _rpt_defs) {
       const auto& rpt = rpt_def[0];
       const auto& def = rpt_def[1];
-      const auto& db = parse_rpt(rpt, _rpt_type);
+      const auto& db = parse_rpt(rpt, _rpt_tool);
       def_parser parser;
       parser.parse_file(def);
       checker.check_existence(parser.get_map(), db);

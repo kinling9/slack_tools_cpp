@@ -7,7 +7,7 @@
       "request": "launch",
       "cwd": "${workspaceFolder}",
       "args": ["yml/test.yml"],
-      "program": "build_debug/src/parser-debug"
+      "program": "build_debug/src/slack_tool-debug"
     }
   ]
 }
