@@ -36,7 +36,12 @@ void comparator::match(
   slack_diffs.reserve(dbs[0]->paths.size());
   std::vector<int> diff_nums(_configs.slack_margins.size(), 0);
   absl::flat_hash_set<std::shared_ptr<Path>> path_set;
-  writer scatter_writer(fmt::format("{}_scatter.txt", design));
+  std::string scatter_file = fmt::format("{}_scatter.txt", design);
+  if (_configs.match_paths != std::numeric_limits<std::size_t>::max()) {
+    scatter_file =
+        fmt::format("{}_scatter_{}.txt", design, _configs.match_paths);
+  }
+  writer scatter_writer(scatter_file);
   scatter_writer.set_output_dir(_configs.output_dir);
   scatter_writer.open();
   for (const auto &[key, path] : path_maps[0]) {
@@ -56,8 +61,10 @@ void comparator::match(
 
   // write missing endpoints
   if (_configs.compare_mode == "endpoint" &&
-      path_set.size() < dbs[0]->paths.size()) {
-    writer endpoint_writer(fmt::format("{}_missing_endpoint.txt", design));
+      path_set.size() < dbs[0]->paths.size() &&
+      _configs.match_paths == std::numeric_limits<std::size_t>::max()) {
+    writer endpoint_writer(
+        fmt::format("{}_missing_endpoint.txt", design, _configs.match_paths));
     endpoint_writer.set_output_dir(_configs.output_dir);
     endpoint_writer.open();
     for (const auto &path : dbs[0]->paths) {
