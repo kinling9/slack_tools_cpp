@@ -17,14 +17,15 @@ void comparator::match(
         &path_maps,
     const std::vector<std::shared_ptr<basedb>> &dbs) {
   std::vector<int> nvps(2, 0);
-  std::vector<int> path_nums(2, 0);
+  std::vector<std::size_t> path_nums(2, 0);
   design_cons &cons = design_cons::get_instance();
   auto period = cons.get_period(design);
   absl::flat_hash_map<std::string, std::string> row;
 
   for (int i = 0; i < 2; i++) {
-    path_nums[i] = dbs[i]->paths.size();
-    for (const auto &path : dbs[i]->paths) {
+    path_nums[i] = std::min(dbs[i]->paths.size(), _configs.match_paths);
+    for (const auto &path :
+         dbs[i]->paths | std::views::take(_configs.match_paths)) {
       if (path->slack < 0) {
         ++nvps[i];
       }
@@ -35,10 +36,15 @@ void comparator::match(
   slack_diffs.reserve(dbs[0]->paths.size());
   std::vector<int> diff_nums(_configs.slack_margins.size(), 0);
   absl::flat_hash_set<std::shared_ptr<Path>> path_set;
+  writer scatter_writer(fmt::format("{}_scatter.txt", design));
+  scatter_writer.set_output_dir(_configs.output_dir);
+  scatter_writer.open();
   for (const auto &[key, path] : path_maps[0]) {
     if (path_maps[1].contains(key) && !path_set.contains(path)) {
       path_set.emplace(path);
       auto diff_slack = path->slack - path_maps[1].at(key)->slack;
+      fmt::print(scatter_writer.out_file, "{} {}\n", path->slack,
+                 path_maps[1].at(key)->slack);
       slack_diffs.push_back(diff_slack);
       for (std::size_t i = 0; i < _configs.slack_margins.size(); i++) {
         if (abs(diff_slack) < _configs.slack_margins[i] * period) {
