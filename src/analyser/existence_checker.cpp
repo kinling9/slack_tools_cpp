@@ -1,8 +1,9 @@
+#include "analyser/existence_checker.h"
+
 #include <fmt/core.h>
 
 #include <filesystem>
 
-#include "analyser/existence_checker.h"
 #include "re2/re2.h"
 
 void existence_checker::check_existence(
@@ -20,7 +21,7 @@ void existence_checker::check_existence(
         // fmt::print("Pin: {} does not match the pattern\n", pin->name);
         continue;
       }
-      if (cell_maps.find(cell_name) != cell_maps.end()) {
+      if (cell_maps.contains(cell_name)) {
         if (cell_maps.at(cell_name) != pin->cell) {
           fmt::print(fmt_file, "Pin: {}, Cell: {}, Expected: {}\n", pin->name,
                      pin->cell, cell_maps.at(cell_name));

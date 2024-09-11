@@ -1,3 +1,5 @@
+#include "analyser/comparator.h"
+
 #include <absl/container/btree_set.h>
 #include <absl/container/flat_hash_map.h>
 #include <absl/container/flat_hash_set.h>
@@ -6,7 +8,6 @@
 
 #include <ranges>
 
-#include "analyser/comparator.h"
 #include "utils/design_cons.h"
 #include "utils/utils.h"
 
@@ -35,8 +36,7 @@ void comparator::match(
   std::vector<int> diff_nums(_configs.slack_margins.size(), 0);
   absl::flat_hash_set<std::shared_ptr<Path>> path_set;
   for (const auto &[key, path] : path_maps[0]) {
-    if (path_maps[1].find(key) != path_maps[1].end() &&
-        path_set.find(path) == path_set.end()) {
+    if (path_maps[1].contains(key) && !path_set.contains(path)) {
       path_set.emplace(path);
       auto diff_slack = path->slack - path_maps[1].at(key)->slack;
       slack_diffs.push_back(diff_slack);
@@ -47,6 +47,19 @@ void comparator::match(
       }
     }
   }
+
+  // TODO: add output for missing endpoints
+  // for (const auto &[key, path] : path_maps[0]) {
+  //   if (!path_set.contains(path)) {
+  //     fmt::print("key {} is miss.\n", key);
+  //   }
+  // }
+  // for (const auto &path : dbs[0]->paths) {
+  //   if (!path_set.contains(path)) {
+  //     fmt::print("endpoint {} is miss.\n", path->endpoint);
+  //   }
+  // }
+
   std::vector<double> diff_ratios(_configs.slack_margins.size(), 0.0);
   for (std::size_t i = 0; i < _configs.slack_margins.size(); i++) {
     diff_ratios[i] = static_cast<double>(diff_nums[i]) / path_nums[0];
@@ -60,16 +73,19 @@ void comparator::match(
       standardDeviation(slack_diffs, slack_diffs.size());
 
   std::vector<double> match_ratios(_configs.match_percentages.size(), 0.0);
+  std::vector<std::size_t> analyse_paths = {
+      std::min(_configs.match_paths, dbs[0]->paths.size()),
+      std::min(_configs.match_paths, dbs[1]->paths.size())};
   for (std::size_t i = 0; i < _configs.match_percentages.size(); i++) {
     double percentage = _configs.match_percentages[i];
     std::vector<absl::flat_hash_set<std::string>> percent_sets(2);
-    std::vector<std::size_t> path_nums = {
-        static_cast<std::size_t>(dbs[0]->paths.size() * percentage),
-        static_cast<std::size_t>(dbs[1]->paths.size() * percentage)};
+    std::vector<std::size_t> path_nums;
+    std::ranges::transform(analyse_paths, std::back_inserter(path_nums),
+                           [&](std::size_t path_num) {
+                             return static_cast<std::size_t>(path_num *
+                                                             percentage);
+                           });
     for (int j = 0; j < 2; j++) {
-      // for (std::size_t k = 0; k < dbs[j]->paths.size() * percentage; k++) {
-      //   percent_sets[j].insert(dbs[j]->paths[k]->endpoint);
-      // }
       absl::flat_hash_map<std::string, std::shared_ptr<Path>> path_map;
       gen_map(dbs[j]->tool, dbs[j]->paths | std::views::take(path_nums[j]),
               path_map);
@@ -79,7 +95,7 @@ void comparator::match(
     }
     absl::flat_hash_set<std::string> intersection;
     for (const auto &endpoint : percent_sets[0]) {
-      if (percent_sets[1].find(endpoint) != percent_sets[1].end()) {
+      if (percent_sets[1].contains(endpoint)) {
         intersection.insert(endpoint);
       }
     }
@@ -116,9 +132,8 @@ void comparator::gen_map(
       return _mbff.get_ff_names(tool, path->endpoint);
     };
   } else if (_configs.compare_mode == "startpoint") {
-    fmt::print(
-        "Warning: startpoint comparison will lose paths with the same "
-        "startpoint!\n");
+    fmt::print("Warning: startpoint comparison will lose paths with the same "
+               "startpoint!\n");
     key_generator =
         [&](const std::shared_ptr<Path> &path) -> std::vector<std::string> {
       return {path->startpoint};

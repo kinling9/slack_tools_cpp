@@ -1,9 +1,9 @@
+#include "utils/csv_writer.h"
+
 #include <fmt/core.h>
 #include <fmt/ranges.h>
 
 #include <filesystem>
-
-#include "utils/csv_writer.h"
 
 void csv_writer::set_headers(const std::vector<std::string> &headers) {
   _headers = headers;

@@ -1,10 +1,11 @@
+#include "flow/flow_control.h"
+
 #include <fmt/core.h>
 #include <fmt/ranges.h>
 
 #include "absl/container/flat_hash_set.h"
 #include "analyser/comparator.h"
 #include "analyser/existence_checker.h"
-#include "flow/flow_control.h"
 #include "parser/def_parser.h"
 #include "parser/invs_rpt.h"
 #include "parser/leda_rpt.h"

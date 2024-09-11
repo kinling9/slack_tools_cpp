@@ -1,10 +1,11 @@
+#include "mbff_pattern.h"
+
 #include <absl/strings/match.h>
 #include <fmt/core.h>
 
 #include <boost/convert.hpp>
 #include <boost/convert/strtol.hpp>
 
-#include "mbff_pattern.h"
 #include "yaml-cpp/yaml.h"
 
 void mbff_pattern::load_pattern(const std::string& pattern_yml) {
@@ -40,15 +41,19 @@ std::vector<std::string> mbff_pattern::get_ff_names(
   if (!_enable_mbff) {
     return {line};
   }
-  if (_merge_pattern.find(tool) == _merge_pattern.end()) {
+  if (_merge_pattern.contains(tool)) {
     return {line};
   }
   std::vector<std::string> ff_names;
   std::string start, end, ff_name0, ff_name1, num;
   if (RE2::FullMatch(line, *_merge_pattern.at(tool), &start, &ff_name0,
-                     &ff_name1, &end)) {
-    ff_names.push_back(fmt::format("{}/{}/{}", start, ff_name0, end));
-    ff_names.push_back(fmt::format("{}/{}/{}", start, ff_name1, end));
+                     &ff_name1, &end, &num)) {
+    int iter = boost::convert<int>(num, boost::cnv::strtol()).value();
+    if (iter == 1) {
+      ff_names.push_back(fmt::format("{}/{}/{}", start, ff_name0, end));
+    } else {
+      ff_names.push_back(fmt::format("{}/{}/{}", start, ff_name1, end));
+    }
   } else if (RE2::FullMatch(line, *_split_pattern.at(tool), &start, &ff_name0,
                             &num, &end)) {
     int iter = boost::convert<int>(num, boost::cnv::strtol()).value();

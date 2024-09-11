@@ -1,10 +1,10 @@
+#include "utils.h"
+
 #include <boost/iostreams/device/file.hpp>
 #include <boost/iostreams/filter/gzip.hpp>
 #include <boost/iostreams/filtering_stream.hpp>
 #include <cmath>
 #include <iostream>
-
-#include "utils.h"
 
 std::vector<std::string_view> split_string_by_spaces(const std::string &str) {
   std::vector<std::string_view> result;

@@ -1,10 +1,11 @@
+#include "parser/def_parser.h"
+
 #include <boost/iostreams/copy.hpp>
 #include <boost/iostreams/filter/gzip.hpp>
 #include <boost/iostreams/filtering_streambuf.hpp>
 #include <fstream>
 #include <thread>
 
-#include "parser/def_parser.h"
 #include "re2/re2.h"
 #include "utils/utils.h"
 
