@@ -11,7 +11,9 @@ public:
         _writer(configs.match_paths == std::numeric_limits<std::size_t>::max()
                     ? fmt::format("{}.csv", configs.compare_mode)
                     : fmt::format("{}_{}.csv", configs.compare_mode,
-                                  configs.match_paths)) {}
+                                  configs.match_paths)) {
+    _writer.set_output_dir(_configs.output_dir);
+  }
   virtual void analyse() = 0;
 
 protected:

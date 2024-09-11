@@ -1,5 +1,5 @@
 mode: compare
-compare_mode: full_path # [endpoint, startpoint, start_end, full_path]
+compare_mode: endpoint # [endpoint, startpoint, start_end, full_path]
 rpts: 
   - ["rpt/leda_rpts/B005_allpath.rpt.gz", "rpt/leda_rpts/B005_allpath2.rpt.gz"]
   - ["rpt/leda_rpts/SEED_allpath.rpt.gz", "rpt/leda_rpts/SEED_allpath2.rpt.gz"]

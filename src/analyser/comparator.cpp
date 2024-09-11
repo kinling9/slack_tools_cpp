@@ -48,17 +48,19 @@ void comparator::match(
     }
   }
 
-  // TODO: add output for missing endpoints
-  // for (const auto &[key, path] : path_maps[0]) {
-  //   if (!path_set.contains(path)) {
-  //     fmt::print("key {} is miss.\n", key);
-  //   }
-  // }
-  // for (const auto &path : dbs[0]->paths) {
-  //   if (!path_set.contains(path)) {
-  //     fmt::print("endpoint {} is miss.\n", path->endpoint);
-  //   }
-  // }
+  // write missing endpoints
+  if (_configs.compare_mode == "endpoint" &&
+      path_set.size() < dbs[0]->paths.size()) {
+    writer endpoint_writer(fmt::format("{}_missing_endpoint.txt", design));
+    endpoint_writer.set_output_dir(_configs.output_dir);
+    endpoint_writer.open();
+    for (const auto &path : dbs[0]->paths) {
+      if (!path_set.contains(path)) {
+        fmt::print(endpoint_writer.out_file, "endpoint {} is miss.\n",
+                   path->endpoint);
+      }
+    }
+  }
 
   std::vector<double> diff_ratios(_configs.slack_margins.size(), 0.0);
   for (std::size_t i = 0; i < _configs.slack_margins.size(); i++) {
@@ -175,7 +177,6 @@ void comparator::gen_map(
 }
 
 void comparator::analyse() {
-  _writer.set_output_dir(_configs.output_dir);
   if (_configs.enable_mbff) {
     _mbff.load_pattern("yml/mbff_pattern.yml");
   }
