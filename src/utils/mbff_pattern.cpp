@@ -8,16 +8,16 @@
 
 #include "yaml-cpp/yaml.h"
 
-void mbff_pattern::load_pattern(const std::string& pattern_yml) {
+void mbff_pattern::load_pattern(const std::string &pattern_yml) {
   YAML::Node mbff_pattern;
   try {
     mbff_pattern = YAML::LoadFile(pattern_yml);
-  } catch (const std::exception& err) {
+  } catch (const std::exception &err) {
     std::cerr << err.what() << std::endl;
     std::exit(1);
   }
-  for (const auto& tool_pattern : mbff_pattern) {
-    for (const auto& pattern : tool_pattern.second) {
+  for (const auto &tool_pattern : mbff_pattern) {
+    for (const auto &pattern : tool_pattern.second) {
       if (absl::StrContains(pattern.first.as<std::string>(), "merge")) {
         std::unique_ptr<RE2> pattern_merge =
             std::make_unique<RE2>(pattern.second.as<std::string>());
@@ -36,12 +36,13 @@ void mbff_pattern::load_pattern(const std::string& pattern_yml) {
   _enable_mbff = true;
 }
 
-std::vector<std::string> mbff_pattern::get_ff_names(
-    const std::string& tool, const std::string& line) const {
+std::vector<std::string>
+mbff_pattern::get_ff_names(const std::string &tool,
+                           const std::string &line) const {
   if (!_enable_mbff) {
     return {line};
   }
-  if (_merge_pattern.contains(tool)) {
+  if (!_merge_pattern.contains(tool)) {
     return {line};
   }
   std::vector<std::string> ff_names;
