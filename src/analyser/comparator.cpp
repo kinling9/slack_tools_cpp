@@ -80,7 +80,7 @@ void comparator::match(
     diff_ratios[i] = static_cast<double>(diff_nums[i]) / path_nums[0];
   }
 
-  int mismatch = dbs[0]->paths.size() - slack_diffs.size();
+  int mismatch = path_nums[0] - slack_diffs.size();
   double average_slack_diff =
       std::accumulate(slack_diffs.begin(), slack_diffs.end(), 0.0) /
       slack_diffs.size();
@@ -97,8 +97,8 @@ void comparator::match(
     std::vector<std::size_t> path_nums;
     std::ranges::transform(analyse_paths, std::back_inserter(path_nums),
                            [&](std::size_t path_num) {
-                             return static_cast<std::size_t>(path_num *
-                                                             percentage);
+                             return static_cast<std::size_t>(
+                                 std::ceil(path_num * percentage));
                            });
     for (int j = 0; j < 2; j++) {
       absl::flat_hash_map<std::string, std::shared_ptr<Path>> path_map;
@@ -202,7 +202,6 @@ void comparator::analyse() {
               dbs[i]->paths | std::views::take(_configs.match_paths),
               path_maps[i]);
     }
-    fmt::print("finish gen map\n");
     match(design, path_maps, dbs);
   }
   _writer.write();
