@@ -95,11 +95,11 @@ void comparator::match(
     double percentage = _configs.match_percentages[i];
     std::vector<absl::flat_hash_set<std::string>> percent_sets(2);
     std::vector<std::size_t> path_nums;
-    std::ranges::transform(analyse_paths, std::back_inserter(path_nums),
-                           [&](std::size_t path_num) {
-                             return static_cast<std::size_t>(
-                                 std::ceil(path_num * percentage));
-                           });
+    std::ranges::transform(
+        analyse_paths, std::back_inserter(path_nums),
+        [&](std::size_t path_num) {
+          return static_cast<std::size_t>(std::ceil(path_num * percentage));
+        });
     for (int j = 0; j < 2; j++) {
       absl::flat_hash_map<std::string, std::shared_ptr<Path>> path_map;
       gen_map(dbs[j]->tool, dbs[j]->paths | std::views::take(path_nums[j]),
@@ -147,8 +147,9 @@ void comparator::gen_map(
       return _mbff.get_ff_names(tool, path->endpoint);
     };
   } else if (_configs.compare_mode == "startpoint") {
-    fmt::print("Warning: startpoint comparison will lose paths with the same "
-               "startpoint!\n");
+    fmt::print(
+        "Warning: startpoint comparison will lose paths with the same "
+        "startpoint!\n");
     key_generator =
         [&](const std::shared_ptr<Path> &path) -> std::vector<std::string> {
       return {path->startpoint};

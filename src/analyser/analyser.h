@@ -5,7 +5,7 @@
 #include "utils/csv_writer.h"
 
 class analyser {
-public:
+ public:
   analyser(const configs &configs)
       : _configs(configs),
         _writer(configs.match_paths == std::numeric_limits<std::size_t>::max()
@@ -16,7 +16,7 @@ public:
   }
   virtual void analyse() = 0;
 
-protected:
+ protected:
   configs _configs;
   csv_writer _writer;
 };

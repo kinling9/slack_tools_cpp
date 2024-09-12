@@ -3,7 +3,7 @@
 #include <string>
 
 class writer {
-public:
+ public:
   writer(const std::string &filename) : _filename(filename) {}
   void set_output_dir(const std::string &output_dir) {
     _output_dir = output_dir;
@@ -16,7 +16,7 @@ public:
   }
   FILE *out_file = nullptr;
 
-protected:
+ protected:
   std::string _filename;
   std::string _output_dir = "output";
 };

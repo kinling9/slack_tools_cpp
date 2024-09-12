@@ -36,9 +36,8 @@ void mbff_pattern::load_pattern(const std::string &pattern_yml) {
   _enable_mbff = true;
 }
 
-std::vector<std::string>
-mbff_pattern::get_ff_names(const std::string &tool,
-                           const std::string &line) const {
+std::vector<std::string> mbff_pattern::get_ff_names(
+    const std::string &tool, const std::string &line) const {
   if (!_enable_mbff) {
     return {line};
   }

@@ -1,12 +1,13 @@
 #pragma once
 #include <absl/container/flat_hash_map.h>
 
-#include "utils/writer.h"
 #include <string>
 #include <vector>
 
+#include "utils/writer.h"
+
 class csv_writer : public writer {
-public:
+ public:
   csv_writer(const std::string &filename) : writer(filename) {}
   csv_writer(const std::string &filename,
              const std::vector<std::string> &headers)
@@ -18,7 +19,7 @@ public:
   void add_row(const absl::flat_hash_map<std::string, std::string> &row);
   void write();
 
-private:
+ private:
   std::vector<std::string> _headers;
   std::vector<std::vector<std::string>> _rows;
   std::size_t _length = 0;
