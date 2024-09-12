@@ -39,6 +39,7 @@ std::vector<std::pair<std::size_t, std::string_view>> split_string_by_n_spaces(
   std::vector<std::pair<std::size_t, std::string_view>> result;
   std::string_view str_view = str;
   std::size_t start = 0;
+  std::size_t end = 0;
   std::size_t length = str.length();
   while (start < length) {
     // Skip over leading spaces
@@ -48,7 +49,9 @@ std::vector<std::pair<std::size_t, std::string_view>> split_string_by_n_spaces(
     if (start >= length) {
       break;
     }
-    size_t end = start;
+    if (end < start) {
+      end = start;
+    }
     // Find the end of the current word
     while (end < length && !std::isspace(str[end])) {
       end++;
@@ -58,17 +61,12 @@ std::vector<std::pair<std::size_t, std::string_view>> split_string_by_n_spaces(
     while (next_start < length && std::isspace(str[next_start])) {
       next_start++;
     }
-    if (next_start - end >= n) {
+    if (next_start - end >= n || end >= length) {
       result.push_back({start, str_view.substr(start, end - start)});
       start = next_start;
     } else {
       // If not more than n spaces, treat it as a single token
       end = next_start;
-      while (end < length && !std::isspace(str[end])) {
-        end++;
-      }
-      result.push_back({start, str_view.substr(start, end - start)});
-      start = end;
     }
   }
   return result;

@@ -80,9 +80,6 @@ std::shared_ptr<Path> invs_rpt_parser::parse_path(
               }
               row[key] = i++;
             }
-            for (const auto &[key, value] : row) {
-              fmt::print("{}: {}\n", key, value);
-            }
           }
         } else if (split_count == 2) {
           auto splits = split_string_by_n_spaces(line, 2);
