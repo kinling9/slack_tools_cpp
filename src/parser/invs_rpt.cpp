@@ -1,5 +1,6 @@
 #include "parser/invs_rpt.h"
 
+#include <absl/container/flat_hash_map.h>
 #include <fmt/ranges.h>
 
 #include <boost/convert.hpp>
@@ -8,7 +9,6 @@
 
 #include "dm/dm.h"
 #include "utils/utils.h"
-
 enum block {
   Endpoint = 0,
   Beginpoint = 1,
@@ -26,6 +26,9 @@ std::shared_ptr<Path> invs_rpt_parser::parse_path(
   int split_count = 0;
   bool with_net = false;
   std::string path_slack;
+  // absl::flat_hash_map<std::string, std::size_t> row;
+  std::unordered_map<std::string, std::size_t> row;
+  std::string headers;
 
   for (const auto &line : path) {
     switch (iter) {
@@ -58,25 +61,47 @@ std::shared_ptr<Path> invs_rpt_parser::parse_path(
           continue;
         }
         if (split_count == 1) {
-          if (RE2::FullMatch(line, _with_net_pattern)) {
-            with_net = true;
-            continue;
+          if (headers.empty()) {
+            headers = line;
+          } else {
+            auto tokens0 = split_string_by_n_spaces(headers, 2);
+            auto tokens1 = split_string_by_n_spaces(line, 2);
+            absl::flat_hash_map<std::size_t, std::string_view> map_line1;
+            for (const auto &[start, str] : tokens1) {
+              map_line1[start] = str;
+            }
+            std::size_t i = 0;
+            for (const auto &[start, str] : tokens0) {
+              std::string key;
+              if (!map_line1.contains(start)) {
+                key = std::string(str);
+              } else {
+                key = fmt::format("{} {}", str, map_line1[start]);
+              }
+              row[key] = i++;
+            }
+            for (const auto &[key, value] : row) {
+              fmt::print("{}: {}\n", key, value);
+            }
           }
         } else if (split_count == 2) {
-          std::vector<std::string_view> tokens = split_string_by_spaces(line);
+          auto splits = split_string_by_n_spaces(line, 2);
+          std::vector<std::string_view> tokens;
+          std::ranges::transform(splits, std::back_inserter(tokens),
+                                 [](const auto &pair) { return pair.second; });
           Pin pin;
-          pin.name = std::string(tokens[0]);
-          pin.trans = boost::convert<double>(tokens[tokens.size() - 8],
-                                             boost::cnv::strtol())
-                          .value();
-          pin.path_delay = boost::convert<double>(tokens[tokens.size() - 1],
+          pin.name = std::string(tokens[row["Pin"]]);
+          pin.trans =
+              boost::convert<double>(tokens[row["Slew"]], boost::cnv::strtol())
+                  .value();
+          pin.path_delay = boost::convert<double>(tokens[row["Arrival Time"]],
                                                   boost::cnv::strtol())
                                .value();
-          if ((tokens.size() == 13 && with_net) || tokens.size() == 12) {
+          if (tokens[row["Instance Location"]] == "-") {
             pinObj = std::make_shared<Pin>(pin);
             Net net;
-            if (with_net) {
-              net.name = std::string(tokens[3]);
+            if (row.contains("Net")) {
+              net.name = std::string(tokens[row["Net"]]);
             }
             net.pins = std::make_pair(pinObj, nullptr);
             netObj = std::make_shared<Net>(net);
@@ -84,29 +109,33 @@ std::shared_ptr<Path> invs_rpt_parser::parse_path(
             pathObj->path.push_back(pinObj);
             continue;
           }
-          pin.rise_fall = tokens[1] == "^";
-          pin.cell = std::string(tokens[2]);
-          pin.incr_delay = boost::convert<double>(tokens[tokens.size() - 10],
+          pin.rise_fall = tokens[row["Edge"]] == "^";
+          pin.cell = std::string(tokens[row["Cell"]]);
+          pin.incr_delay = boost::convert<double>(tokens[row["Incr Delay"]],
                                                   boost::cnv::strtol())
                                .value();
-          pin.location =
-              std::make_pair(boost::convert<double>(
-                                 tokens[tokens.size() - 5].substr(
-                                     1, tokens[tokens.size() - 5].size() - 2),
-                                 boost::cnv::strtol())
-                                 .value(),
-                             boost::convert<double>(
-                                 tokens[tokens.size() - 4].substr(
-                                     0, tokens[tokens.size() - 4].size() - 2),
-                                 boost::cnv::strtol())
-                                 .value());
+          auto space_index = tokens[row["Instance Location"]].find(' ');
+          if (space_index != std::string::npos) {
+            pin.location = std::make_pair(
+                boost::convert<double>(
+                    tokens[row["Instance Location"]].substr(1, space_index - 2),
+                    boost::cnv::strtol())
+                    .value(),
+                boost::convert<double>(
+                    tokens[row["Instance Location"]].substr(
+                        space_index + 1,
+                        tokens[row["Instance Location"]].size() - space_index -
+                            2),
+                    boost::cnv::strtol())
+                    .value());
+          }
           pinObj = std::make_shared<Pin>(pin);
           if (netObj->pins.second == nullptr) {
             netObj->pins.second = pinObj;
-            netObj->fanout = boost::convert<int>(tokens[tokens.size() - 3],
-                                                 boost::cnv::strtol())
-                                 .value_or(0);
-            netObj->cap = boost::convert<double>(tokens[tokens.size() - 8],
+            netObj->fanout =
+                boost::convert<int>(tokens[row["Fanout"]], boost::cnv::strtol())
+                    .value_or(0);
+            netObj->cap = boost::convert<double>(tokens[row["Load"]],
                                                  boost::cnv::strtol())
                               .value_or(0);
             pinObj->net = netObj;
@@ -114,7 +143,7 @@ std::shared_ptr<Path> invs_rpt_parser::parse_path(
           } else {
             Net net;
             if (with_net) {
-              net.name = std::string(tokens[3]);
+              net.name = std::string(tokens[row["Net"]]);
             }
             net.pins = std::make_pair(pinObj, nullptr);
             netObj = std::make_shared<Net>(net);
