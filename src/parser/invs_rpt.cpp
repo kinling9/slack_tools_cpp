@@ -26,8 +26,8 @@ std::shared_ptr<Path> invs_rpt_parser::parse_path(
   int split_count = 0;
   bool with_net = false;
   std::string path_slack;
-  // absl::flat_hash_map<std::string, std::size_t> row;
-  std::unordered_map<std::string, std::size_t> row;
+  absl::flat_hash_map<std::string, std::size_t> row;
+  // std::unordered_map<std::string, std::size_t> row;
   std::string headers;
 
   for (const auto &line : path) {
