@@ -6,9 +6,9 @@
 #include <cmath>
 #include <iostream>
 
-std::vector<std::string_view> split_string_by_spaces(const std::string &str) {
+std::vector<std::string_view> split_string_by_spaces(
+    const std::string_view &str_view) {
   std::vector<std::string_view> result;
-  std::string_view str_view = str;
   size_t start = 0;
   size_t end = 0;
 
@@ -35,15 +35,14 @@ std::vector<std::string_view> split_string_by_spaces(const std::string &str) {
 }
 
 std::vector<std::pair<std::size_t, std::string_view>> split_string_by_n_spaces(
-    const std::string &str, std::size_t n) {
+    const std::string_view &str_view, std::size_t n) {
   std::vector<std::pair<std::size_t, std::string_view>> result;
-  std::string_view str_view = str;
   std::size_t start = 0;
   std::size_t end = 0;
-  std::size_t length = str.length();
+  std::size_t length = str_view.length();
   while (start < length) {
     // Skip over leading spaces
-    while (start < length && std::isspace(str[start])) {
+    while (start < length && std::isspace(str_view[start])) {
       start++;
     }
     if (start >= length) {
@@ -53,12 +52,12 @@ std::vector<std::pair<std::size_t, std::string_view>> split_string_by_n_spaces(
       end = start;
     }
     // Find the end of the current word
-    while (end < length && !std::isspace(str[end])) {
+    while (end < length && !std::isspace(str_view[end])) {
       end++;
     }
     // Check if there are more than n spaces after the word
     size_t next_start = end;
-    while (next_start < length && std::isspace(str[next_start])) {
+    while (next_start < length && std::isspace(str_view[next_start])) {
       next_start++;
     }
     if (next_start - end >= n || end >= length) {

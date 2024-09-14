@@ -23,7 +23,7 @@ class def_parser {
 
  private:
   absl::flat_hash_map<std::string, std::string> _map;
-  std::queue<std::string> _data_queue;
+  std::queue<std::string_view> _data_queue;
   std::mutex _data_mutex;
   std::condition_variable _data_cond_var;
   bool _done = false;  // 标志是否完成数据准备

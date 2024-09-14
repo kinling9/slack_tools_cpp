@@ -38,11 +38,11 @@ class rpt_parser {
   const basedb &get_db() const { return _db; }
 
   virtual std::shared_ptr<Path> parse_path(
-      const std::vector<std::string> &path) = 0;
+      const std::vector<std::string_view> &path) = 0;
   virtual void update_iter(block &iter) = 0;
 
  protected:
-  std::queue<std::vector<std::string>> _data_queue;
+  std::queue<std::vector<std::string_view>> _data_queue;
   std::mutex _data_mutex;
   std::condition_variable _data_cond_var;
   bool _done = false;  // 标志是否完成数据准备

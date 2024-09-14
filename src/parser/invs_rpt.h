@@ -12,7 +12,7 @@ class invs_rpt_parser : public rpt_parser {
   invs_rpt_parser(int num_consumers)
       : rpt_parser("invs", "Path\\s+\\d+.*", num_consumers) {}
   std::shared_ptr<Path> parse_path(
-      const std::vector<std::string> &path) override;
+      const std::vector<std::string_view> &path) override;
   void update_iter(block &iter) override;
 
  private:

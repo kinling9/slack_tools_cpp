@@ -33,7 +33,7 @@ void leda_rpt_parser::update_iter(block &iter) {
 }
 
 std::shared_ptr<Path> leda_rpt_parser::parse_path(
-    const std::vector<std::string> &path) {
+    const std::vector<std::string_view> &path) {
   std::shared_ptr<Path> pathObj = std::make_shared<Path>();
   std::shared_ptr<Pin> pinObj = std::make_shared<Pin>();
   std::shared_ptr<Net> netObj = std::make_shared<Net>();
