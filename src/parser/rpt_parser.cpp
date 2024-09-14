@@ -37,13 +37,13 @@ bool rpt_parser::parse_file(const std::string &filename) {
 void rpt_parser::data_preparation(std::istream &instream) {
   std::string line;
   const RE2 start_pattern(_start_pattern);
-  std::vector<std::string_view> path;
+  std::vector<std::string> path;
   bool start_flag = false;
   while (std::getline(instream, line)) {
-    if (RE2::FullMatch(line, start_pattern)) {
+    if (RE2::PartialMatch(line, start_pattern)) {
       if (start_flag) {
         std::lock_guard<std::mutex> lock(_data_mutex);
-        _data_queue.push(path);
+        _data_queue.emplace(path);
         _data_cond_var.notify_one();  // 通知等待的数据处理线程
         path.clear();
       } else {
@@ -60,7 +60,7 @@ void rpt_parser::data_preparation(std::istream &instream) {
 }
 
 void rpt_parser::data_processing() {
-  std::vector<std::string_view> path;
+  std::vector<std::string> path;
   while (true) {
     std::unique_lock<std::mutex> lock(_data_mutex);
     _data_cond_var.wait(lock, [this] { return !_data_queue.empty() || _done; });

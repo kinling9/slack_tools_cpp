@@ -33,7 +33,7 @@ void invs_rpt_parser::update_iter(block &iter) {
 }
 
 std::shared_ptr<Path> invs_rpt_parser::parse_path(
-    const std::vector<std::string_view> &path) {
+    const std::vector<std::string> &path) {
   std::shared_ptr<Path> pathObj = std::make_shared<Path>();
   std::shared_ptr<Pin> pinObj = std::make_shared<Pin>();
   std::shared_ptr<Net> netObj = std::make_shared<Net>();
@@ -51,12 +51,12 @@ std::shared_ptr<Path> invs_rpt_parser::parse_path(
     }
     switch (iter) {
       case Endpoint:
-        if (RE2::FullMatch(line, _end_pattern, &pathObj->endpoint)) {
+        if (RE2::PartialMatch(line, _end_pattern, &pathObj->endpoint)) {
           update_iter(iter);
         }
         break;
       case Beginpoint:
-        if (RE2::FullMatch(line, _begin_pattern, &pathObj->startpoint)) {
+        if (RE2::PartialMatch(line, _begin_pattern, &pathObj->startpoint)) {
           RE2::PartialMatch(line, _clock_pattern, &pathObj->clock);
           update_iter(iter);
         }
@@ -67,7 +67,7 @@ std::shared_ptr<Path> invs_rpt_parser::parse_path(
         }
         break;
       case Slack:
-        if (RE2::FullMatch(line, _slack_pattern, &path_slack)) {
+        if (RE2::PartialMatch(line, _slack_pattern, &path_slack)) {
           pathObj->slack =
               boost::convert<double>(path_slack, boost::cnv::strtol())
                   .value_or(0);
@@ -75,7 +75,7 @@ std::shared_ptr<Path> invs_rpt_parser::parse_path(
         }
         break;
       case Paths:
-        if (RE2::FullMatch(line, _split_pattern)) {
+        if (RE2::PartialMatch(line, _split_pattern)) {
           ++split_count;
           continue;
         }

@@ -126,7 +126,7 @@ std::shared_ptr<basedb> flow_control::parse_rpt(std::string rpt_file,
   if (rpt_tool == "leda") {
     parser = std::make_shared<leda_rpt_parser>();
   } else if (rpt_tool == "invs") {
-    parser = std::make_shared<invs_rpt_parser>();
+    parser = std::make_shared<invs_rpt_parser>(1);
   } else {
     throw fmt::system_error(errno, "The report type {} is not supported, skip.",
                             rpt_tool);
