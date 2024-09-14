@@ -69,7 +69,8 @@ std::shared_ptr<Path> invs_rpt_parser::parse_path(
       case Slack:
         if (RE2::FullMatch(line, _slack_pattern, &path_slack)) {
           pathObj->slack =
-              boost::convert<double>(path_slack, boost::cnv::strtol()).value();
+              boost::convert<double>(path_slack, boost::cnv::strtol())
+                  .value_or(0);
           update_iter(iter);
         }
         break;
@@ -108,10 +109,10 @@ std::shared_ptr<Path> invs_rpt_parser::parse_path(
           pin.name = std::string(tokens[row["Pin"]]);
           pin.trans =
               boost::convert<double>(tokens[row["Slew"]], boost::cnv::strtol())
-                  .value();
+                  .value_or(0);
           pin.path_delay = boost::convert<double>(tokens[row["Arrival Time"]],
                                                   boost::cnv::strtol())
-                               .value();
+                               .value_or(0);
           if (tokens[row["Instance Location"]] == "-") {
             pinObj = std::make_shared<Pin>(pin);
             Net net;
@@ -128,21 +129,21 @@ std::shared_ptr<Path> invs_rpt_parser::parse_path(
           pin.cell = std::string(tokens[row["Cell"]]);
           pin.incr_delay = boost::convert<double>(tokens[row["Incr Delay"]],
                                                   boost::cnv::strtol())
-                               .value();
+                               .value_or(0);
           auto space_index = tokens[row["Instance Location"]].find(' ');
           if (space_index != std::string::npos) {
             pin.location = std::make_pair(
                 boost::convert<double>(
                     tokens[row["Instance Location"]].substr(1, space_index - 2),
                     boost::cnv::strtol())
-                    .value(),
+                    .value_or(0),
                 boost::convert<double>(
                     tokens[row["Instance Location"]].substr(
                         space_index + 1,
                         tokens[row["Instance Location"]].size() - space_index -
                             2),
                     boost::cnv::strtol())
-                    .value());
+                    .value_or(0));
           }
           pinObj = std::make_shared<Pin>(pin);
           if (netObj->pins.second == nullptr) {
