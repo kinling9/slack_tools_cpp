@@ -12,6 +12,7 @@ class leda_rpt_parser : public rpt_parser {
   leda_rpt_parser(int num_consumers)
       : rpt_parser("leda", "Startpoint: .*", num_consumers) {}
   std::shared_ptr<Path> parse_path(const std::vector<std::string> &path);
+  void update_iter(block &iter) override;
 
  private:
   const RE2 _at_pattern{"^data arrival time.*"};

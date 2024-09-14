@@ -9,50 +9,68 @@
 
 #include "dm/dm.h"
 #include "utils/utils.h"
-enum block {
-  Endpoint = 0,
-  Beginpoint = 1,
-  PathGroup = 2,
-  Slack = 3,
-  Paths = 4,
-};
+
+void invs_rpt_parser::update_iter(block &iter) {
+  switch (iter) {
+    case Endpoint:
+      iter = Beginpoint;
+      break;
+    case Beginpoint:
+      iter = PathGroup;
+      break;
+    case PathGroup:
+      iter = Slack;
+      break;
+    case Slack:
+      iter = Paths;
+      break;
+    case Paths:
+      iter = End;
+      break;
+    default:
+      break;
+  }
+}
 
 std::shared_ptr<Path> invs_rpt_parser::parse_path(
     const std::vector<std::string> &path) {
   std::shared_ptr<Path> pathObj = std::make_shared<Path>();
   std::shared_ptr<Pin> pinObj = std::make_shared<Pin>();
   std::shared_ptr<Net> netObj = std::make_shared<Net>();
-  int iter = 0;
+  block iter = Endpoint;
   int split_count = 0;
   bool with_net = false;
   std::string path_slack;
   absl::flat_hash_map<std::string, std::size_t> row;
-  // std::unordered_map<std::string, std::size_t> row;
   std::string headers;
 
   for (const auto &line : path) {
+    if (_ignore.contains(iter)) {
+      update_iter(iter);
+      continue;
+    }
     switch (iter) {
       case Endpoint:
         if (RE2::FullMatch(line, _end_pattern, &pathObj->endpoint)) {
-          iter++;
+          update_iter(iter);
         }
         break;
       case Beginpoint:
         if (RE2::FullMatch(line, _begin_pattern, &pathObj->startpoint)) {
           RE2::PartialMatch(line, _clock_pattern, &pathObj->clock);
-          iter++;
+          update_iter(iter);
         }
         break;
       case PathGroup:
         if (RE2::FullMatch(line, _group_pattern, &pathObj->group)) {
-          iter++;
+          update_iter(iter);
         }
         break;
       case Slack:
         if (RE2::FullMatch(line, _slack_pattern, &path_slack)) {
           pathObj->slack =
               boost::convert<double>(path_slack, boost::cnv::strtol()).value();
-          iter++;
+          update_iter(iter);
         }
         break;
       case Paths:
@@ -148,8 +166,10 @@ std::shared_ptr<Path> invs_rpt_parser::parse_path(
             pathObj->path.push_back(pinObj);
           }
         } else if (split_count == 3) {
-          iter++;
+          update_iter(iter);
         }
+        break;
+      default:
         break;
     }
   }

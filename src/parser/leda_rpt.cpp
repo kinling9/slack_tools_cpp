@@ -4,41 +4,71 @@
 #include <boost/convert/strtol.hpp>
 #include <boost/iostreams/copy.hpp>
 
+#include "parser/rpt_parser.h"
 #include "utils/utils.h"
+
+void leda_rpt_parser::update_iter(block &iter) {
+  switch (iter) {
+    case Beginpoint:
+      iter = Endpoint;
+      break;
+    case Endpoint:
+      iter = PathGroup;
+      break;
+    case PathGroup:
+      iter = PathType;
+      break;
+    case PathType:
+      iter = Paths;
+      break;
+    case Paths:
+      iter = Slack;
+      break;
+    case Slack:
+      iter = End;
+      break;
+    default:
+      break;
+  }
+}
 
 std::shared_ptr<Path> leda_rpt_parser::parse_path(
     const std::vector<std::string> &path) {
   std::shared_ptr<Path> pathObj = std::make_shared<Path>();
   std::shared_ptr<Pin> pinObj = std::make_shared<Pin>();
   std::shared_ptr<Net> netObj = std::make_shared<Net>();
-  int iter = 0;
+  block iter = Beginpoint;
   std::string path_slack;
   for (const auto &line : path) {
+    if (_ignore.contains(iter)) {
+      update_iter(iter);
+      continue;
+    }
     switch (iter) {
-      case 0:
+      case Beginpoint:
         if (RE2::FullMatch(line, _begin_pattern, &pathObj->startpoint)) {
           RE2::PartialMatch(line, _clock_pattern, &pathObj->clock);
-          iter++;
+          update_iter(iter);
         }
         break;
-      case 1:
+      case Endpoint:
         if (RE2::FullMatch(line, _end_pattern, &pathObj->endpoint)) {
-          iter++;
+          update_iter(iter);
         }
         break;
-      case 2:
+      case PathGroup:
         if (RE2::FullMatch(line, _group_pattern, &pathObj->group)) {
-          iter++;
+          update_iter(iter);
         }
         break;
-      case 3:
+      case PathType:
         if (RE2::FullMatch(line, _path_type_pattern)) {
-          iter++;
+          update_iter(iter);
         }
         break;
-      case 4: {
+      case Paths: {
         if (RE2::FullMatch(line, _at_pattern)) {
-          iter++;
+          update_iter(iter);
           break;
         }
         // Parse the path
@@ -81,9 +111,9 @@ std::shared_ptr<Path> leda_rpt_parser::parse_path(
         }
         break;
       }
-      case 5:
+      case Slack:
         if (RE2::FullMatch(line, _slack_pattern, &path_slack)) {
-          iter++;
+          update_iter(iter);
         }
         break;
       default:

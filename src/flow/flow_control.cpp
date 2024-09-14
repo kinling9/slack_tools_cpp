@@ -122,24 +122,23 @@ std::shared_ptr<basedb> flow_control::parse_rpt(std::string rpt_file,
                                                 std::string rpt_tool) {
   std::shared_ptr<basedb> cur_db;
   fmt::print("Parsing {}\n", rpt_file);
+  std::shared_ptr<rpt_parser> parser;
   if (rpt_tool == "leda") {
-    leda_rpt_parser parser;
-    if (parser.parse_file(rpt_file)) {
-      cur_db = std::make_shared<basedb>(parser.get_db());
-    } else {
-      cur_db = nullptr;
-    }
+    parser = std::make_shared<leda_rpt_parser>();
   } else if (rpt_tool == "invs") {
-    invs_rpt_parser parser(1);
-    if (parser.parse_file(rpt_file)) {
-      cur_db = std::make_shared<basedb>(parser.get_db());
-    } else {
-      cur_db = nullptr;
-    }
+    parser = std::make_shared<invs_rpt_parser>();
   } else {
     throw fmt::system_error(errno, "The report type {} is not supported, skip.",
                             rpt_tool);
     std::exit(1);
+    cur_db = nullptr;
+  }
+  if (_configs.mode == "compare" && _configs.compare_mode != "full_path") {
+    parser->set_ignore({Paths});
+  }
+  if (parser->parse_file(rpt_file)) {
+    cur_db = std::make_shared<basedb>(parser->get_db());
+  } else {
     cur_db = nullptr;
   }
   return cur_db;
