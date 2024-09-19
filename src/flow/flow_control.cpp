@@ -109,6 +109,23 @@ void flow_control::parse_yml(std::string yml_file) {
     if (config["enable_mbff"]) {
       _configs.enable_mbff = config["enable_mbff"].as<bool>();
     }
+    if (config["slack_filter"]) {
+      if (config["slack_filter"].as<std::string>() == "<= 0") {
+        _configs.slack_filter = [](double x) { return x <= 0; };
+      } else if (config["slack_filter"].as<std::string>() == "< 0") {
+        _configs.slack_filter = [](double x) { return x < 0; };
+      } else if (config["slack_filter"].as<std::string>() == "> 0") {
+        _configs.slack_filter = [](double x) { return x > 0; };
+      } else if (config["slack_filter"].as<std::string>() == ">= 0") {
+        _configs.slack_filter = [](double x) { return x >= 0; };
+      } else {
+        throw fmt::system_error(errno,
+                                "The slack filter {} is not supported, "
+                                "skip.",
+                                config["slack_filter"].as<std::string>());
+        std::exit(1);
+      }
+    }
   } else if (mode == "cell in def") {
     _rpt_defs = config["rpt_defs"].as<std::vector<std::vector<std::string>>>();
     _rpt_tool = config["tool"].as<std::string>();
@@ -122,26 +139,39 @@ std::shared_ptr<basedb> flow_control::parse_rpt(std::string rpt_file,
                                                 std::string rpt_tool) {
   std::shared_ptr<basedb> cur_db;
   fmt::print("Parsing {}\n", rpt_file);
-  if (rpt_tool == "leda") {
-    leda_rpt_parser parser;
-    if (parser.parse_file(rpt_file)) {
-      cur_db = std::make_shared<basedb>(parser.get_db());
-    } else {
-      cur_db = nullptr;
-    }
-  } else if (rpt_tool == "invs") {
-    invs_rpt_parser parser(1);
-    if (parser.parse_file(rpt_file)) {
-      cur_db = std::make_shared<basedb>(parser.get_db());
-    } else {
-      cur_db = nullptr;
-    }
-  } else {
-    throw fmt::system_error(errno, "The report type {} is not supported, skip.",
+  std::variant<std::shared_ptr<rpt_parser<std::string>>,
+               std::shared_ptr<rpt_parser<std::string_view>>>
+      parser;
+  if (rpt_tool != "leda" && rpt_tool != "invs") {
+    throw fmt::system_error(errno, "The tool {} is not supported, skip.",
                             rpt_tool);
     std::exit(1);
-    cur_db = nullptr;
   }
+
+  if (_configs.mode == "compare" && _configs.compare_mode != "full_path") {
+    if (rpt_tool == "leda") {
+      parser = std::make_shared<leda_rpt_parser<std::string_view>>();
+    } else if (rpt_tool == "invs") {
+      parser = std::make_shared<invs_rpt_parser<std::string_view>>(1);
+    }
+    std::get<1>(parser)->set_ignore_blocks({Paths});
+  } else {
+    if (rpt_tool == "leda") {
+      parser = std::make_shared<leda_rpt_parser<std::string>>();
+    } else if (rpt_tool == "invs") {
+      parser = std::make_shared<invs_rpt_parser<std::string>>(1);
+    }
+  }
+  std::visit(
+      [&](auto&& arg) {
+        if (arg->parse_file(rpt_file)) {
+          cur_db = std::make_shared<basedb>(arg->get_db());
+          cur_db->tool = rpt_tool;
+        } else {
+          cur_db = nullptr;
+        }
+      },
+      parser);
   return cur_db;
 }
 

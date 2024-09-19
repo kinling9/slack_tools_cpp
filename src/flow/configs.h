@@ -1,4 +1,5 @@
 #pragma once
+#include <functional>
 #include <limits>
 #include <string>
 #include <vector>
@@ -8,6 +9,7 @@ struct configs {
   std::string compare_mode;
   std::string output_dir = "output";
   bool enable_mbff = false;
+  std::function<bool(double)> slack_filter = [](double) { return true; };
   // std::vector<std::string> design_names;
 
   // default values

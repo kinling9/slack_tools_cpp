@@ -35,7 +35,7 @@ bool def_parser::parse_file(const std::string &filename) {
 // 数据准备线程函数
 void def_parser::data_preparation(std::istream &instream) {
   std::string line;
-  std::string path;
+  std::string_view path;
   bool start_flag = false;
   bool component_flag = false;
   while (std::getline(instream, line)) {
@@ -53,9 +53,6 @@ void def_parser::data_preparation(std::istream &instream) {
         std::lock_guard<std::mutex> lock(_data_mutex);
         _data_queue.push(path);
         _data_cond_var.notify_one();  // 通知等待的数据处理线程
-        path.clear();
-      } else {
-        path.clear();
       }
       start_flag = true;
       path = line;

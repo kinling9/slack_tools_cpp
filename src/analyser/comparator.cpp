@@ -23,9 +23,13 @@ void comparator::match(
   absl::flat_hash_map<std::string, std::string> row;
 
   for (int i = 0; i < 2; i++) {
-    path_nums[i] = std::min(dbs[i]->paths.size(), _configs.match_paths);
+    // path_nums[i] = std::min(dbs[i]->paths.size(), _configs.match_paths);
     for (const auto &path :
-         dbs[i]->paths | std::views::take(_configs.match_paths)) {
+         dbs[i]->paths | std::views::take(_configs.match_paths) |
+             std::views::filter([&](const std::shared_ptr<Path> &path) {
+               return _configs.slack_filter(path->slack);
+             })) {
+      ++path_nums[i];
       if (path->slack < 0) {
         ++nvps[i];
       }
@@ -36,19 +40,24 @@ void comparator::match(
   slack_diffs.reserve(dbs[0]->paths.size());
   std::vector<int> diff_nums(_configs.slack_margins.size(), 0);
   absl::flat_hash_set<std::shared_ptr<Path>> path_set;
-  std::string scatter_file = fmt::format("{}_scatter.txt", design);
-  if (_configs.match_paths != std::numeric_limits<std::size_t>::max()) {
-    scatter_file =
-        fmt::format("{}_scatter_{}.txt", design, _configs.match_paths);
+  std::vector<std::shared_ptr<writer>> writers(2);
+  for (int i = 0; i < 2; i++) {
+    std::string scatter_file = fmt::format("{}_scatter_{}.txt", design, i);
+    if (_configs.match_paths != std::numeric_limits<std::size_t>::max()) {
+      scatter_file =
+          fmt::format("{}_scatter_{}_{}.txt", design, _configs.match_paths, i);
+    }
+    writers[i] = std::make_shared<writer>(scatter_file);
+    writers[i]->set_output_dir(_configs.output_dir);
+    writers[i]->open();
   }
-  writer scatter_writer(scatter_file);
-  scatter_writer.set_output_dir(_configs.output_dir);
-  scatter_writer.open();
   for (const auto &[key, path] : path_maps[0]) {
     if (path_maps[1].contains(key) && !path_set.contains(path)) {
       path_set.emplace(path);
       auto diff_slack = path->slack - path_maps[1].at(key)->slack;
-      fmt::print(scatter_writer.out_file, "{} {}\n", path->slack,
+      fmt::print(writers[0]->out_file, "{} {}\n", key,
+                 path_maps[0].at(key)->slack);
+      fmt::print(writers[1]->out_file, "{} {}\n", key,
                  path_maps[1].at(key)->slack);
       slack_diffs.push_back(diff_slack);
       for (std::size_t i = 0; i < _configs.slack_margins.size(); i++) {
@@ -102,7 +111,12 @@ void comparator::match(
         });
     for (int j = 0; j < 2; j++) {
       absl::flat_hash_map<std::string, std::shared_ptr<Path>> path_map;
-      gen_map(dbs[j]->tool, dbs[j]->paths | std::views::take(path_nums[j]),
+      gen_map(dbs[j]->tool,
+              dbs[j]->paths |
+                  std::views::filter([&](const std::shared_ptr<Path> &path) {
+                    return _configs.slack_filter(path->slack);
+                  }) |
+                  std::views::take(path_nums[j]),
               path_map);
       for (const auto &key : path_map | std::views::keys) {
         percent_sets[j].insert(key);
@@ -200,7 +214,11 @@ void comparator::analyse() {
         path_maps(2);
     for (int i = 0; i < 2; i++) {
       gen_map(dbs[i]->tool,
-              dbs[i]->paths | std::views::take(_configs.match_paths),
+              dbs[i]->paths |
+                  std::views::filter([&](const std::shared_ptr<Path> &path) {
+                    return _configs.slack_filter(path->slack);
+                  }) |
+                  std::views::take(_configs.match_paths),
               path_maps[i]);
     }
     match(design, path_maps, dbs);
