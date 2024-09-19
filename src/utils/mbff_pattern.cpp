@@ -46,16 +46,16 @@ std::vector<std::string> mbff_pattern::get_ff_names(
   }
   std::vector<std::string> ff_names;
   std::string start, end, ff_name0, ff_name1, num;
-  if (RE2::FullMatch(line, *_merge_pattern.at(tool), &start, &ff_name0,
-                     &ff_name1, &end, &num)) {
+  if (RE2::PartialMatch(line, *_merge_pattern.at(tool), &start, &ff_name0,
+                        &ff_name1, &end, &num)) {
     int iter = boost::convert<int>(num, boost::cnv::strtol()).value();
     if (iter == 1) {
       ff_names.push_back(fmt::format("{}/{}/{}", start, ff_name0, end));
     } else {
       ff_names.push_back(fmt::format("{}/{}/{}", start, ff_name1, end));
     }
-  } else if (RE2::FullMatch(line, *_split_pattern.at(tool), &start, &ff_name0,
-                            &num, &end)) {
+  } else if (RE2::PartialMatch(line, *_split_pattern.at(tool), &start,
+                               &ff_name0, &num, &end)) {
     int iter = boost::convert<int>(num, boost::cnv::strtol()).value();
     ff_names.push_back(
         fmt::format("{}/{}/{}{}", start, ff_name0, end, iter + 1));
