@@ -12,6 +12,7 @@
 #include <thread>
 #include <vector>
 
+#include "absl/container/flat_hash_map.h"
 #include "absl/container/flat_hash_set.h"
 #include "dm/dm.h"
 #include "re2/re2.h"
@@ -27,25 +28,43 @@ enum block {
   End,
 };
 
+struct data_block {
+  std::shared_ptr<Path> path_obj = std::make_shared<Path>();
+  std::shared_ptr<Pin> pin_obj = std::make_shared<Pin>();
+  std::shared_ptr<Net> net_obj = std::make_shared<Net>();
+  block iter = Beginpoint;
+
+  // invs
+  int split_count = 0;
+  absl::flat_hash_map<std::string, std::size_t> row;
+  std::string headers;
+
+  data_block(block start_iter = Beginpoint) : iter(start_iter) {}
+};
+
 template <typename T>
 class rpt_parser {
  public:
-  rpt_parser(const std::string &start_pattern)
-      : _start_pattern(start_pattern) {}
-  rpt_parser(const std::string &start_pattern, int num_consumers)
-      : _num_consumers(num_consumers), _start_pattern(start_pattern) {}
+  rpt_parser(const std::string &start_pattern, const block &start_block)
+      : _start_pattern(start_pattern), _start_block(start_block) {}
+  rpt_parser(const std::string &start_pattern, int num_consumers,
+             const block &start_block)
+      : _num_consumers(num_consumers),
+        _start_pattern(start_pattern),
+        _start_block(start_block) {}
   bool parse_file(const std::string &filename);
   void parse(std::istream &instream);
   void data_preparation(std::istream &instream);
   void data_processing();
   void single_thread_parse(std::istream &instream);
+  std::shared_ptr<Path> parse_path(const std::vector<T> &path);
   void print_paths();
   void set_ignore_blocks(absl::flat_hash_set<block> ignore_blocks) {
     _ignore_blocks = ignore_blocks;
   }
   const basedb &get_db() const { return _db; }
 
-  virtual std::shared_ptr<Path> parse_path(const std::vector<T> &path) = 0;
+  virtual void parse_line(T line, std::shared_ptr<data_block> &path_block) = 0;
   virtual void update_iter(block &iter) = 0;
 
  protected:
@@ -57,6 +76,7 @@ class rpt_parser {
   int _num_consumers = 4;
   std::string _start_pattern;
   absl::flat_hash_set<block> _ignore_blocks;
+  block _start_block;
 };
 
 template <typename T>
@@ -81,6 +101,26 @@ bool rpt_parser<T>::parse_file(const std::string &filename) {
     file.close();
   }
   return true;
+}
+
+template <typename T>
+void rpt_parser<T>::single_thread_parse(std::istream &instream) {
+  std::string line;
+  const RE2 start_pattern(_start_pattern);
+  bool start_flag = false;
+  std::shared_ptr<data_block> path_block =
+      std::make_shared<data_block>(_start_block);
+  while (std::getline(instream, line)) {
+    if (RE2::PartialMatch(line, start_pattern)) {
+      if (start_flag) {
+        _db.paths.emplace_back(path_block->path_obj);
+      }
+      path_block = std::make_shared<data_block>(_start_block);
+      start_flag = true;
+    }
+    parse_line(line, path_block);
+  }
+  _db.paths.emplace_back(path_block->path_obj);
 }
 
 // 数据准备线程函数
@@ -130,27 +170,6 @@ void rpt_parser<T>::data_processing() {
 }
 
 template <typename T>
-void rpt_parser<T>::single_thread_parse(std::istream &instream) {
-  std::string line;
-  const RE2 start_pattern(_start_pattern);
-  std::vector<T> path;
-  bool start_flag = false;
-  while (std::getline(instream, line)) {
-    if (RE2::PartialMatch(line, start_pattern)) {
-      if (start_flag) {
-        auto path_obj = parse_path(path);
-        _db.paths.emplace_back(path_obj);
-        path.clear();
-      } else {
-        path.clear();
-      }
-      start_flag = true;
-    }
-    path.emplace_back(line);
-  }
-}
-
-template <typename T>
 void rpt_parser<T>::parse(std::istream &instream) {
   if (_num_consumers == 1) {
     single_thread_parse(instream);
@@ -169,6 +188,16 @@ void rpt_parser<T>::parse(std::istream &instream) {
             [](const std::shared_ptr<Path> &a, const std::shared_ptr<Path> &b) {
               return a->slack < b->slack;
             });
+}
+
+template <typename T>
+std::shared_ptr<Path> rpt_parser<T>::parse_path(const std::vector<T> &path) {
+  std::shared_ptr<data_block> path_block =
+      std::make_shared<data_block>(_start_block);
+  for (const T &line : path) {
+    parse_line(line, path_block);
+  }
+  return path_block->path_obj;
 }
 
 template <typename T>

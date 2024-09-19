@@ -150,7 +150,7 @@ std::shared_ptr<basedb> flow_control::parse_rpt(std::string rpt_file,
 
   if (_configs.mode == "compare" && _configs.compare_mode != "full_path") {
     if (rpt_tool == "leda") {
-      parser = std::make_shared<leda_rpt_parser<std::string_view>>();
+      parser = std::make_shared<leda_rpt_parser<std::string_view>>(1);
     } else if (rpt_tool == "invs") {
       parser = std::make_shared<invs_rpt_parser<std::string_view>>(1);
     }
