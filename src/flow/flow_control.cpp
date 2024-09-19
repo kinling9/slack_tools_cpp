@@ -114,6 +114,10 @@ void flow_control::parse_yml(std::string yml_file) {
         _configs.slack_filter = [](double x) { return x <= 0; };
       } else if (config["slack_filter"].as<std::string>() == "< 0") {
         _configs.slack_filter = [](double x) { return x < 0; };
+      } else if (config["slack_filter"].as<std::string>() == "> 0") {
+        _configs.slack_filter = [](double x) { return x > 0; };
+      } else if (config["slack_filter"].as<std::string>() == ">= 0") {
+        _configs.slack_filter = [](double x) { return x >= 0; };
       } else {
         throw fmt::system_error(errno,
                                 "The slack filter {} is not supported, "
