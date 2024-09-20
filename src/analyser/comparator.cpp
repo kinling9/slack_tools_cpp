@@ -98,8 +98,8 @@ void comparator::match(
 
   std::vector<double> match_ratios(_configs.match_percentages.size(), 0.0);
   std::vector<std::size_t> analyse_paths = {
-      std::min(_configs.match_paths, dbs[0]->paths.size()),
-      std::min(_configs.match_paths, dbs[1]->paths.size())};
+      std::min(_configs.match_paths, path_nums[0]),
+      std::min(_configs.match_paths, path_nums[1])};
   for (std::size_t i = 0; i < _configs.match_percentages.size(); i++) {
     double percentage = _configs.match_percentages[i];
     std::vector<absl::flat_hash_set<std::string>> percent_sets(2);

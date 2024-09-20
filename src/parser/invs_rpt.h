@@ -79,7 +79,9 @@ void invs_rpt_parser<T>::parse_line(T line,
       }
       break;
     case PathGroup:
-      if (RE2::FullMatch(line, _group_pattern, &path_block->path_obj->group)) {
+      // fix condition when dual group
+      if (RE2::PartialMatch(line, _group_pattern,
+                            &path_block->path_obj->group)) {
         update_iter(path_block->iter);
       }
       break;
