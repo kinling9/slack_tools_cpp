@@ -110,21 +110,8 @@ void flow_control::parse_yml(std::string yml_file) {
       _configs.enable_mbff = config["enable_mbff"].as<bool>();
     }
     if (config["slack_filter"]) {
-      if (config["slack_filter"].as<std::string>() == "<= 0") {
-        _configs.slack_filter = [](double x) { return x <= 0; };
-      } else if (config["slack_filter"].as<std::string>() == "< 0") {
-        _configs.slack_filter = [](double x) { return x < 0; };
-      } else if (config["slack_filter"].as<std::string>() == "> 0") {
-        _configs.slack_filter = [](double x) { return x > 0; };
-      } else if (config["slack_filter"].as<std::string>() == ">= 0") {
-        _configs.slack_filter = [](double x) { return x >= 0; };
-      } else {
-        throw fmt::system_error(errno,
-                                "The slack filter {} is not supported, "
-                                "skip.",
-                                config["slack_filter"].as<std::string>());
-        std::exit(1);
-      }
+      compile_slack_filter(config["slack_filter"].as<std::string>(),
+                           _configs.slack_filter_op_code);
     }
   } else if (mode == "cell in def") {
     _rpt_defs = config["rpt_defs"].as<std::vector<std::vector<std::string>>>();

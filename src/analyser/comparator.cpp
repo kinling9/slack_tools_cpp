@@ -9,6 +9,7 @@
 #include <ranges>
 
 #include "utils/design_cons.h"
+#include "utils/slack_filter/filter_machine.h"
 #include "utils/utils.h"
 
 void comparator::match(
@@ -27,7 +28,7 @@ void comparator::match(
     for (const auto &path :
          dbs[i]->paths | std::views::take(_configs.match_paths) |
              std::views::filter([&](const std::shared_ptr<Path> &path) {
-               return _configs.slack_filter(path->slack);
+               return slack_filter(_configs.slack_filter_op_code, path->slack);
              })) {
       ++path_nums[i];
       if (path->slack < 0) {
@@ -114,7 +115,8 @@ void comparator::match(
       gen_map(dbs[j]->tool,
               dbs[j]->paths |
                   std::views::filter([&](const std::shared_ptr<Path> &path) {
-                    return _configs.slack_filter(path->slack);
+                    return slack_filter(_configs.slack_filter_op_code,
+                                        path->slack);
                   }) |
                   std::views::take(path_nums[j]),
               path_map);
@@ -216,7 +218,8 @@ void comparator::analyse() {
       gen_map(dbs[i]->tool,
               dbs[i]->paths |
                   std::views::filter([&](const std::shared_ptr<Path> &path) {
-                    return _configs.slack_filter(path->slack);
+                    return slack_filter(_configs.slack_filter_op_code,
+                                        path->slack);
                   }) |
                   std::views::take(_configs.match_paths),
               path_maps[i]);
