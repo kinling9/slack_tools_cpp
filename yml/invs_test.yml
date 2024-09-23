@@ -9,4 +9,4 @@ match_percentages: [0.01, 0.03, 0.1, 0.5, 1]
 output_dir: output
 match_paths: 10
 enable_mbff: True
-slack_filter: <= 0
+slack_filter: x > 0 && x <= 5 # using x to represent slack

@@ -63,3 +63,8 @@ bool filter_machine::execute(const std::vector<double> &code) {
   }
   return static_cast<bool>(_stack.top());
 }
+
+bool slack_filter(const std::vector<double> &code, double x) {
+  filter_machine vm(x);
+  return vm.execute(code);
+}

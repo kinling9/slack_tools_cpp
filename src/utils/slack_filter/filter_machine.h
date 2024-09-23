@@ -25,3 +25,5 @@ class filter_machine {
   std::stack<double> _stack;  // The VM stack
   double _x;
 };
+
+bool slack_filter(const std::vector<double> &code, double x);
