@@ -4,9 +4,6 @@
 #include <string>
 #include <vector>
 
-#include "utils/slack_filter/filter_machine.h"
-#include "utils/slack_filter/slack_filter.h"
-
 struct configs {
   std::string mode;
   std::string compare_mode;

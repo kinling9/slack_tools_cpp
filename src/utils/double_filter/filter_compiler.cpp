@@ -9,7 +9,9 @@ void filter_compiler::operator()(double d) const {
   code.push_back(op_int);
   code.push_back(d);
 }
-void filter_compiler::operator()(char x) const { code.push_back(op_x); }
+void filter_compiler::operator()([[maybe_unused]] char _) const {
+  code.push_back(op_x);
+}
 
 void filter_compiler::operator()(ast::operation const &op) const {
   boost::apply_visitor(*this, op.operand_);

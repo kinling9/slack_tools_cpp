@@ -78,5 +78,5 @@ BOOST_SPIRIT_DEFINE(value, compare, factor, term, expression);
 }  // namespace calculator_grammar
 }  // namespace client
 
-void compile_slack_filter(const std::string &filter_str,
-                          std::vector<double> &code);
+void compile_double_filter(const std::string &filter_str,
+                           std::vector<double> &code);

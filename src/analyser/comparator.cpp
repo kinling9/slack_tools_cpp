@@ -9,7 +9,7 @@
 #include <ranges>
 
 #include "utils/design_cons.h"
-#include "utils/slack_filter/filter_machine.h"
+#include "utils/double_filter/filter_machine.h"
 #include "utils/utils.h"
 
 void comparator::match(
