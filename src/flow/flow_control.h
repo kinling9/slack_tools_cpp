@@ -5,6 +5,7 @@
 
 #include "dm/dm.h"
 #include "flow/configs.h"
+#include "yaml-cpp/yaml.h"
 
 class flow_control {
  public:
@@ -14,6 +15,7 @@ class flow_control {
   std::shared_ptr<basedb> parse_rpt(std::string rpt_file, std::string rpt_type);
   void parse();
   void analyse();
+  void parse_rpt_config(YAML::Node& config);
 
  private:
   std::string _yml;

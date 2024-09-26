@@ -72,29 +72,6 @@ void flow_control::parse_yml(std::string yml_file) {
       }
     }
     _configs.compare_mode = config["compare_mode"].as<std::string>();
-    for (std::size_t i = 0; i < _rpts.size(); i++) {
-      std::string design;
-      absl::flat_hash_set<std::string> designs;
-      auto rpt_group = rpts[i];
-      for (const auto& rpt : rpt_group) {
-        auto design_name = cons.get_name(rpt);
-        if (design_name == "") {
-          fmt::print(
-              "The design period corresponding to rpt {} cannot be found, skip "
-              "rpt pair {}.\n",
-              rpt, i);
-        }
-        designs.emplace(design_name);
-      }
-      if (designs.size() != 1) {
-        fmt::print(
-            "The reports are generated from different designs {}, skip rpt "
-            "pair {}.\n",
-            fmt::join(designs, ","), i);
-      }
-      design = designs.begin()->data();
-      // _configs.design_names.push_back(design);
-    }
     if (config["slack_margins"]) {
       _configs.slack_margins =
           config["slack_margins"].as<std::vector<double>>();
@@ -116,11 +93,58 @@ void flow_control::parse_yml(std::string yml_file) {
   } else if (mode == "cell in def") {
     _rpt_defs = config["rpt_defs"].as<std::vector<std::vector<std::string>>>();
     _rpt_tool = config["tool"].as<std::string>();
+  } else if (mode == "arc analyse") {
   } else {
     throw fmt::system_error(errno, "The mode {} is not supported, skip.", mode);
     std::exit(1);
   }
 }
+
+void flow_control::parse_rpt_config(YAML::Node& config) {
+  design_cons& cons = design_cons::get_instance();
+  auto tools = config["tools"].as<std::vector<std::string>>();
+  auto rpts = config["rpts"].as<std::vector<std::vector<std::string>>>();
+  if (tools.size() != 2) {
+    throw fmt::system_error(errno, "Please provide two files for comparison");
+    std::exit(1);
+  }
+  for (std::size_t i = 0; i < rpts.size(); i++) {
+    const auto& rpt_group = rpts[i];
+    if (rpt_group.size() != 2) {
+      fmt::print("Rpts {} should contain two files, ignore this pair.\n", i);
+    } else {
+      std::string design;
+      absl::flat_hash_set<std::string> designs;
+      bool design_found = true;
+      for (const auto& rpt : rpt_group) {
+        auto design_name = cons.get_name(rpt);
+        if (design_name == "") {
+          fmt::print(
+              "The design period corresponding to rpt {} cannot be found, "
+              "skip "
+              "rpt pair {}.\n",
+              rpt, i);
+          design_found = false;
+        }
+        designs.emplace(design_name);
+      }
+      if (!design_found) {
+        continue;
+      }
+      if (designs.size() != 1) {
+        fmt::print(
+            "The reports are generated from different designs {}, skip rpt "
+            "pair {}.\n",
+            fmt::join(designs, ","), i);
+        continue;
+      }
+      design = designs.begin()->data();
+      _rpts.insert(
+          {design, {{rpt_group[0], tools[0]}, {rpt_group[1], tools[1]}}});
+    }
+  }
+}
+design_cons& cons = design_cons::get_instance();
 
 std::shared_ptr<basedb> flow_control::parse_rpt(std::string rpt_file,
                                                 std::string rpt_tool) {

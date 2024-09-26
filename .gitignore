@@ -199,3 +199,4 @@ cython_debug/
 *build_debug*
 tools.tar.gz
 *output*
+*tmp.txt
