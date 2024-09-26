@@ -17,11 +17,11 @@ class arc_analyser : public analyser {
   void gen_value_map();
   void gen_pin2path_map(
       const std::shared_ptr<basedb> &db,
-      absl::flat_hash_map<std::shared_ptr<Pin>, std::shared_ptr<Path>>
+      absl::flat_hash_map<std::string_view, std::shared_ptr<Path>>
           &pin2path_map);
   void match(const std::string &design,
-             const absl::flat_hash_map<std::shared_ptr<Pin>,
-                                       std::shared_ptr<Path>> &pin_map,
+             const absl::flat_hash_map<std::string_view, std::shared_ptr<Path>>
+                 &pin_map,
              const std::vector<std::shared_ptr<basedb>> &dbs);
 
  private:

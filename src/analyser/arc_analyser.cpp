@@ -8,19 +8,17 @@ arc_analyser::arc_analyser(
         &dbs)
     : analyser(configs), _dbs(dbs) {
   for (const auto &[design, _] : _dbs) {
-    _arcs_writers[design] = std::make_shared<writer>(
-        writer(configs.output_dir + "/" + design + ".arcs"));
+    _arcs_writers[design] = std::make_shared<writer>(writer(design + ".arcs"));
+    _arcs_writers[design]->set_output_dir(_configs.output_dir);
+    _arcs_writers[design]->open();
   }
 }
 
-void arc_analyser::analyse() {
-  gen_value_map();
-  _writer.write();
-}
+void arc_analyser::analyse() { gen_value_map(); }
 
 void arc_analyser::gen_value_map() {
   for (const auto &[design, dbs] : _dbs) {
-    absl::flat_hash_map<std::shared_ptr<Pin>, std::shared_ptr<Path>> pin_map;
+    absl::flat_hash_map<std::string_view, std::shared_ptr<Path>> pin_map;
     gen_pin2path_map(dbs[1], pin_map);
     match(design, pin_map, dbs);
   }
@@ -28,13 +26,13 @@ void arc_analyser::gen_value_map() {
 
 void arc_analyser::gen_pin2path_map(
     const std::shared_ptr<basedb> &db,
-    absl::flat_hash_map<std::shared_ptr<Pin>, std::shared_ptr<Path>>
+    absl::flat_hash_map<std::string_view, std::shared_ptr<Path>>
         &pin2path_map) {
   for (const auto &path : db->paths) {
     for (const auto &pin : path->path) {
       // TODO: maybe set needed
-      if (!pin2path_map.contains(pin)) {
-        pin2path_map[pin] = path;
+      if (!pin2path_map.contains(pin->name)) {
+        pin2path_map[pin->name] = path;
       }
     }
   }
@@ -42,8 +40,7 @@ void arc_analyser::gen_pin2path_map(
 
 void arc_analyser::match(
     const std::string &design,
-    const absl::flat_hash_map<std::shared_ptr<Pin>, std::shared_ptr<Path>>
-        &pin_map,
+    const absl::flat_hash_map<std::string_view, std::shared_ptr<Path>> &pin_map,
     const std::vector<std::shared_ptr<basedb>> &dbs) {
   for (const auto &path : dbs[0]->paths) {
     for (const auto &pin :
@@ -52,14 +49,14 @@ void arc_analyser::match(
                return pin_ptr->net->fanout > 1;
              })) {
       auto net = pin->net;
-      if (pin_map.contains(net->pins.first) &&
-          pin_map.contains(net->pins.second)) {
-        if (pin_map.at(net->pins.first) == pin_map.at(net->pins.second)) {
-          double total_delay = 0;
+      if (pin_map.contains(net->pins.first->name) &&
+          pin_map.contains(net->pins.second->name)) {
+        if (pin_map.at(net->pins.first->name) ==
+            pin_map.at(net->pins.second->name)) {
           const auto &pin_from = net->pins.first;
           const auto &pin_to = net->pins.second;
           fmt::print(_arcs_writers[design]->out_file,
-                     "detect high-fanout net from {} to {}", pin_from->name,
+                     "\ndetect high-fanout net from {} to {}\n", pin_from->name,
                      pin_to->name);
           fmt::print(_arcs_writers[design]->out_file, "In key file:\n");
           fmt::print(_arcs_writers[design]->out_file,
@@ -70,25 +67,37 @@ void arc_analyser::match(
                      "pin_name: {}, incr_delay: {}, path_delay: {}\n",
                      pin_to->name, pin_to->incr_delay, pin_to->path_delay);
           fmt::print(_arcs_writers[design]->out_file, "In value file:\n");
-          auto &value_path = pin_map.at(net->pins.first);
+          auto &value_path = pin_map.at(net->pins.first->name);
+          bool match = true;
+          double key_delay = pin_to->incr_delay;
+          double value_delay = 0;
           for (const auto &value_pin :
                value_path->path |
                    std::views::drop_while(
                        [&](const std::shared_ptr<Pin> from_pin) {
-                         return from_pin == net->pins.first;
+                         return from_pin->name != net->pins.first->name;
                        }) |
                    std::views::take_while(
                        [&](const std::shared_ptr<Pin> to_pin) {
-                         return to_pin == net->pins.second;
+                         if (to_pin->name == net->pins.second->name) {
+                           match = false;
+                           return true;
+                         }
+                         return match || to_pin->name == net->pins.second->name;
                        })) {
             fmt::print(_arcs_writers[design]->out_file,
                        "pin_name: {}, incr_delay: {}, path_delay: {}\n",
                        value_pin->name, value_pin->incr_delay,
                        value_pin->path_delay);
-            total_delay += value_pin->incr_delay;
+            if (value_pin->name == net->pins.first->name) {
+              continue;
+            }
+            value_delay += value_pin->incr_delay;
           }
-          fmt::print(_arcs_writers[design]->out_file, "total_delay: {}\n",
-                     total_delay);
+          double delta_delay = key_delay - value_delay;
+          fmt::print(_arcs_writers[design]->out_file,
+                     "key_delay: {}, value_delay: {}, delta_delay: {}\n",
+                     key_delay, value_delay, delta_delay);
         }
       }
     }

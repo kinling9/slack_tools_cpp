@@ -150,7 +150,7 @@ void invs_rpt_parser<T>::parse_line(T line,
         pin.rise_fall = tokens[path_block->row["Edge"]] == "^";
         pin.cell = std::string(tokens[path_block->row["Cell"]]);
         pin.incr_delay =
-            boost::convert<double>(tokens[path_block->row["Incr Delay"]],
+            boost::convert<double>(tokens[path_block->row["Delay"]],
                                    boost::cnv::strtol())
                 .value_or(0);
         auto space_index =
