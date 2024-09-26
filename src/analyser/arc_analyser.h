@@ -5,12 +5,12 @@
 #include "dm/dm.h"
 #include "utils/writer.h"
 
-class hf_analyser : public analyser {
+class arc_analyser : public analyser {
  public:
-  hf_analyser(const configs &configs,
-              const absl::flat_hash_map<
-                  std::string, std::vector<std::shared_ptr<basedb>>> &dbs)
-      : analyser(configs), _dbs(dbs), _hfs_writer("hf_analyse.txt") {};
+  arc_analyser(const configs &configs,
+               const absl::flat_hash_map<
+                   std::string, std::vector<std::shared_ptr<basedb>>> &dbs);
+
   void analyse() override;
 
  private:
@@ -30,5 +30,5 @@ class hf_analyser : public analyser {
   // absl::flat_hash_map<std::string, absl::flat_hash_map<std::shared_ptr<Pin>,
   //                                                      std::shared_ptr<Path>>>
   //     _pin_maps;
-  writer _hfs_writer;
+  absl::flat_hash_map<std::string, std::shared_ptr<writer>> _arcs_writers;
 };

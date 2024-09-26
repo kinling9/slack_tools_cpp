@@ -1,14 +1,24 @@
-#include "hf_analyser.h"
+#include "arc_analyser.h"
 
-#include <algorithm>
 #include <ranges>
 
-void hf_analyser::analyse() {
+arc_analyser::arc_analyser(
+    const configs &configs,
+    const absl::flat_hash_map<std::string, std::vector<std::shared_ptr<basedb>>>
+        &dbs)
+    : analyser(configs), _dbs(dbs) {
+  for (const auto &[design, _] : _dbs) {
+    _arcs_writers[design] = std::make_shared<writer>(
+        writer(configs.output_dir + "/" + design + ".arcs"));
+  }
+}
+
+void arc_analyser::analyse() {
   gen_value_map();
   _writer.write();
 }
 
-void hf_analyser::gen_value_map() {
+void arc_analyser::gen_value_map() {
   for (const auto &[design, dbs] : _dbs) {
     absl::flat_hash_map<std::shared_ptr<Pin>, std::shared_ptr<Path>> pin_map;
     gen_pin2path_map(dbs[1], pin_map);
@@ -16,7 +26,7 @@ void hf_analyser::gen_value_map() {
   }
 }
 
-void hf_analyser::gen_pin2path_map(
+void arc_analyser::gen_pin2path_map(
     const std::shared_ptr<basedb> &db,
     absl::flat_hash_map<std::shared_ptr<Pin>, std::shared_ptr<Path>>
         &pin2path_map) {
@@ -30,7 +40,7 @@ void hf_analyser::gen_pin2path_map(
   }
 }
 
-void hf_analyser::match(
+void arc_analyser::match(
     const std::string &design,
     const absl::flat_hash_map<std::shared_ptr<Pin>, std::shared_ptr<Path>>
         &pin_map,
@@ -39,7 +49,7 @@ void hf_analyser::match(
     for (const auto &pin :
          path->path | std::views::stride(2) |
              std::views::filter([](const std::shared_ptr<Pin> pin_ptr) {
-               return pin_ptr->net->fanout > 100;
+               return pin_ptr->net->fanout > 1;
              })) {
       auto net = pin->net;
       if (pin_map.contains(net->pins.first) &&
@@ -48,18 +58,18 @@ void hf_analyser::match(
           double total_delay = 0;
           const auto &pin_from = net->pins.first;
           const auto &pin_to = net->pins.second;
-          fmt::print(_hfs_writer.out_file,
+          fmt::print(_arcs_writers[design]->out_file,
                      "detect high-fanout net from {} to {}", pin_from->name,
                      pin_to->name);
-          fmt::print(_hfs_writer.out_file, "In key file:\n");
-          fmt::print(_hfs_writer.out_file,
+          fmt::print(_arcs_writers[design]->out_file, "In key file:\n");
+          fmt::print(_arcs_writers[design]->out_file,
                      "pin_name: {}, incr_delay: {}, path_delay: {}\n",
                      pin_from->name, pin_from->incr_delay,
                      pin_from->path_delay);
-          fmt::print(_hfs_writer.out_file,
+          fmt::print(_arcs_writers[design]->out_file,
                      "pin_name: {}, incr_delay: {}, path_delay: {}\n",
                      pin_to->name, pin_to->incr_delay, pin_to->path_delay);
-          fmt::print(_hfs_writer.out_file, "In value file:\n");
+          fmt::print(_arcs_writers[design]->out_file, "In value file:\n");
           auto &value_path = pin_map.at(net->pins.first);
           for (const auto &value_pin :
                value_path->path |
@@ -71,13 +81,14 @@ void hf_analyser::match(
                        [&](const std::shared_ptr<Pin> to_pin) {
                          return to_pin == net->pins.second;
                        })) {
-            fmt::print(_hfs_writer.out_file,
+            fmt::print(_arcs_writers[design]->out_file,
                        "pin_name: {}, incr_delay: {}, path_delay: {}\n",
                        value_pin->name, value_pin->incr_delay,
                        value_pin->path_delay);
             total_delay += value_pin->incr_delay;
           }
-          fmt::print(_hfs_writer.out_file, "total_delay: {}\n", total_delay);
+          fmt::print(_arcs_writers[design]->out_file, "total_delay: {}\n",
+                     total_delay);
         }
       }
     }
