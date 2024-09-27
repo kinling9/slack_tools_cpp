@@ -1,11 +1,7 @@
 #pragma once
-#include <functional>
 #include <limits>
 #include <string>
 #include <vector>
-
-#include "utils/slack_filter/filter_machine.h"
-#include "utils/slack_filter/slack_filter.h"
 
 struct configs {
   std::string mode;
@@ -20,4 +16,6 @@ struct configs {
   std::size_t match_paths = std::numeric_limits<std::size_t>::max();
 
   std::vector<double> slack_filter_op_code;
+  std::vector<double> delay_filter_op_code;
+  std::vector<double> fanout_filter_op_code;
 };

@@ -136,6 +136,9 @@ void invs_rpt_parser<T>::parse_line(T line,
                                    boost::cnv::strtol())
                 .value_or(0);
         if (tokens[path_block->row["Instance Location"]] == "-") {
+          path_block->is_input = true;
+          pin.is_input = path_block->is_input;
+          path_block->is_input = !path_block->is_input;
           path_block->pin_obj = std::make_shared<Pin>(pin);
           Net net;
           if (path_block->row.contains("Net")) {
@@ -147,10 +150,12 @@ void invs_rpt_parser<T>::parse_line(T line,
           path_block->path_obj->path.push_back(path_block->pin_obj);
           return;
         }
+        pin.is_input = path_block->is_input;
+        path_block->is_input = !path_block->is_input;
         pin.rise_fall = tokens[path_block->row["Edge"]] == "^";
         pin.cell = std::string(tokens[path_block->row["Cell"]]);
         pin.incr_delay =
-            boost::convert<double>(tokens[path_block->row["Incr Delay"]],
+            boost::convert<double>(tokens[path_block->row["Delay"]],
                                    boost::cnv::strtol())
                 .value_or(0);
         auto space_index =

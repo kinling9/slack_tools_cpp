@@ -26,4 +26,4 @@ class filter_machine {
   double _x;
 };
 
-bool slack_filter(const std::vector<double> &code, double x);
+bool double_filter(const std::vector<double> &code, double x);

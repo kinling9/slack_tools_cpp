@@ -1,11 +1,11 @@
-#include "slack_filter.h"
+#include "double_filter.h"
 
 #include <fmt/core.h>
 
 #include "filter_compiler.h"
 
-void compile_slack_filter(const std::string &filter_str,
-                          std::vector<double> &code) {
+void compile_double_filter(const std::string &filter_str,
+                           std::vector<double> &code) {
   client::filter_compiler cmp(code);
   auto &calc = client::calculator_grammar::expression;  // Our grammar
   client::ast::expression ast_expr;
@@ -16,11 +16,11 @@ void compile_slack_filter(const std::string &filter_str,
   bool r = phrase_parse(iter, end, calc, space, ast_expr);
 
   if (r && iter == end) {
-    fmt::print("Parsing slack_filter succeeded\n");
+    fmt::print("Parsing double_filter \"{}\" succeeded\n", filter_str);
     cmp(ast_expr);
   } else {
     std::string rest(iter, end);
-    fmt::print("Parsing slack_filter failed, stopped at \"{}\"\n", rest);
+    fmt::print("Parsing double_filter failed, stopped at \"{}\"\n", rest);
     std::exit(1);
   }
 }
