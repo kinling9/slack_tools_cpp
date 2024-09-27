@@ -1,0 +1,8 @@
+mode: compare
+compare_mode: endpoint # [endpoint, startpoint, start_end, full_path]
+rpts:
+  - ["rpt/leda_endpoints/B005.rpt", "rpt/leda_endpoints/B005.rpt"]
+tools: ["leda_endpoint", "leda_endpoint"]
+slack_margins: [0.01, 0.03, 0.05, 0.1, 1]
+match_percentages: [0.01, 0.03, 0.1, 0.5, 1]
+output_dir: output
