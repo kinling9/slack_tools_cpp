@@ -65,6 +65,9 @@ bool filter_machine::execute(const std::vector<double> &code) {
 }
 
 bool double_filter(const std::vector<double> &code, double x) {
+  if (code.empty()) {
+    return true;
+  }
   filter_machine vm(x);
   return vm.execute(code);
 }

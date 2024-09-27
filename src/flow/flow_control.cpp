@@ -9,6 +9,7 @@
 #include "analyser/existence_checker.h"
 #include "parser/def_parser.h"
 #include "parser/invs_rpt.h"
+#include "parser/leda_endpoint.h"
 #include "parser/leda_rpt.h"
 #include "utils/design_cons.h"
 #include "utils/double_filter/double_filter.h"
@@ -122,13 +123,26 @@ std::shared_ptr<basedb> flow_control::parse_rpt(std::string rpt_file,
   std::variant<std::shared_ptr<rpt_parser<std::string>>,
                std::shared_ptr<rpt_parser<std::string_view>>>
       parser;
-  if (rpt_tool != "leda" && rpt_tool != "invs") {
+  absl::flat_hash_set<std::string> valid_tools = {"leda", "invs",
+                                                  "leda_endpoint"};
+  if (valid_tools.contains(rpt_tool) == false) {
     throw fmt::system_error(errno, "The tool {} is not supported, skip.",
                             rpt_tool);
     std::exit(1);
   }
+  if (rpt_tool == "leda_endpoint" && _configs.compare_mode != "endpoint") {
+    throw fmt::system_error(
+        errno,
+        "The tool {} is only supported in compare mode with "
+        "endpoints, skip.",
+        rpt_tool);
+    std::exit(1);
+  }
 
-  if (_configs.mode == "compare" && _configs.compare_mode != "full_path") {
+  if (rpt_tool == "leda_endpoint") {
+    parser = std::make_shared<leda_endpoint_parser<std::string_view>>(1);
+  } else if (_configs.mode == "compare" &&
+             _configs.compare_mode != "full_path") {
     if (rpt_tool == "leda") {
       parser = std::make_shared<leda_rpt_parser<std::string_view>>(1);
     } else if (rpt_tool == "invs") {

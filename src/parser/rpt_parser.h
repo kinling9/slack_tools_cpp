@@ -119,7 +119,9 @@ void rpt_parser<T>::single_thread_parse(std::istream &instream) {
       path_block = std::make_shared<data_block>(_start_block);
       start_flag = true;
     }
-    parse_line(line, path_block);
+    if (start_flag) {
+      parse_line(line, path_block);
+    }
   }
   _db.paths.emplace_back(path_block->path_obj);
 }
