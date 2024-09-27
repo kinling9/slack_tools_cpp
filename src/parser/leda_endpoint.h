@@ -14,22 +14,11 @@ class leda_endpoint_parser : public rpt_parser<T> {
   leda_endpoint_parser() : rpt_parser<T>("\\d$", Endpoint) {}
   leda_endpoint_parser(int num_consumers)
       : rpt_parser<T>("\\d$", num_consumers, Endpoint) {}
-  void update_iter(block &iter) override;
+  [[maybe_unused]] void update_iter([[maybe_unused]] block &iter) override {};
   void parse_line(T line, std::shared_ptr<data_block> &path_block) override;
 
  private:
 };
-
-template <typename T>
-void leda_endpoint_parser<T>::update_iter(block &iter) {
-  switch (iter) {
-    case Endpoint:
-      iter = End;
-      break;
-    default:
-      break;
-  }
-}
 
 template <typename T>
 void leda_endpoint_parser<T>::parse_line(
