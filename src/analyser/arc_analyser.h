@@ -1,5 +1,6 @@
 #pragma once
 #include <absl/container/flat_hash_map.h>
+#include <absl/container/flat_hash_set.h>
 
 #include "analyser.h"
 #include "dm/dm.h"
@@ -31,4 +32,7 @@ class arc_analyser : public analyser {
   //                                                      std::shared_ptr<Path>>>
   //     _pin_maps;
   absl::flat_hash_map<std::string, std::shared_ptr<writer>> _arcs_writers;
+  absl::flat_hash_map<std::pair<std::string, std::string>, std::string>
+      _arcs_buffer;
+  absl::flat_hash_map<std::pair<std::string, std::string>, double> _arcs_delta;
 };

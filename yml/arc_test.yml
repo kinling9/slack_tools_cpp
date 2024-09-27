@@ -3,5 +3,5 @@ rpts:
   - ["rpt/invs_rpts/axi4lscope.simple.gz", "rpt/invs_rpts/axi4lscope.simple.gz"]
 tools: ["invs", "invs"]
 output_dir: output
-fanout_filter: x > 10
-delay_filter: x > 0.1
+fanout_filter: x >= 1
+delay_filter: x >= 0

@@ -61,24 +61,24 @@ void arc_analyser::match(
     for (const auto &pin : path->path | std::views::filter(delay_filter) |
                                std::views::filter(fanout_filter)) {
       auto net = pin->net;
-      if (pin_map.contains(net->pins.first->name) &&
-          pin_map.contains(net->pins.second->name)) {
-        if (pin_map.at(net->pins.first->name) ==
-            pin_map.at(net->pins.second->name)) {
-          const auto &pin_from = net->pins.first;
-          const auto &pin_to = net->pins.second;
-          fmt::print(_arcs_writers[design]->out_file,
-                     "\ndetect high-fanout net from {} to {}\n", pin_from->name,
-                     pin_to->name);
-          fmt::print(_arcs_writers[design]->out_file, "In key file:\n");
-          fmt::print(_arcs_writers[design]->out_file,
-                     "pin_name: {}, incr_delay: {}, path_delay: {}\n",
-                     pin_from->name, pin_from->incr_delay,
-                     pin_from->path_delay);
-          fmt::print(_arcs_writers[design]->out_file,
-                     "pin_name: {}, incr_delay: {}, path_delay: {}\n",
-                     pin_to->name, pin_to->incr_delay, pin_to->path_delay);
-          fmt::print(_arcs_writers[design]->out_file, "In value file:\n");
+      const auto &pin_from = net->pins.first;
+      const auto &pin_to = net->pins.second;
+      if (pin_map.contains(pin_from->name) && pin_map.contains(pin_to->name)) {
+        if (pin_map.at(pin_from->name) == pin_map.at(pin_to->name) &&
+            !_arcs_buffer.contains({pin_from->name, pin_to->name})) {
+          auto buffer = fmt::memory_buffer();
+          fmt::format_to(std::back_inserter(buffer),
+                         "\ndetect high-fanout net from {} to {}\n",
+                         pin_from->name, pin_to->name);
+          fmt::format_to(std::back_inserter(buffer), "In key file:\n");
+          fmt::format_to(std::back_inserter(buffer),
+                         "pin_name: {}, incr_delay: {}, path_delay: {}\n",
+                         pin_from->name, pin_from->incr_delay,
+                         pin_from->path_delay);
+          fmt::format_to(std::back_inserter(buffer),
+                         "pin_name: {}, incr_delay: {}, path_delay: {}\n",
+                         pin_to->name, pin_to->incr_delay, pin_to->path_delay);
+          fmt::format_to(std::back_inserter(buffer), "In value file:\n");
           auto &value_path = pin_map.at(net->pins.first->name);
           bool match = true;
           double key_delay = pin_to->incr_delay;
@@ -97,21 +97,34 @@ void arc_analyser::match(
                          }
                          return match || to_pin->name == net->pins.second->name;
                        })) {
-            fmt::print(_arcs_writers[design]->out_file,
-                       "pin_name: {}, incr_delay: {}, path_delay: {}\n",
-                       value_pin->name, value_pin->incr_delay,
-                       value_pin->path_delay);
+            fmt::format_to(std::back_inserter(buffer),
+                           "pin_name: {}, incr_delay: {}, path_delay: {}\n",
+                           value_pin->name, value_pin->incr_delay,
+                           value_pin->path_delay);
             if (value_pin->name == net->pins.first->name) {
               continue;
             }
             value_delay += value_pin->incr_delay;
           }
           double delta_delay = key_delay - value_delay;
-          fmt::print(_arcs_writers[design]->out_file,
-                     "key_delay: {}, value_delay: {}, delta_delay: {}\n",
-                     key_delay, value_delay, delta_delay);
+          fmt::format_to(std::back_inserter(buffer),
+                         "key_delay: {}, value_delay: {}, delta_delay: {}\n",
+                         key_delay, value_delay, delta_delay);
+          _arcs_delta[std::make_pair(pin_from->name, pin_to->name)] =
+              delta_delay;
+          buffer.push_back('\0');
+          _arcs_buffer[std::make_pair(pin_from->name, pin_to->name)] =
+              fmt::to_string(buffer);
         }
       }
     }
+  }
+  std::vector<std::pair<std::pair<std::string, std::string>, double>>
+      sorted_arcs(_arcs_delta.begin(), _arcs_delta.end());
+  std::sort(
+      sorted_arcs.begin(), sorted_arcs.end(),
+      [](const auto &lhs, const auto &rhs) { return lhs.second > rhs.second; });
+  for (const auto &[arc, _] : sorted_arcs) {
+    fmt::print(_arcs_writers[design]->out_file, "{}", _arcs_buffer[arc]);
   }
 }
