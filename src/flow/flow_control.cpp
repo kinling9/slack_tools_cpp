@@ -56,6 +56,14 @@ void flow_control::parse_yml(std::string yml_file) {
     _rpt_tool = config["tool"].as<std::string>();
   } else if (mode == "arc analyse") {
     parse_rpt_config(config);
+    if (config["delay_filter"]) {
+      compile_double_filter(config["delay_filter"].as<std::string>(),
+                            _configs.delay_filter_op_code);
+    }
+    if (config["fanout_filter"]) {
+      compile_double_filter(config["fanout_filter"].as<std::string>(),
+                            _configs.fanout_filter_op_code);
+    }
   } else {
     throw fmt::system_error(errno, "The mode {} is not supported, skip.", mode);
     std::exit(1);

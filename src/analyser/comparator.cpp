@@ -23,12 +23,13 @@ void comparator::match(
   auto period = cons.get_period(design);
   absl::flat_hash_map<std::string, std::string> row;
 
+  // TODO: filter only once to acc
   for (int i = 0; i < 2; i++) {
     // path_nums[i] = std::min(dbs[i]->paths.size(), _configs.match_paths);
     for (const auto &path :
          dbs[i]->paths | std::views::take(_configs.match_paths) |
              std::views::filter([&](const std::shared_ptr<Path> &path) {
-               return slack_filter(_configs.slack_filter_op_code, path->slack);
+               return double_filter(_configs.slack_filter_op_code, path->slack);
              })) {
       ++path_nums[i];
       if (path->slack < 0) {
@@ -115,8 +116,8 @@ void comparator::match(
       gen_map(dbs[j]->tool,
               dbs[j]->paths |
                   std::views::filter([&](const std::shared_ptr<Path> &path) {
-                    return slack_filter(_configs.slack_filter_op_code,
-                                        path->slack);
+                    return double_filter(_configs.slack_filter_op_code,
+                                         path->slack);
                   }) |
                   std::views::take(path_nums[j]),
               path_map);
@@ -218,8 +219,8 @@ void comparator::analyse() {
       gen_map(dbs[i]->tool,
               dbs[i]->paths |
                   std::views::filter([&](const std::shared_ptr<Path> &path) {
-                    return slack_filter(_configs.slack_filter_op_code,
-                                        path->slack);
+                    return double_filter(_configs.slack_filter_op_code,
+                                         path->slack);
                   }) |
                   std::views::take(_configs.match_paths),
               path_maps[i]);

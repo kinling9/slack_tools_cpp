@@ -2,6 +2,8 @@
 
 #include <ranges>
 
+#include "utils/double_filter/filter_machine.h"
+
 arc_analyser::arc_analyser(
     const configs &configs,
     const absl::flat_hash_map<std::string, std::vector<std::shared_ptr<basedb>>>
@@ -42,12 +44,22 @@ void arc_analyser::match(
     const std::string &design,
     const absl::flat_hash_map<std::string_view, std::shared_ptr<Path>> &pin_map,
     const std::vector<std::shared_ptr<basedb>> &dbs) {
+  auto fanout_filter = [&](const std::shared_ptr<Pin> pin_ptr) {
+    if (_configs.slack_filter_op_code.empty()) {
+      return true;
+    }
+    return pin_ptr->is_input &&
+           double_filter(_configs.slack_filter_op_code, pin_ptr->net->fanout);
+  };
+  auto delay_filter = [&](const std::shared_ptr<Pin> pin_ptr) {
+    if (_configs.delay_filter_op_code.empty()) {
+      return true;
+    }
+    return double_filter(_configs.delay_filter_op_code, pin_ptr->incr_delay);
+  };
   for (const auto &path : dbs[0]->paths) {
-    for (const auto &pin :
-         path->path | std::views::stride(2) |
-             std::views::filter([](const std::shared_ptr<Pin> pin_ptr) {
-               return pin_ptr->net->fanout > 1;
-             })) {
+    for (const auto &pin : path->path | std::views::filter(delay_filter) |
+                               std::views::filter(fanout_filter)) {
       auto net = pin->net;
       if (pin_map.contains(net->pins.first->name) &&
           pin_map.contains(net->pins.second->name)) {

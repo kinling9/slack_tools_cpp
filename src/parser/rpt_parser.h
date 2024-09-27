@@ -33,6 +33,7 @@ struct data_block {
   std::shared_ptr<Pin> pin_obj = std::make_shared<Pin>();
   std::shared_ptr<Net> net_obj = std::make_shared<Net>();
   block iter = Beginpoint;
+  bool is_input = false;
 
   // invs
   int split_count = 0;

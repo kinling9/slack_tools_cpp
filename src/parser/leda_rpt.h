@@ -94,9 +94,12 @@ void leda_rpt_parser<T>::parse_line(T line,
         break;
       }
       // Parse the path
+      // TODO: auto generate token iter from title line
       std::vector<std::string_view> tokens = split_string_by_spaces(line);
       if (tokens.size() == 8) {
         Pin pin;
+        pin.is_input = path_block->is_input;
+        path_block->is_input = !path_block->is_input;
         pin.name = std::string(tokens[0]);
         pin.cell = std::string(tokens[1].substr(1, tokens[1].size() - 2));
         pin.trans =
