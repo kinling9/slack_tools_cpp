@@ -24,6 +24,9 @@ template <typename T>
 void leda_endpoint_parser<T>::parse_line(
     T line, std::shared_ptr<data_block> &path_block) {
   std::vector<std::string_view> tokens = split_string_by_spaces(line);
+  if (tokens.size() < 2) {
+    return;
+  }
   path_block->path_obj->slack =
       boost::convert<double>(tokens[1], boost::cnv::strtol()).value_or(0);
   path_block->path_obj->endpoint = tokens[0];
