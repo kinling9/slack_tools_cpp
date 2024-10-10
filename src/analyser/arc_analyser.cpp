@@ -75,7 +75,7 @@ void arc_analyser::match(
             !_arcs_buffer.contains({pin_from->name, pin_to->name})) {
           auto buffer = fmt::memory_buffer();
           fmt::format_to(std::back_inserter(buffer),
-                         "\ndetect {} arc from {} to {}\n",
+                         "detect {} arc from {} to {}\n",
                          pin_from->is_input ? "cell" : "net", pin_from->name,
                          pin_to->name);
           fmt::format_to(std::back_inserter(buffer), "In key file:\n");
@@ -133,6 +133,7 @@ void arc_analyser::match(
                            key_endpoint, path->slack, value_endpoint,
                            value_path->slack, path->slack - value_path->slack);
           }
+          fmt::format_to(std::back_inserter(buffer), "\n");
           _arcs_delta[std::make_pair(pin_from->name, pin_to->name)] =
               delta_delay;
           _arcs_buffer[std::make_pair(pin_from->name, pin_to->name)] =
