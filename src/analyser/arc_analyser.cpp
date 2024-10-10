@@ -3,6 +3,7 @@
 #include <ranges>
 
 #include "utils/double_filter/filter_machine.h"
+#include "utils/utils.h"
 
 arc_analyser::arc_analyser(
     const configs &configs,
@@ -73,6 +74,9 @@ void arc_analyser::match(
       if (pin_map.contains(pin_from->name) && pin_map.contains(pin_to->name)) {
         if (pin_map.at(pin_from->name) == pin_map.at(pin_to->name) &&
             !_arcs_buffer.contains({pin_from->name, pin_to->name})) {
+          std::vector<std::pair<double, double>> key_locs = {pin_from->location,
+                                                             pin_to->location};
+          std::vector<std::pair<double, double>> value_locs;
           auto buffer = fmt::memory_buffer();
           fmt::format_to(std::back_inserter(buffer),
                          "detect {} arc from {} to {}\n",
@@ -95,6 +99,7 @@ void arc_analyser::match(
           bool match = true;
           double key_delay = pin_to->incr_delay;
           double value_delay = 0;
+
           for (const auto &value_pin :
                value_path->path |
                    std::views::drop_while(
@@ -115,6 +120,7 @@ void arc_analyser::match(
                            value_pin->name, value_pin->incr_delay,
                            value_pin->path_delay, value_pin->location.first,
                            value_pin->location.second);
+            value_locs.push_back(value_pin->location);
             if (value_pin->name == pin_from->name) {
               continue;
             }
@@ -124,6 +130,12 @@ void arc_analyser::match(
           fmt::format_to(std::back_inserter(buffer),
                          "key_delay: {}, value_delay: {}, delta_delay: {}\n",
                          key_delay, value_delay, delta_delay);
+          auto key_len = manhattan_distance(key_locs);
+          auto value_len = manhattan_distance(value_locs);
+          fmt::format_to(std::back_inserter(buffer),
+                         "key length: {:.2f}, value length: {:.2f}, delta "
+                         "length: {:.2f}\n",
+                         key_len, value_len, key_len - value_len);
           const auto &key_endpoint = path->endpoint;
           const auto &value_endpoint = value_path->endpoint;
           if (key_endpoint == value_endpoint) {
