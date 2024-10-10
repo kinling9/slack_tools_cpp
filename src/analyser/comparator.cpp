@@ -57,10 +57,13 @@ void comparator::match(
     if (path_maps[1].contains(key) && !path_set.contains(path)) {
       path_set.emplace(path);
       auto diff_slack = path->slack - path_maps[1].at(key)->slack;
-      fmt::print(writers[0]->out_file, "{} {}\n", key,
-                 path_maps[0].at(key)->slack);
-      fmt::print(writers[1]->out_file, "{} {}\n", key,
-                 path_maps[1].at(key)->slack);
+      if (_configs.diff_filter_op_code.empty() ||
+          double_filter(_configs.diff_filter_op_code, diff_slack)) {
+        fmt::print(writers[0]->out_file, "{} {}\n", key,
+                   path_maps[0].at(key)->slack);
+        fmt::print(writers[1]->out_file, "{} {}\n", key,
+                   path_maps[1].at(key)->slack);
+      }
       slack_diffs.push_back(diff_slack);
       for (std::size_t i = 0; i < _configs.slack_margins.size(); i++) {
         if (abs(diff_slack) < _configs.slack_margins[i] * period) {
