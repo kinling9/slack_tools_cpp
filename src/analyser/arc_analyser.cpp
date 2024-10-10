@@ -75,16 +75,21 @@ void arc_analyser::match(
             !_arcs_buffer.contains({pin_from->name, pin_to->name})) {
           auto buffer = fmt::memory_buffer();
           fmt::format_to(std::back_inserter(buffer),
-                         "\ndetect high-fanout net from {} to {}\n",
-                         pin_from->name, pin_to->name);
+                         "\ndetect {} arc from {} to {}\n",
+                         pin_from->is_input ? "cell" : "net", pin_from->name,
+                         pin_to->name);
           fmt::format_to(std::back_inserter(buffer), "In key file:\n");
           fmt::format_to(std::back_inserter(buffer),
-                         "pin_name: {}, incr_delay: {}, path_delay: {}\n",
+                         "pin_name: {}, incr_delay: {}, path_delay: {}, "
+                         "location: ({},{})\n",
                          pin_from->name, pin_from->incr_delay,
-                         pin_from->path_delay);
+                         pin_from->path_delay, pin_from->location.first,
+                         pin_from->location.second);
           fmt::format_to(std::back_inserter(buffer),
-                         "pin_name: {}, incr_delay: {}, path_delay: {}\n",
-                         pin_to->name, pin_to->incr_delay, pin_to->path_delay);
+                         "pin_name: {}, incr_delay: {}, path_delay: {}, "
+                         "location: ({},{})\n",
+                         pin_to->name, pin_to->incr_delay, pin_to->path_delay,
+                         pin_to->location.first, pin_to->location.second);
           fmt::format_to(std::back_inserter(buffer), "In value file:\n");
           auto &value_path = pin_map.at(pin_from->name);
           bool match = true;
@@ -105,9 +110,11 @@ void arc_analyser::match(
                          return match || to_pin->name == pin_to->name;
                        })) {
             fmt::format_to(std::back_inserter(buffer),
-                           "pin_name: {}, incr_delay: {}, path_delay: {}\n",
+                           "pin_name: {}, incr_delay: {}, path_delay: {}, "
+                           "location: ({},{})\n",
                            value_pin->name, value_pin->incr_delay,
-                           value_pin->path_delay);
+                           value_pin->path_delay, value_pin->location.first,
+                           value_pin->location.second);
             if (value_pin->name == pin_from->name) {
               continue;
             }
@@ -117,6 +124,15 @@ void arc_analyser::match(
           fmt::format_to(std::back_inserter(buffer),
                          "key_delay: {}, value_delay: {}, delta_delay: {}\n",
                          key_delay, value_delay, delta_delay);
+          const auto &key_endpoint = path->endpoint;
+          const auto &value_endpoint = value_path->endpoint;
+          if (key_endpoint == value_endpoint) {
+            fmt::format_to(std::back_inserter(buffer),
+                           "key end point: {}, slack: {}\nvalue end point: {}, "
+                           "slack: {}, delta_slack: {}\n",
+                           key_endpoint, path->slack, value_endpoint,
+                           value_path->slack, path->slack - value_path->slack);
+          }
           _arcs_delta[std::make_pair(pin_from->name, pin_to->name)] =
               delta_delay;
           _arcs_buffer[std::make_pair(pin_from->name, pin_to->name)] =

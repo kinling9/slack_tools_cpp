@@ -136,7 +136,7 @@ void invs_rpt_parser<T>::parse_line(T line,
                                    boost::cnv::strtol())
                 .value_or(0);
         if (tokens[path_block->row["Instance Location"]] == "-") {
-          path_block->is_input = true;
+          path_block->is_input = false;
           pin.is_input = path_block->is_input;
           path_block->is_input = !path_block->is_input;
           path_block->pin_obj = std::make_shared<Pin>(pin);
