@@ -15,7 +15,7 @@ class Pin {
   double incr_delay;
   double path_delay;
   bool rise_fall;
-  bool is_input;
+  bool is_input;  // cell input
   std::pair<double, double> location;
   std::shared_ptr<Net> net;
 };

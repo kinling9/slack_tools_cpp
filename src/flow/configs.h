@@ -16,6 +16,7 @@ struct configs {
   std::size_t match_paths = std::numeric_limits<std::size_t>::max();
 
   std::vector<double> slack_filter_op_code;
+  std::vector<double> diff_filter_op_code;
   std::vector<double> delay_filter_op_code;
   std::vector<double> fanout_filter_op_code;
 };

@@ -52,6 +52,10 @@ void flow_control::parse_yml(std::string yml_file) {
       compile_double_filter(config["slack_filter"].as<std::string>(),
                             _configs.slack_filter_op_code);
     }
+    if (config["diff_filter"]) {
+      compile_double_filter(config["diff_filter"].as<std::string>(),
+                            _configs.diff_filter_op_code);
+    }
   } else if (mode == "cell in def") {
     _rpt_defs = config["rpt_defs"].as<std::vector<std::vector<std::string>>>();
     _rpt_tool = config["tool"].as<std::string>();
