@@ -111,8 +111,9 @@ void rpt_parser<T>::single_thread_parse(std::istream &instream) {
   bool start_flag = false;
   std::shared_ptr<data_block> path_block =
       std::make_shared<data_block>(_start_block);
+  path_block->iter = End;
   while (std::getline(instream, line)) {
-    if (RE2::PartialMatch(line, start_pattern)) {
+    if (path_block->iter == End && RE2::PartialMatch(line, start_pattern)) {
       if (start_flag) {
         _db.paths.emplace_back(path_block->path_obj);
       }
