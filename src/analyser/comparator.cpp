@@ -181,11 +181,12 @@ void comparator::gen_map(
       std::transform(path->path.begin(), std::prev(path->path.end(), 1),
                      full_path.begin(),
                      [](const std::shared_ptr<Pin> &pin) { return pin->name; });
-      auto output = fmt::format("{}", fmt::join(full_path, "->"));
+      // auto output = fmt::format("{}", fmt::join(full_path, "->"));
       auto last_ff = _mbff.get_ff_names(tool, path->path.back()->name);
       std::vector<std::string> output_vec;
       for (const auto &ff : last_ff) {
-        output_vec.push_back(fmt::format("{}->{}", output, ff));
+        output_vec.push_back(
+            fmt::format("{}->{}", fmt::join(full_path, "->"), ff));
       }
       return output_vec;
     };

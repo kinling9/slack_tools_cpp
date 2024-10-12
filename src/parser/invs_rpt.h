@@ -104,8 +104,8 @@ void invs_rpt_parser<T>::parse_line(T line,
         if (path_block->headers.empty()) {
           path_block->headers = line;
         } else {
-          auto tokens0 = split_string_by_n_spaces(path_block->headers, 2);
-          auto tokens1 = split_string_by_n_spaces(line, 2);
+          auto tokens0 = split_string_by_n_spaces(path_block->headers, 2, 16);
+          auto tokens1 = split_string_by_n_spaces(line, 2, 4);
           absl::flat_hash_map<std::size_t, std::string_view> map_line1;
           for (const auto &[start, str] : tokens1) {
             map_line1[start] = str;
@@ -122,7 +122,7 @@ void invs_rpt_parser<T>::parse_line(T line,
           }
         }
       } else if (path_block->split_count == 2) {
-        auto splits = split_string_by_n_spaces(line, 2);
+        auto splits = split_string_by_n_spaces(line, 2, 16);
         std::vector<std::string_view> tokens;
         std::ranges::transform(splits, std::back_inserter(tokens),
                                [](const auto &pair) { return pair.second; });

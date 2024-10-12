@@ -6,8 +6,8 @@
       "type": "lldb",
       "request": "launch",
       "cwd": "${workspaceFolder}",
-      "args": ["yml/arc_test.yml"],
-      "program": "build_debug/src/slack_tool-debug"
+      "args": ["yml/invs_test.yml"],
+      "program": "build_debug/slack_tool-debug"
     }
   ]
 }
