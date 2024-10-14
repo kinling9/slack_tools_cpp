@@ -3,6 +3,8 @@
 #include <string>
 #include <vector>
 
+#include "yaml-cpp/yaml.h"
+
 class Net;
 class Pin;
 class Path;
@@ -18,6 +20,9 @@ class Pin {
   bool is_input;  // cell input
   std::pair<double, double> location;
   std::shared_ptr<Net> net;
+
+ public:
+  YAML::Node to_yaml();
 };
 
 class Net {

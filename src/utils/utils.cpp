@@ -7,64 +7,58 @@
 #include <iostream>
 
 std::vector<std::string_view> split_string_by_spaces(
-    const std::string_view &str_view) {
+    const std::string_view &str_view, std::size_t size) {
   std::vector<std::string_view> result;
-  size_t start = 0;
-  size_t end = 0;
-
-  while (end < str_view.size()) {
+  result.reserve(size);
+  std::size_t start = 0;
+  while (start < str_view.size()) {
     // Find the start of the next word
-    while (start < str_view.size() && std::isspace(str_view[start])) {
-      ++start;
+    start = str_view.find_first_not_of(' ', start);
+    if (start == std::string_view::npos) {
+      break;
     }
-
     // Find the end of the word
-    end = start;
-    while (end < str_view.size() && !std::isspace(str_view[end])) {
-      ++end;
-    }
-
-    // If start is less than end, we have a word
-    if (start < end) {
-      result.emplace_back(str_view.substr(start, end - start));
-      start = end;
-    }
+    std::size_t end = str_view.find_first_of(' ', start);
+    if (end == std::string_view::npos) end = str_view.size();
+    // Add the word to the result
+    result.emplace_back(str_view.substr(start, end - start));
+    start = end;
   }
 
   return result;
 }
 
 std::vector<std::pair<std::size_t, std::string_view>> split_string_by_n_spaces(
-    const std::string_view &str_view, std::size_t n) {
+    const std::string_view &str_view, std::size_t n, std::size_t size) {
   std::vector<std::pair<std::size_t, std::string_view>> result;
+  result.reserve(size);
   std::size_t start = 0;
   std::size_t end = 0;
   std::size_t length = str_view.length();
   while (start < length) {
     // Skip over leading spaces
-    while (start < length && std::isspace(str_view[start])) {
-      start++;
-    }
-    if (start >= length) {
+    start = str_view.find_first_not_of(' ', start);
+    if (start == std::string_view::npos) {
       break;
     }
-    if (end < start) {
-      end = start;
+    // Find the end of the token
+    end = str_view.find_first_of(" ", std::max(start, end));
+    if (end == std::string_view::npos) {
+      end = length;
     }
-    // Find the end of the current word
-    while (end < length && !std::isspace(str_view[end])) {
-      end++;
+
+    // Find the start of the next token
+    std::size_t next_start = str_view.find_first_not_of(" ", end);
+    if (next_start == std::string_view::npos) {
+      next_start = length;
     }
-    // Check if there are more than n spaces after the word
-    size_t next_start = end;
-    while (next_start < length && std::isspace(str_view[next_start])) {
-      next_start++;
-    }
-    if (next_start - end >= n || end >= length) {
-      result.push_back({start, str_view.substr(start, end - start)});
+
+    // Check if there are at least n spaces after the token
+    if (next_start - end >= n || end == length) {
+      result.emplace_back(start, str_view.substr(start, end - start));
       start = next_start;
     } else {
-      // If not more than n spaces, treat it as a single token
+      // If not n spaces, continue to the next non-space character
       end = next_start;
     }
   }

@@ -23,7 +23,7 @@ class leda_endpoint_parser : public rpt_parser<T> {
 template <typename T>
 void leda_endpoint_parser<T>::parse_line(
     T line, std::shared_ptr<data_block> &path_block) {
-  std::vector<std::string_view> tokens = split_string_by_spaces(line);
+  std::vector<std::string_view> tokens = split_string_by_spaces(line, 2);
   if (tokens.size() < 2) {
     return;
   }

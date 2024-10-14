@@ -32,6 +32,9 @@ class invs_rpt_parser : public rpt_parser<T> {
   const RE2 _group_pattern{"^Path Groups: {(\\S*)}"};
   const RE2 _clock_pattern{"triggered by\\s+leading edge of '(\\S*)'$"};
   const RE2 _slack_pattern{"^= Slack Time\\s+([0-9\\.-]*)"};
+  absl::flat_hash_map<std::size_t, std::unordered_map<std::string, std::size_t>>
+      _row_cache;
+  std::mutex _row_cache_mutex;
 };
 
 template <typename T>
@@ -104,25 +107,33 @@ void invs_rpt_parser<T>::parse_line(T line,
         if (path_block->headers.empty()) {
           path_block->headers = line;
         } else {
-          auto tokens0 = split_string_by_n_spaces(path_block->headers, 2);
-          auto tokens1 = split_string_by_n_spaces(line, 2);
-          absl::flat_hash_map<std::size_t, std::string_view> map_line1;
-          for (const auto &[start, str] : tokens1) {
-            map_line1[start] = str;
-          }
-          std::size_t i = 0;
-          for (const auto &[start, str] : tokens0) {
-            std::string key;
-            if (!map_line1.contains(start)) {
-              key = std::string(str);
-            } else {
-              key = fmt::format("{} {}", str, map_line1[start]);
+          auto tokens0 = split_string_by_n_spaces(path_block->headers, 2, 16);
+          std::size_t key_tokens = tokens0.size();
+          if (_row_cache.contains(key_tokens)) {
+            path_block->row = _row_cache[key_tokens];
+          } else {
+            auto tokens1 = split_string_by_n_spaces(line, 2, 4);
+            absl::flat_hash_map<std::size_t, std::string_view> map_line1;
+            for (const auto &[start, str] : tokens1) {
+              map_line1[start] = str;
             }
-            path_block->row[key] = i++;
+            std::size_t i = 0;
+            for (const auto &[start, str] : tokens0) {
+              std::string key;
+              if (!map_line1.contains(start)) {
+                key = std::string(str);
+              } else {
+                key = fmt::format("{} {}", str, map_line1[start]);
+              }
+              path_block->row[key] = i++;
+            }
+            _row_cache_mutex.lock();
+            _row_cache[key_tokens] = path_block->row;
+            _row_cache_mutex.unlock();
           }
         }
       } else if (path_block->split_count == 2) {
-        auto splits = split_string_by_n_spaces(line, 2);
+        auto splits = split_string_by_n_spaces(line, 2, 16);
         std::vector<std::string_view> tokens;
         std::ranges::transform(splits, std::back_inserter(tokens),
                                [](const auto &pair) { return pair.second; });
