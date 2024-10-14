@@ -32,7 +32,7 @@ class arc_analyser : public analyser {
   //                                                      std::shared_ptr<Path>>>
   //     _pin_maps;
   absl::flat_hash_map<std::string, std::shared_ptr<writer>> _arcs_writers;
-  absl::flat_hash_map<std::pair<std::string, std::string>, std::string>
+  absl::flat_hash_map<std::pair<std::string, std::string>, YAML::Node>
       _arcs_buffer;
   absl::flat_hash_map<std::pair<std::string, std::string>, double> _arcs_delta;
 };
