@@ -37,7 +37,7 @@ struct data_block {
 
   // invs
   int split_count = 0;
-  absl::flat_hash_map<std::string, std::size_t> row;
+  std::unordered_map<std::string, std::size_t> row;
   std::string headers;
 
   data_block(block start_iter = Beginpoint) : iter(start_iter) {}
