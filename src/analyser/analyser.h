@@ -26,7 +26,7 @@ class analyser {
   };
 
   virtual void analyse() = 0;
-  virtual absl::flat_hash_set<std::string> check_valid(YAML::Node &rpts) = 0;
+  virtual absl::flat_hash_set<std::string> check_valid(YAML::Node &rpts);
   virtual bool parse_configs();
 
  protected:

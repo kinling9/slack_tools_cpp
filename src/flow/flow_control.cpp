@@ -12,8 +12,6 @@
 #include "parser/invs_rpt.h"
 #include "parser/leda_endpoint.h"
 #include "parser/leda_rpt.h"
-#include "utils/design_cons.h"
-#include "utils/double_filter/double_filter.h"
 #include "yaml-cpp/yaml.h"
 
 void flow_control::parse_yml(std::string yml_file) {
@@ -59,12 +57,17 @@ void flow_control::parse_yml(std::string yml_file) {
   } else if (mode == "arc analyse") {
     _analyser = std::make_unique<arc_analyser>(config["configs"]);
   } else {
-    throw fmt::system_error(errno, "The mode {} is not supported, skip.", mode);
+    throw std::system_error(
+        errno, std::generic_category(),
+        fmt::format(fmt::fg(fmt::color::red),
+                    "The mode {} is not supported, skip.", mode));
     std::exit(1);
   }
   auto config_node = config["configs"];
   if (!_analyser->parse_configs()) {
-    throw fmt::system_error(errno, "Cannot parse the configs, skip.");
+    throw std::system_error(errno, std::generic_category(),
+                            fmt::format(fmt::fg(fmt::color::red),
+                                        "Cannot parse the configs, skip."));
     std::exit(1);
   }
   auto rpt_node = config["rpts"];
@@ -91,18 +94,13 @@ void flow_control::parse_rpt(const YAML::Node& rpt, std::string key) {
   absl::flat_hash_set<std::string> valid_types = {"leda", "invs",
                                                   "leda_endpoint"};
   if (valid_types.contains(rpt_type) == false) {
-    throw fmt::system_error(errno, "The type {} is not supported, skip.",
-                            rpt_type);
+    throw std::system_error(errno, std::generic_category(),
+                            fmt::format(fmt::fg(fmt::color::red),
+                                        "Rpt type {} is not supported, "
+                                        "skip.",
+                                        rpt_type));
     std::exit(1);
   }
-  // if (rpt_type == "leda_endpoint" && _configs.compare_mode != "endpoint") {
-  //   throw fmt::system_error(
-  //       errno,
-  //       "The type {} is only supported in compare mode with "
-  //       "endpoints, skip.",
-  //       rpt_type);
-  //   std::exit(1);
-  // }
 
   if (rpt_type == "leda_endpoint") {
     parser = std::make_shared<leda_endpoint_parser<std::string_view>>(1);
