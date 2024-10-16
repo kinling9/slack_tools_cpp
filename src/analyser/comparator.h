@@ -7,20 +7,23 @@
 
 class comparator : public analyser {
  public:
-  comparator(const configs &configs,
-             const absl::flat_hash_map<
-                 std::string, std::vector<std::shared_ptr<basedb>>> &dbs)
-      : analyser(configs), _dbs(dbs) {};
+  comparator(const YAML::Node &configs) : analyser(configs) {};
+  ~comparator() override = default;
   void match(
       const std::string &design,
       const std::vector<absl::flat_hash_map<std::string, std::shared_ptr<Path>>>
           &path_maps,
-      const std::vector<std::shared_ptr<basedb>> &dbs);
+      const std::vector<std::shared_ptr<basedb>> &dbs) {};
   void gen_map(
       const std::string &tool, std::ranges::input_range auto &&paths,
-      absl::flat_hash_map<std::string, std::shared_ptr<Path>> &path_map);
-  void gen_headers();
-  void analyse() override;
+      absl::flat_hash_map<std::string, std::shared_ptr<Path>> &path_map) {};
+  void gen_headers() {};
+  void analyse() override {};
+
+  absl::flat_hash_set<std::string> check_valid(YAML::Node &rpts) override {
+    return {};
+  }
+  bool parse_configs() override { return true; }
 
  private:
   absl::flat_hash_map<std::string, std::vector<std::shared_ptr<basedb>>> _dbs;

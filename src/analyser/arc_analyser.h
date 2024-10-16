@@ -8,22 +8,24 @@
 
 class arc_analyser : public analyser {
  public:
-  arc_analyser(const configs &configs,
-               const absl::flat_hash_map<
-                   std::string, std::vector<std::shared_ptr<basedb>>> &dbs);
-
-  void analyse() override;
+  arc_analyser(const YAML::Node &configs) : analyser(configs) {};
+  ~arc_analyser() override = default;
+  void analyse() override {};
 
  private:
-  void gen_value_map();
+  void gen_value_map() {};
   void gen_pin2path_map(
       const std::shared_ptr<basedb> &db,
       absl::flat_hash_map<std::string_view, std::shared_ptr<Path>>
-          &pin2path_map);
+          &pin2path_map) {};
   void match(const std::string &design,
              const absl::flat_hash_map<std::string_view, std::shared_ptr<Path>>
                  &pin_map,
-             const std::vector<std::shared_ptr<basedb>> &dbs);
+             const std::vector<std::shared_ptr<basedb>> &dbs) {};
+  absl::flat_hash_set<std::string> check_valid(YAML::Node &rpts) override {
+    return {};
+  }
+  bool parse_configs() override { return true; }
 
  private:
   // TODO: using yml

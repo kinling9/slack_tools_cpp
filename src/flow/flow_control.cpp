@@ -26,53 +26,68 @@ void flow_control::parse_yml(std::string yml_file) {
   }
   fmt::print("Parsing {}\n", yml_file);
   std::cout << config << "\n";
+  if (!config["mode"]) {
+    throw fmt::system_error(errno, "Please provide the mode in the yml file.");
+    std::exit(1);
+  }
+  if (!config["rpts"]) {
+    throw fmt::system_error(errno, "Please provide the rpts in the yml file.");
+    std::exit(1);
+  }
+  if (!config["configs"]) {
+    throw fmt::system_error(errno,
+                            "Please provide the configs in the yml file.");
+    std::exit(1);
+  }
   auto mode = config["mode"].as<std::string>();
   _configs = configs{.mode = mode};
-  if (config["output_dir"]) {
-    _configs.output_dir = config["output_dir"].as<std::string>();
-  }
   if (mode == "compare") {
-    parse_rpt_config(config);
-    _configs.compare_mode = config["compare_mode"].as<std::string>();
-    if (config["slack_margins"]) {
-      _configs.slack_margins =
-          config["slack_margins"].as<std::vector<double>>();
-    }
-    if (config["match_percentages"]) {
-      _configs.match_percentages =
-          config["match_percentages"].as<std::vector<double>>();
-    }
-    if (config["match_paths"]) {
-      _configs.match_paths = config["match_paths"].as<std::size_t>();
-    }
-    if (config["enable_mbff"]) {
-      _configs.enable_mbff = config["enable_mbff"].as<bool>();
-    }
-    if (config["slack_filter"]) {
-      compile_double_filter(config["slack_filter"].as<std::string>(),
-                            _configs.slack_filter_op_code);
-    }
-    if (config["diff_filter"]) {
-      compile_double_filter(config["diff_filter"].as<std::string>(),
-                            _configs.diff_filter_op_code);
-    }
+    _analyser = std::make_unique<comparator>(config["configs"]);
+    // parse_rpt_config(config);
+    // _configs.compare_mode = config["compare_mode"].as<std::string>();
+    // if (config["slack_margins"]) {
+    //   _configs.slack_margins =
+    //       config["slack_margins"].as<std::vector<double>>();
+    // }
+    // if (config["match_percentages"]) {
+    //   _configs.match_percentages =
+    //       config["match_percentages"].as<std::vector<double>>();
+    // }
+    // if (config["match_paths"]) {
+    //   _configs.match_paths = config["match_paths"].as<std::size_t>();
+    // }
+    // if (config["enable_mbff"]) {
+    //   _configs.enable_mbff = config["enable_mbff"].as<bool>();
+    // }
+    // if (config["slack_filter"]) {
+    //   compile_double_filter(config["slack_filter"].as<std::string>(),
+    //                         _configs.slack_filter_op_code);
+    // }
+    // if (config["diff_filter"]) {
+    //   compile_double_filter(config["diff_filter"].as<std::string>(),
+    //                         _configs.diff_filter_op_code);
+    // }
   } else if (mode == "cell in def") {
-    _rpt_defs = config["rpt_defs"].as<std::vector<std::vector<std::string>>>();
-    _rpt_tool = config["tool"].as<std::string>();
+    _analyser = std::make_unique<existence_checker>(config["configs"]);
+    // _rpt_defs = config["rpt_defs"].as<std::vector<std::vector<std::string>>>();
+    // _rpt_tool = config["tool"].as<std::string>();
   } else if (mode == "arc analyse") {
-    parse_rpt_config(config);
-    if (config["delay_filter"]) {
-      compile_double_filter(config["delay_filter"].as<std::string>(),
-                            _configs.delay_filter_op_code);
-    }
-    if (config["fanout_filter"]) {
-      compile_double_filter(config["fanout_filter"].as<std::string>(),
-                            _configs.fanout_filter_op_code);
-    }
+    _analyser = std::make_unique<arc_analyser>(config["configs"]);
+    // parse_rpt_config(config);
+    // if (config["delay_filter"]) {
+    //   compile_double_filter(config["delay_filter"].as<std::string>(),
+    //                         _configs.delay_filter_op_code);
+    // }
+    // if (config["fanout_filter"]) {
+    //   compile_double_filter(config["fanout_filter"].as<std::string>(),
+    //                         _configs.fanout_filter_op_code);
+    // }
   } else {
     throw fmt::system_error(errno, "The mode {} is not supported, skip.", mode);
     std::exit(1);
   }
+  auto rpt_node = config["rpts"];
+  auto valid_rpts = _analyser->check_valid(rpt_node);
 }
 
 void flow_control::parse_rpt_config(YAML::Node& config) {
@@ -117,6 +132,14 @@ void flow_control::parse_rpt_config(YAML::Node& config) {
       _rpts.insert(
           {design, {{rpt_group[0], tools[0]}, {rpt_group[1], tools[1]}}});
     }
+  }
+}
+
+void flow_control::parse_rpt_config_new(YAML::Node& rpts,
+                                        YAML::Node& analyse_tuples) {
+  design_cons& cons = design_cons::get_instance();
+  absl::flat_hash_set<std::string> designs;
+  for (const auto& rpt : rpts) {
   }
 }
 
@@ -176,22 +199,22 @@ std::shared_ptr<basedb> flow_control::parse_rpt(std::string rpt_file,
 void flow_control::analyse() {
   if (_configs.mode == "compare") {
     parse_rpts();
-    comparator cmp(_configs, _dbs);
-    cmp.analyse();
+    // comparator cmp(_configs, _dbs);
+    // cmp.analyse();
   } else if (_configs.mode == "cell in def") {
-    existence_checker checker(_configs);
-    for (const auto& rpt_def : _rpt_defs) {
-      const auto& rpt = rpt_def[0];
-      const auto& def = rpt_def[1];
-      const auto& db = parse_rpt(rpt, _rpt_tool);
-      def_parser parser;
-      parser.parse_file(def);
-      checker.check_existence(parser.get_map(), db);
-    }
+    // existence_checker checker(_configs);
+    // for (const auto& rpt_def : _rpt_defs) {
+    //   const auto& rpt = rpt_def[0];
+    //   const auto& def = rpt_def[1];
+    //   const auto& db = parse_rpt(rpt, _rpt_tool);
+    //   def_parser parser;
+    //   parser.parse_file(def);
+    //   checker.check_existence(parser.get_map(), db);
+    // }
   } else if (_configs.mode == "arc analyse") {
-    parse_rpts();
-    arc_analyser cmp(_configs, _dbs);
-    cmp.analyse();
+    //   parse_rpts();
+    //   arc_analyser cmp(_configs, _dbs);
+    //   cmp.analyse();
   }
 }
 
