@@ -1,16 +1,58 @@
-// #include "analyser/comparator.h"
+#include "analyser/comparator.h"
+
+#include <absl/container/btree_set.h>
+#include <absl/container/flat_hash_map.h>
+#include <absl/container/flat_hash_set.h>
+#include <fmt/core.h>
+#include <fmt/ranges.h>
+
+#include <ranges>
+
+#include "utils/design_cons.h"
+#include "utils/double_filter/double_filter.h"
+#include "utils/double_filter/filter_machine.h"
+#include "utils/utils.h"
+
+bool comparator::parse_configs() {
+  bool valid = analyser::parse_configs();
+  collect_from_node("enable_mbff", _enable_mbff);
+  collect_from_node("compare_mode", _compare_mode);
+  collect_from_node("match_paths", _match_paths);
+  collect_from_node("slack_margins", _slack_margins);
+  collect_from_node("match_percentages", _match_percentages);
+  std::string slack_filter;
+  collect_from_node("slack_filter", slack_filter);
+  compile_double_filter(slack_filter, _slack_filter_op_code);
+  return valid;
+}
+
+absl::flat_hash_set<std::string> comparator::check_valid(YAML::Node &rpts) {
+  absl::flat_hash_set<std::string> valid_rpts;
+  design_cons &cons = design_cons::get_instance();
+  for (const auto &rpt_pair : _configs["analyse_tuples"]) {
+    auto rpt_vec = rpt_pair.as<std::vector<std::string>>();
+    if (rpt_vec.size() != 2) {
+      fmt::print("Invalid rpt_vec tuple: {}\n", fmt::join(rpt_vec, ", "));
+      continue;
+    }
+    std::string rpt_0 = rpts[rpt_vec[0]]["path"].as<std::string>();
+    std::string rpt_1 = rpts[rpt_vec[1]]["path"].as<std::string>();
+    if (cons.get_name(rpt_0) != cons.get_name(rpt_1)) {
+      fmt::print("Design names are not the same: {} {}\n", rpt_0, rpt_1);
+      continue;
+    }
+    valid_rpts.insert(rpt_vec[0]);
+    valid_rpts.insert(rpt_vec[1]);
+    if (_compare_mode == "endpoint") {
+      for (const auto &rpt : rpt_vec) {
+        rpts[rpt]["ignore_path"] = true;
+      }
+    }
+  }
+  return valid_rpts;
+}
+
 //
-// #include <absl/container/btree_set.h>
-// #include <absl/container/flat_hash_map.h>
-// #include <absl/container/flat_hash_set.h>
-// #include <fmt/core.h>
-// #include <fmt/ranges.h>
-//
-// #include <ranges>
-//
-// #include "utils/design_cons.h"
-// #include "utils/double_filter/filter_machine.h"
-// #include "utils/utils.h"
 //
 // void comparator::match(
 //     const std::string &design,

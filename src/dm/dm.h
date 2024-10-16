@@ -48,5 +48,5 @@ class basedb {
   // std::vector<std::shared_ptr<Net>> nets;
   // std::vector<std::shared_ptr<Pin>> pins;
   std::vector<std::shared_ptr<Path>> paths;
-  std::string tool;
+  std::string type;
 };
