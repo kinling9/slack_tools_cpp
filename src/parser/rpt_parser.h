@@ -16,6 +16,7 @@
 #include "absl/container/flat_hash_set.h"
 #include "dm/dm.h"
 #include "re2/re2.h"
+#include "utils/design_cons.h"
 #include "utils/utils.h"
 
 enum block {
@@ -101,6 +102,9 @@ bool rpt_parser<T>::parse_file(const std::string &filename) {
     parse(instream);
     file.close();
   }
+  auto &cons = design_cons::get_instance();
+  std::string design = cons.get_name(filename);
+  _db.design = design;
   return true;
 }
 

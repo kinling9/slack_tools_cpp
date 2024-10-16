@@ -1,6 +1,8 @@
 #include "utils/design_cons.h"
 
 #include <absl/strings/match.h>
+#include <fmt/color.h>
+#include <fmt/core.h>
 
 #include <filesystem>
 #include <iostream>
@@ -33,7 +35,8 @@ double design_cons::get_period(const std::string& design_name) {
   if (_period.find(design_name) != _period.end()) {
     return _period[design_name];
   } else {
-    std::cout << "The period of " << design_name << " is not found\n";
+    fmt::print(fmt::fg(fmt::color::red), "The period of {} is not found\n",
+               design_name);
     return 0;
   }
 }

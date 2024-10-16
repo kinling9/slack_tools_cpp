@@ -8,6 +8,8 @@ configs:
   output_dir: output
   analyse_tuples:
     - ["invs0", "invs1"]
+    - ["invs2", "invs0"]
+    - ["invs2", "invs3"]
     - ["invs2", "invs3"]
   # compare_mode: full_path # [endpoint, startpoint, start_end, full_path]
   compare_mode: endpoint # [endpoint, startpoint, start_end, full_path]

@@ -49,4 +49,5 @@ class basedb {
   // std::vector<std::shared_ptr<Pin>> pins;
   std::vector<std::shared_ptr<Path>> paths;
   std::string type;
+  std::string design;
 };

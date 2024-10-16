@@ -1,3 +1,4 @@
+#pragma once
 #include <boost/convert.hpp>
 #include <boost/convert/strtol.hpp>
 
