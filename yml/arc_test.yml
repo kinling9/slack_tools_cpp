@@ -1,7 +1,10 @@
 mode: arc analyse
 rpts:
-  - ["rpt/invs_rpts/axi4lscope.simple.gz", "rpt/invs_rpts/axi4lscope.simple.gz"]
-tools: ["invs", "invs"]
-output_dir: output
-fanout_filter: x >= 1
-delay_filter: x >= 0
+  invs0 : {path: "rpt/invs_rpts/axi4lscope.simple.gz", type: "invs"}
+  invs1 : {path: "rpt/invs_rpts/axi4lscope.simple.gz", type: "invs"}
+configs:
+  output_dir: output
+  analyse_tuples:
+    - ["invs0", "invs1"]
+  fanout_filter: x >= 1
+  delay_filter: x >= 0
