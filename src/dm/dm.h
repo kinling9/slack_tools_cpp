@@ -1,4 +1,6 @@
 #pragma once
+#include <absl/container/flat_hash_map.h>
+
 #include <memory>
 #include <string>
 #include <vector>
@@ -44,6 +46,11 @@ class Path {
 };
 
 class basedb {
+ public:
+  void update_loc_from_map(
+      const absl::flat_hash_map<std::string, std::pair<double, double>>&
+          loc_map);
+
  public:
   // std::vector<std::shared_ptr<Net>> nets;
   // std::vector<std::shared_ptr<Pin>> pins;

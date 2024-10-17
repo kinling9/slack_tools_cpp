@@ -1,5 +1,7 @@
 #include "parser/def_parser.h"
 
+#include <boost/convert.hpp>
+#include <boost/convert/strtol.hpp>
 #include <boost/iostreams/copy.hpp>
 #include <boost/iostreams/filter/gzip.hpp>
 #include <boost/iostreams/filtering_streambuf.hpp>
@@ -77,7 +79,8 @@ void def_parser::data_processing() {
     lock.unlock();
     auto cell_obj = parse_cell(path);
     lock.lock();
-    _map.emplace(cell_obj);
+    _type_map.emplace(cell_obj.name, cell_obj.cell);
+    _loc_map.emplace(cell_obj.name, std::make_pair(cell_obj.x, cell_obj.y));
     lock.unlock();
   }
 }
@@ -93,10 +96,15 @@ void def_parser::parse(std::istream &instream) {
     consumer.join();
   }
 }
-std::pair<std::string, std::string> def_parser::parse_cell(
-    const std::string &path) {
-  std::string cell_name;
-  std::string cell_type;
-  RE2::FullMatch(path, _cell_pattern, &cell_name, &cell_type);
-  return std::make_pair(cell_name, cell_type);
+
+cell_property def_parser::parse_cell(const std::string &path) {
+  cell_property cell_obj;
+  std::string_view x_loc, y_loc;
+  RE2::FullMatch(path, _cell_pattern, &cell_obj.name, &cell_obj.cell, &x_loc,
+                 &y_loc);
+  int x = boost::convert<int>(x_loc, boost::cnv::strtol()).value();
+  int y = boost::convert<int>(y_loc, boost::cnv::strtol()).value();
+  cell_obj.x = x / 2000.0;
+  cell_obj.y = y / 2000.0;
+  return cell_obj;
 }

@@ -23,13 +23,31 @@ absl::flat_hash_set<std::string> analyser::check_valid(YAML::Node &rpts) {
   absl::flat_hash_set<std::string> valid_rpts;
   for (const auto &rpt : rpts) {
     std::string key = rpt.first.as<std::string>();
+    if (rpt.second["type"].as<std::string>() == "leda_def") {
+      if (!rpt.second["def"]) {
+        fmt::print(fmt::fg(fmt::color::red),
+                   "Def is not defined in rpt {} with type leda_def, skip.\n",
+                   key);
+        continue;
+      }
+      std::string def = rpt.second["def"].as<std::string>();
+      if (!check_file_exists(def)) {
+        continue;
+      }
+    }
     std::string file_path = rpt.second["path"].as<std::string>();
-    if (std::filesystem::exists(file_path)) {
+    if (check_file_exists(file_path)) {
       valid_rpts.insert(key);
-    } else {
-      fmt::print(fmt::fg(fmt::color::red), "File {} does not exist, skip.\n",
-                 file_path);
     }
   }
   return valid_rpts;
+}
+
+bool analyser::check_file_exists(std::string &file_path) {
+  if (!std::filesystem::exists(file_path)) {
+    fmt::print(fmt::fg(fmt::color::red), "Output dir {} does not exist\n",
+               file_path);
+    return false;
+  }
+  return true;
 }

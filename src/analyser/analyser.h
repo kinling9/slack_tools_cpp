@@ -34,4 +34,7 @@ class analyser {
   absl::flat_hash_map<std::string, std::shared_ptr<basedb>> _dbs;
   std::vector<std::vector<std::string>> _analyse_tuples;
   std::string _output_dir;
+
+ private:
+  bool check_file_exists(std::string &file_path);
 };

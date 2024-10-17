@@ -7,58 +7,32 @@
 #include <string>
 #include <vector>
 
+#include "parser/leda_rpt.h"
 #include "parser/rpt_parser.h"
 #include "utils/utils.h"
 
 template <typename T>
-class leda_rpt_parser : public rpt_parser<T> {
- public:
-  leda_rpt_parser() : rpt_parser<T>("^Startpoint:", Beginpoint) {}
-  leda_rpt_parser(int num_consumers)
-      : rpt_parser<T>("^Startpoint:", num_consumers, Beginpoint) {}
-  void update_iter(block &iter) override;
-  void parse_line(T line, std::shared_ptr<data_block> &path_block) override;
-
- protected:
+class leda_rpt_nopos_parser : public leda_rpt_parser<T> {
   using rpt_parser<T>::_ignore_blocks;
-  const RE2 _at_pattern{"^data arrival time"};
-  const RE2 _begin_pattern{"^Startpoint: (\\S*)"};
-  const RE2 _end_pattern{"^Endpoint: (\\S*)"};
-  const RE2 _group_pattern{"^Path Group: (\\S*)$"};
-  const RE2 _path_type_pattern{"^Path Type: (\\S*)$"};
-  const RE2 _clock_pattern{"clocked\\s+by\\s+(.*?)\\)$"};
-  const RE2 _slack_pattern{"^slack \\(\\S+\\)\\s+([0-9.-]*)"};
+  using leda_rpt_parser<T>::update_iter;
+  using leda_rpt_parser<T>::_at_pattern;
+  using leda_rpt_parser<T>::_begin_pattern;
+  using leda_rpt_parser<T>::_end_pattern;
+  using leda_rpt_parser<T>::_group_pattern;
+  using leda_rpt_parser<T>::_path_type_pattern;
+  using leda_rpt_parser<T>::_clock_pattern;
+  using leda_rpt_parser<T>::_slack_pattern;
+
+ public:
+  leda_rpt_nopos_parser() : leda_rpt_parser<T>() {}
+  leda_rpt_nopos_parser(int num_consumers)
+      : leda_rpt_parser<T>(num_consumers) {}
+  void parse_line(T line, std::shared_ptr<data_block> &path_block) override;
 };
 
 template <typename T>
-void leda_rpt_parser<T>::update_iter(block &iter) {
-  switch (iter) {
-    case Beginpoint:
-      iter = Endpoint;
-      break;
-    case Endpoint:
-      iter = PathGroup;
-      break;
-    case PathGroup:
-      iter = PathType;
-      break;
-    case PathType:
-      iter = Paths;
-      break;
-    case Paths:
-      iter = Slack;
-      break;
-    case Slack:
-      iter = End;
-      break;
-    default:
-      break;
-  }
-}
-
-template <typename T>
-void leda_rpt_parser<T>::parse_line(T line,
-                                    std::shared_ptr<data_block> &path_block) {
+void leda_rpt_nopos_parser<T>::parse_line(
+    T line, std::shared_ptr<data_block> &path_block) {
   if (_ignore_blocks.contains(path_block->iter)) {
     update_iter(path_block->iter);
     return;
@@ -108,13 +82,6 @@ void leda_rpt_parser<T>::parse_line(T line,
         pin.path_delay =
             boost::convert<double>(tokens[4], boost::cnv::strtol()).value();
         pin.rise_fall = tokens[5] == "r";
-        pin.location = std::make_pair(
-            boost::convert<double>(tokens[6].substr(1, tokens[6].size() - 2),
-                                   boost::cnv::strtol())
-                .value(),
-            boost::convert<double>(tokens[7].substr(0, tokens[7].size() - 2),
-                                   boost::cnv::strtol())
-                .value());
         path_block->pin_obj = std::make_shared<Pin>(pin);
         if (path_block->net_obj->pins.second == nullptr) {
           path_block->net_obj->pins.second = path_block->pin_obj;
