@@ -49,18 +49,7 @@ absl::flat_hash_set<std::string> arc_analyser::check_valid(YAML::Node &rpts) {
   }
   return valid_rpts;
 }
-// arc_analyser::arc_analyser(
-//     const configs &configs,
-//     const absl::flat_hash_map<std::string, std::vector<std::shared_ptr<basedb>>>
-//         &dbs)
-//     : analyser(configs), _dbs(dbs) {
-//   for (const auto &[design, _] : _dbs) {
-//     _arcs_writers[design] = std::make_shared<writer>(writer(design + ".arcs"));
-//     _arcs_writers[design]->set_output_dir(_configs.output_dir);
-//     _arcs_writers[design]->open();
-//   }
-// }
-//
+
 void arc_analyser::open_writers() {
   for (const auto &rpt_pair : _analyse_tuples) {
     std::string cmp_name = fmt::format("{}", fmt::join(rpt_pair, "-"));

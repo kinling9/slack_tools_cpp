@@ -28,9 +28,7 @@ class arc_analyser : public analyser {
 
  private:
   // TODO: using yml
-  // absl::flat_hash_map<std::string, std::vector<std::shared_ptr<basedb>>> _dbs;
-  // absl::flat_hash_map<std::string, std::shared_ptr<writer>> _arcs_writers;
-  std::unordered_map<std::string, std::shared_ptr<writer>> _arcs_writers;
+  absl::flat_hash_map<std::string, std::shared_ptr<writer>> _arcs_writers;
   absl::flat_hash_map<std::pair<std::string, std::string>, YAML::Node>
       _arcs_buffer;
   absl::flat_hash_map<std::pair<std::string, std::string>, double> _arcs_delta;
