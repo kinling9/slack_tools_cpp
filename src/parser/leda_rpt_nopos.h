@@ -28,6 +28,9 @@ class leda_rpt_nopos_parser : public leda_rpt_parser<T> {
   leda_rpt_nopos_parser(int num_consumers)
       : leda_rpt_parser<T>(num_consumers) {}
   void parse_line(T line, std::shared_ptr<data_block> &path_block) override;
+
+ private:
+  const RE2 _split_pattern{"^--"};
 };
 
 template <typename T>
@@ -68,37 +71,46 @@ void leda_rpt_nopos_parser<T>::parse_line(
       }
       // Parse the path
       // TODO: auto generate token iter from title line
-      std::vector<std::string_view> tokens = split_string_by_spaces(line, 8);
-      if (tokens.size() == 8) {
-        Pin pin;
-        pin.is_input = path_block->is_input;
-        path_block->is_input = !path_block->is_input;
-        pin.name = std::string(tokens[0]);
-        pin.cell = std::string(tokens[1].substr(1, tokens[1].size() - 2));
-        pin.trans =
-            boost::convert<double>(tokens[2], boost::cnv::strtol()).value();
-        pin.incr_delay =
-            boost::convert<double>(tokens[3], boost::cnv::strtol()).value();
-        pin.path_delay =
-            boost::convert<double>(tokens[4], boost::cnv::strtol()).value();
-        pin.rise_fall = tokens[5] == "r";
-        path_block->pin_obj = std::make_shared<Pin>(pin);
-        if (path_block->net_obj->pins.second == nullptr) {
-          path_block->net_obj->pins.second = path_block->pin_obj;
+      if (RE2::PartialMatch(line, _split_pattern)) {
+        ++path_block->split_count;
+        return;
+      }
+      if (path_block->split_count == 1) {
+        std::vector<std::string_view> tokens = split_string_by_spaces(line, 8);
+        if (tokens[0] == "clock") {
+          return;
+        }
+        if (tokens.size() == 7) {
+          Pin pin;
+          pin.is_input = path_block->is_input;
+          path_block->is_input = !path_block->is_input;
+          pin.name = std::string(tokens[0]);
+          pin.cell = std::string(tokens[1].substr(1, tokens[1].size() - 2));
+          pin.trans =
+              boost::convert<double>(tokens[2], boost::cnv::strtol()).value();
+          pin.incr_delay =
+              boost::convert<double>(tokens[3], boost::cnv::strtol()).value();
+          pin.path_delay =
+              boost::convert<double>(tokens[4], boost::cnv::strtol()).value();
+          pin.rise_fall = tokens[5] == "r";
+          path_block->pin_obj = std::make_shared<Pin>(pin);
+          if (path_block->net_obj->pins.second == nullptr) {
+            path_block->net_obj->pins.second = path_block->pin_obj;
+            path_block->pin_obj->net = path_block->net_obj;
+            path_block->path_obj->path.push_back(path_block->pin_obj);
+          }
+        } else if (tokens.size() == 3) {
+          Net net;
+          net.name = std::string(tokens[0]);
+          net.fanout =
+              boost::convert<int>(tokens[1], boost::cnv::strtol()).value();
+          net.cap =
+              boost::convert<double>(tokens[2], boost::cnv::strtol()).value();
+          net.pins = std::make_pair(path_block->pin_obj, nullptr);
+          path_block->net_obj = std::make_shared<Net>(net);
           path_block->pin_obj->net = path_block->net_obj;
           path_block->path_obj->path.push_back(path_block->pin_obj);
         }
-      } else if (tokens.size() == 3) {
-        Net net;
-        net.name = std::string(tokens[0]);
-        net.fanout =
-            boost::convert<int>(tokens[1], boost::cnv::strtol()).value();
-        net.cap =
-            boost::convert<double>(tokens[2], boost::cnv::strtol()).value();
-        net.pins = std::make_pair(path_block->pin_obj, nullptr);
-        path_block->net_obj = std::make_shared<Net>(net);
-        path_block->pin_obj->net = path_block->net_obj;
-        path_block->path_obj->path.push_back(path_block->pin_obj);
       }
       break;
     }

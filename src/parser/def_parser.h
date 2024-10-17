@@ -80,8 +80,8 @@ class def_parser {
   bool _done = false;  // 标志是否完成数据准备
   int _num_consumers = 4;
 
-  const RE2 _begin_pattern{"^COMPONENTS.*"};
-  const RE2 _end_pattern{"^END COMPONENTS.*"};
+  const RE2 _begin_pattern{"^COMPONENTS"};
+  const RE2 _end_pattern{"^END COMPONENTS"};
   const RE2 _start_pattern{"^\\s*-"};
   // const RE2 _cell_pattern{"^\\s*-\\s+(\\S+)\\s+(\\S+).*"};
   // const RE2 _cell_pattern{

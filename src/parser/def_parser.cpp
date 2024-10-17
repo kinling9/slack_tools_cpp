@@ -40,10 +40,10 @@ void def_parser::data_preparation(std::istream &instream) {
   bool start_flag = false;
   bool component_flag = false;
   while (std::getline(instream, line)) {
-    if (RE2::FullMatch(line, _begin_pattern)) {
+    if (RE2::PartialMatch(line, _begin_pattern)) {
       component_flag = true;
     }
-    if (RE2::FullMatch(line, _end_pattern)) {
+    if (RE2::PartialMatch(line, _end_pattern)) {
       break;
     }
     if (!component_flag) {

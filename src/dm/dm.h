@@ -5,6 +5,7 @@
 #include <string>
 #include <vector>
 
+#include "re2/re2.h"
 #include "yaml-cpp/yaml.h"
 
 class Net;
