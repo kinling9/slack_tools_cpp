@@ -1,6 +1,7 @@
 #include "analyser/analyser.h"
 
 #include <fmt/color.h>
+#include <fmt/ranges.h>
 
 #include <filesystem>
 
@@ -50,4 +51,23 @@ bool analyser::check_file_exists(std::string &file_path) {
     return false;
   }
   return true;
+}
+
+bool analyser::check_tuple_valid(const std::vector<std::string> &rpt_vec,
+                                 const YAML::Node &rpts) const {
+  if (rpt_vec.size() != 2) {
+    fmt::print(fmt::fg(fmt::color::red), "Invalid rpt_vec tuple: {}\n",
+               fmt::join(rpt_vec, ", "));
+    return false;
+  }
+  bool valid = true;
+  for (const auto &rpt : rpt_vec) {
+    if (!rpts[rpt]) {
+      valid = false;
+      fmt::print(fmt::fg(fmt::color::red),
+                 "Rpt {} is not defined in the yml file\n", rpt);
+      continue;
+    }
+  }
+  return valid;
 }

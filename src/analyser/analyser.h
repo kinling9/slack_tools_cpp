@@ -30,6 +30,10 @@ class analyser {
   virtual bool parse_configs();
 
  protected:
+  bool check_tuple_valid(const std::vector<std::string> &rpt_vec,
+                         const YAML::Node &rpts) const;
+
+ protected:
   YAML::Node _configs;
   absl::flat_hash_map<std::string, std::shared_ptr<basedb>> _dbs;
   std::vector<std::vector<std::string>> _analyse_tuples;

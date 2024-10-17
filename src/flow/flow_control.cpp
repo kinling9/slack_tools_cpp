@@ -92,7 +92,7 @@ void flow_control::parse_rpt(const YAML::Node& rpt, std::string key) {
   std::variant<std::shared_ptr<rpt_parser<std::string>>,
                std::shared_ptr<rpt_parser<std::string_view>>>
       parser;
-  absl::flat_hash_set<std::string> valid_types = {"leda", "leda_def", "invs",
+  absl::flat_hash_set<std::string> valid_types = {"leda", "leda_nopos", "invs",
                                                   "leda_endpoint"};
   if (valid_types.contains(rpt_type) == false) {
     throw std::system_error(errno, std::generic_category(),
@@ -117,7 +117,7 @@ void flow_control::parse_rpt(const YAML::Node& rpt, std::string key) {
       parser = std::make_shared<leda_rpt_parser<std::string>>();
     } else if (rpt_type == "invs") {
       parser = std::make_shared<invs_rpt_parser<std::string>>();
-    } else if (rpt_type == "leda_def") {
+    } else if (rpt_type == "leda_nopos") {
       parser = std::make_shared<leda_rpt_nopos_parser<std::string>>();
     }
   }
@@ -131,7 +131,7 @@ void flow_control::parse_rpt(const YAML::Node& rpt, std::string key) {
         }
       },
       parser);
-  if (rpt_type == "leda_def") {
+  if (rpt_type == "leda_nopos") {
     std::shared_ptr<def_parser> parser = std::make_shared<def_parser>();
     if (parser->parse_file(rpt["def"].as<std::string>())) {
       cur_db->update_loc_from_map(parser->get_loc_map());

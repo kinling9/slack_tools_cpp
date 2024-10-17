@@ -1,0 +1,10 @@
+mode: arc analyse
+rpts:
+  leda0 : {path: "rpt/leda_rpts/B005_allpath.rpt.gz", type: "leda_nopos", def: "rpt/defs/z80_core_top_N7_LEC_placeOpt.def"}
+  leda1 : {path: "rpt/leda_rpts/B005_allpath.rpt.gz", type: "leda_nopos", def: "rpt/defs/z80_core_top_N7_LEC_placeOpt.def"}
+configs:
+  output_dir: output
+  analyse_tuples:
+    - ["leda0", "leda1"]
+  fanout_filter: x >= 1
+  delay_filter: x >= 0
