@@ -6,6 +6,9 @@
 
 void compile_double_filter(const std::string &filter_str,
                            std::vector<double> &code) {
+  if (filter_str.empty()) {
+    return;
+  }
   client::filter_compiler cmp(code);
   auto &calc = client::calculator_grammar::expression;  // Our grammar
   client::ast::expression ast_expr;

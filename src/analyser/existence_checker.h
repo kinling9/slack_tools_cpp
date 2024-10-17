@@ -14,10 +14,8 @@ class existence_checker : public analyser {
       const absl::flat_hash_map<std::string, std::string> &cell_maps,
       const std::shared_ptr<basedb> &db) {};
 
-  absl::flat_hash_set<std::string> check_valid(YAML::Node &rpts) override {
-    return {};
-  }
-  bool parse_configs() override { return true; }
+  absl::flat_hash_set<std::string> check_valid(YAML::Node &rpts) override;
+  bool parse_configs() override;
 
  private:
   const RE2 _pin_pattern{"(.*)/[^/]*"};

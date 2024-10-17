@@ -57,4 +57,5 @@ class basedb {
   std::vector<std::shared_ptr<Path>> paths;
   std::string type;
   std::string design;
+  absl::flat_hash_map<std::string, std::string> type_map;
 };

@@ -1,8 +1,7 @@
 #include "parser/def_parser.h"
 
-#include <boost/convert.hpp>
-#include <boost/convert/strtol.hpp>
-#include <boost/iostreams/copy.hpp>
+#include <fmt/ranges.h>
+
 #include <boost/iostreams/filter/gzip.hpp>
 #include <boost/iostreams/filtering_streambuf.hpp>
 #include <fstream>
@@ -37,7 +36,7 @@ bool def_parser::parse_file(const std::string &filename) {
 // 数据准备线程函数
 void def_parser::data_preparation(std::istream &instream) {
   std::string line;
-  std::string path;
+  std::vector<std::string> path;
   bool start_flag = false;
   bool component_flag = false;
   while (std::getline(instream, line)) {
@@ -50,24 +49,28 @@ void def_parser::data_preparation(std::istream &instream) {
     if (!component_flag) {
       continue;
     }
-    if (RE2::FullMatch(line, _start_pattern)) {
+    if (RE2::PartialMatch(line, _start_pattern)) {
       if (start_flag) {
         std::lock_guard<std::mutex> lock(_data_mutex);
         _data_queue.push(path);
+        path.clear();
         _data_cond_var.notify_one();  // 通知等待的数据处理线程
       }
       start_flag = true;
-      path = line;
+    }
+    if (start_flag) {
+      path.emplace_back(line);
     }
   }
   std::lock_guard<std::mutex> lock(_data_mutex);
   _data_queue.push(path);
+  path.clear();
   _done = true;
   _data_cond_var.notify_all();  // 通知可能在等待的处理线程
 }
 
 void def_parser::data_processing() {
-  std::string path;
+  std::vector<std::string> path;
   while (true) {
     std::unique_lock<std::mutex> lock(_data_mutex);
     _data_cond_var.wait(lock, [this] { return !_data_queue.empty() || _done; });
@@ -97,14 +100,23 @@ void def_parser::parse(std::istream &instream) {
   }
 }
 
-cell_property def_parser::parse_cell(const std::string &path) {
-  cell_property cell_obj;
-  std::string_view x_loc, y_loc;
-  RE2::FullMatch(path, _cell_pattern, &cell_obj.name, &cell_obj.cell, &x_loc,
-                 &y_loc);
-  int x = boost::convert<int>(x_loc, boost::cnv::strtol()).value();
-  int y = boost::convert<int>(y_loc, boost::cnv::strtol()).value();
-  cell_obj.x = x / 2000.0;
-  cell_obj.y = y / 2000.0;
-  return cell_obj;
+cell_property def_parser::parse_cell(const std::vector<std::string> &path) {
+  // cell_property cell_obj;
+  std::string line = fmt::format("{}", fmt::join(path, " "));
+  client::property::cell_obj cell_obj;
+  auto &component_grammar = client::grammar::cell_obj;
+  auto iter = line.begin();
+  auto end = line.end();
+  boost::spirit::x3::ascii::space_type space;
+  bool r = boost::spirit::x3::phrase_parse(iter, end, component_grammar, space,
+                                           cell_obj);
+  if (!r || iter != end) {
+    std::string rest(iter, end);
+    fmt::print("Parsing def component failed, stopped at \"{}\"\n", rest);
+    std::exit(1);
+  }
+  cell_property cell{cell_obj.name, cell_obj.cell, cell_obj.x / 2000.,
+                     cell_obj.y / 2000.};
+
+  return cell;
 }
