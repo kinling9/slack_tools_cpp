@@ -6,6 +6,8 @@
 
 #include <filesystem>
 
+#include "utils/design_cons.h"
+
 analyser::~analyser() {}
 
 bool analyser::parse_configs() {
@@ -25,6 +27,9 @@ absl::flat_hash_set<std::string> analyser::check_valid(YAML::Node &rpts) {
   absl::flat_hash_set<std::string> valid_rpts;
   for (const auto &rpt : rpts) {
     std::string key = rpt.first.as<std::string>();
+    std::string file_path = rpt.second["path"].as<std::string>();
+    design_cons &cons = design_cons::get_instance();
+    std::string name = cons.get_name(file_path);
     if (absl::StrContains(rpt.second["type"].as<std::string>(), "def")) {
       if (!rpt.second["def"]) {
         fmt::print(fmt::fg(fmt::color::red),
@@ -36,8 +41,14 @@ absl::flat_hash_set<std::string> analyser::check_valid(YAML::Node &rpts) {
       if (!check_file_exists(def)) {
         continue;
       }
+      std::string def_name = cons.get_name(def);
+      if (name != def_name) {
+        fmt::print(fmt::fg(fmt::color::red),
+                   "For rpt {}, design names are not the same: {} {}\n", key,
+                   name, def_name);
+        continue;
+      }
     }
-    std::string file_path = rpt.second["path"].as<std::string>();
     if (check_file_exists(file_path)) {
       valid_rpts.insert(key);
     }

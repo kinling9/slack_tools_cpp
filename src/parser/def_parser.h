@@ -83,7 +83,4 @@ class def_parser {
   const RE2 _begin_pattern{"^COMPONENTS"};
   const RE2 _end_pattern{"^END COMPONENTS"};
   const RE2 _start_pattern{"^\\s*-"};
-  // const RE2 _cell_pattern{"^\\s*-\\s+(\\S+)\\s+(\\S+).*"};
-  // const RE2 _cell_pattern{
-  //     "^\\s*-\\s+(\\S+)\\s+(\\S+).*\\(\\s*(\\d+)\\s+(\\d+)\\s*\\).*"};
 };

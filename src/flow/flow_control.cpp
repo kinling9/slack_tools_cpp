@@ -1,5 +1,6 @@
 #include "flow/flow_control.h"
 
+#include <absl/strings/match.h>
 #include <fmt/color.h>
 #include <fmt/core.h>
 #include <fmt/ranges.h>
@@ -131,11 +132,13 @@ void flow_control::parse_rpt(const YAML::Node& rpt, std::string key) {
         }
       },
       parser);
-  if (rpt_type == "leda_def") {
+  // def as appendix
+  if (absl::StrContains(rpt_type, "def")) {
     std::shared_ptr<def_parser> parser = std::make_shared<def_parser>();
     if (parser->parse_file(rpt["def"].as<std::string>())) {
       cur_db->update_loc_from_map(parser->get_loc_map());
     }
+    cur_db->type_map = parser->get_type_map();
   }
   _dbs[key] = cur_db;
 }
