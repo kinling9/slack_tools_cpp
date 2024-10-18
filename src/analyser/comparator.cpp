@@ -44,7 +44,7 @@ absl::flat_hash_set<std::string> comparator::check_valid(YAML::Node &rpts) {
   design_cons &cons = design_cons::get_instance();
   for (const auto &rpt_pair : _configs["analyse_tuples"]) {
     auto rpt_vec = rpt_pair.as<std::vector<std::string>>();
-    if (!check_tuple_valid(rpt_vec, rpts)) {
+    if (!check_tuple_valid(rpt_vec, rpts, 2)) {
       continue;
     }
     std::string rpt_0 = rpts[rpt_vec[0]]["path"].as<std::string>();

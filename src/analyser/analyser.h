@@ -31,7 +31,7 @@ class analyser {
 
  protected:
   bool check_tuple_valid(const std::vector<std::string> &rpt_vec,
-                         const YAML::Node &rpts) const;
+                         const YAML::Node &rpts, std::size_t num) const;
 
  protected:
   YAML::Node _configs;

@@ -66,8 +66,9 @@ bool analyser::check_file_exists(std::string &file_path) {
 }
 
 bool analyser::check_tuple_valid(const std::vector<std::string> &rpt_vec,
-                                 const YAML::Node &rpts) const {
-  if (rpt_vec.size() != 2) {
+                                 const YAML::Node &rpts,
+                                 std::size_t num) const {
+  if (rpt_vec.size() != num) {
     fmt::print(fmt::fg(fmt::color::red), "Invalid rpt_vec tuple: {}\n",
                fmt::join(rpt_vec, ", "));
     return false;
