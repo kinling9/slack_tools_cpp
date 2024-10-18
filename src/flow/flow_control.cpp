@@ -9,6 +9,7 @@
 #include "analyser/arc_analyser.h"
 #include "analyser/comparator.h"
 #include "analyser/existence_checker.h"
+#include "analyser/fanout_analyser.h"
 #include "parser/def_parser.h"
 #include "parser/invs_rpt.h"
 #include "parser/leda_endpoint.h"
@@ -58,6 +59,8 @@ void flow_control::parse_yml(std::string yml_file) {
     _analyser = std::make_unique<existence_checker>(config["configs"]);
   } else if (mode == "arc analyse") {
     _analyser = std::make_unique<arc_analyser>(config["configs"]);
+  } else if (mode == "fanout analyse") {
+    _analyser = std::make_unique<fanout_analyser>(config["configs"]);
   } else {
     throw std::system_error(
         errno, std::generic_category(),
@@ -74,6 +77,7 @@ void flow_control::parse_yml(std::string yml_file) {
   }
   auto rpt_node = config["rpts"];
   auto valid_rpts = _analyser->check_valid(rpt_node);
+
   for (const auto& rpt : valid_rpts) {
     run_function(fmt::format("parse rpt {}", rpt),
                  [&]() { parse_rpt(rpt_node[rpt], rpt); });
