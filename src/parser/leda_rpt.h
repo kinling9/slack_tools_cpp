@@ -12,8 +12,6 @@
 
 template <typename T>
 class leda_rpt_parser : public rpt_parser<T> {
-  using rpt_parser<T>::_ignore_blocks;
-
  public:
   leda_rpt_parser() : rpt_parser<T>("^Startpoint:", Beginpoint) {}
   leda_rpt_parser(int num_consumers)
@@ -21,7 +19,8 @@ class leda_rpt_parser : public rpt_parser<T> {
   void update_iter(block &iter) override;
   void parse_line(T line, std::shared_ptr<data_block> &path_block) override;
 
- private:
+ protected:
+  using rpt_parser<T>::_ignore_blocks;
   const RE2 _at_pattern{"^data arrival time"};
   const RE2 _begin_pattern{"^Startpoint: (\\S*)"};
   const RE2 _end_pattern{"^Endpoint: (\\S*)"};

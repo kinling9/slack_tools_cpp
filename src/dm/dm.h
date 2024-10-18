@@ -1,8 +1,11 @@
 #pragma once
+#include <absl/container/flat_hash_map.h>
+
 #include <memory>
 #include <string>
 #include <vector>
 
+#include "re2/re2.h"
 #include "yaml-cpp/yaml.h"
 
 class Net;
@@ -45,8 +48,15 @@ class Path {
 
 class basedb {
  public:
+  void update_loc_from_map(
+      const absl::flat_hash_map<std::string, std::pair<double, double>>&
+          loc_map);
+
+ public:
   // std::vector<std::shared_ptr<Net>> nets;
   // std::vector<std::shared_ptr<Pin>> pins;
   std::vector<std::shared_ptr<Path>> paths;
-  std::string tool;
+  std::string type;
+  std::string design;
+  absl::flat_hash_map<std::string, std::string> type_map;
 };

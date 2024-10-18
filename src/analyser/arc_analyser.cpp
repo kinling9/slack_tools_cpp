@@ -1,30 +1,73 @@
 #include "arc_analyser.h"
 
+#include <fmt/color.h>
+#include <fmt/ranges.h>
+
 #include <ranges>
 
+#include "utils/design_cons.h"
+#include "utils/double_filter/double_filter.h"
 #include "utils/double_filter/filter_machine.h"
 #include "utils/utils.h"
 #include "yaml-cpp/yaml.h"
 
-arc_analyser::arc_analyser(
-    const configs &configs,
-    const absl::flat_hash_map<std::string, std::vector<std::shared_ptr<basedb>>>
-        &dbs)
-    : analyser(configs), _dbs(dbs) {
-  for (const auto &[design, _] : _dbs) {
-    _arcs_writers[design] = std::make_shared<writer>(writer(design + ".arcs"));
-    _arcs_writers[design]->set_output_dir(_configs.output_dir);
-    _arcs_writers[design]->open();
+bool arc_analyser::parse_configs() {
+  bool valid = analyser::parse_configs();
+  std::string delay_filter;
+  collect_from_node("delay_filter", delay_filter);
+  compile_double_filter(delay_filter, _delay_filter_op_code);
+  std::string fanout_filter;
+  collect_from_node("fanout_filter", fanout_filter);
+  compile_double_filter(fanout_filter, _fanout_filter_op_code);
+  return valid;
+}
+
+absl::flat_hash_set<std::string> arc_analyser::check_valid(YAML::Node &rpts) {
+  absl::flat_hash_set<std::string> exist_rpts = analyser::check_valid(rpts);
+  absl::flat_hash_set<std::string> valid_rpts;
+  design_cons &cons = design_cons::get_instance();
+  for (const auto &rpt_pair : _configs["analyse_tuples"]) {
+    auto rpt_vec = rpt_pair.as<std::vector<std::string>>();
+    if (!check_tuple_valid(rpt_vec, rpts, 2)) {
+      continue;
+    }
+    std::string rpt_0 = rpts[rpt_vec[0]]["path"].as<std::string>();
+    std::string rpt_1 = rpts[rpt_vec[1]]["path"].as<std::string>();
+    if (cons.get_name(rpt_0) != cons.get_name(rpt_1)) {
+      fmt::print(fmt::fg(fmt::rgb(255, 0, 0)),
+                 "Design names are not the same: {} {}\n", rpt_0, rpt_1);
+      continue;
+    }
+    if (!exist_rpts.contains(rpt_vec[0]) || !exist_rpts.contains(rpt_vec[1])) {
+      continue;
+    }
+    std::ranges::for_each(
+        rpt_vec, [&](const std::string &rpt) { valid_rpts.insert(rpt); });
+    _analyse_tuples.push_back(rpt_vec);
+  }
+  return valid_rpts;
+}
+
+void arc_analyser::open_writers() {
+  for (const auto &rpt_pair : _analyse_tuples) {
+    std::string cmp_name = fmt::format("{}", fmt::join(rpt_pair, "-"));
+    _arcs_writers[cmp_name] = std::make_shared<writer>(writer(cmp_name));
+    _arcs_writers[cmp_name]->set_output_dir(_output_dir);
+    _arcs_writers[cmp_name]->open();
   }
 }
 
-void arc_analyser::analyse() { gen_value_map(); }
+void arc_analyser::analyse() {
+  open_writers();
+  gen_value_map();
+}
 
 void arc_analyser::gen_value_map() {
-  for (const auto &[design, dbs] : _dbs) {
+  for (const auto &rpt_pair : _analyse_tuples) {
+    std::string cmp_name = fmt::format("{}", fmt::join(rpt_pair, "-"));
     absl::flat_hash_map<std::string_view, std::shared_ptr<Path>> pin_map;
-    gen_pin2path_map(dbs[1], pin_map);
-    match(design, pin_map, dbs);
+    gen_pin2path_map(_dbs.at(rpt_pair[1]), pin_map);
+    match(cmp_name, pin_map, {_dbs.at(rpt_pair[0]), _dbs.at(rpt_pair[1])});
   }
 }
 
@@ -43,29 +86,27 @@ void arc_analyser::gen_pin2path_map(
 }
 
 void arc_analyser::match(
-    const std::string &design,
+    const std::string &cmp_name,
     const absl::flat_hash_map<std::string_view, std::shared_ptr<Path>> &pin_map,
     const std::vector<std::shared_ptr<basedb>> &dbs) {
   auto fanout_filter =
       [&](const std::tuple<std::shared_ptr<Pin>, std::shared_ptr<Pin>>
               pin_ptr_tuple) {
-        if (_configs.fanout_filter_op_code.empty()) {
+        if (_fanout_filter_op_code.empty()) {
           return true;
         }
         const auto &[pin_ptr, _] = pin_ptr_tuple;
         return !pin_ptr->is_input &&
-               double_filter(_configs.fanout_filter_op_code,
-                             pin_ptr->net->fanout);
+               double_filter(_fanout_filter_op_code, pin_ptr->net->fanout);
       };
   auto delay_filter =
       [&](const std::tuple<std::shared_ptr<Pin>, std::shared_ptr<Pin>>
               pin_ptr_tuple) {
-        if (_configs.delay_filter_op_code.empty()) {
+        if (_delay_filter_op_code.empty()) {
           return true;
         }
         const auto &[pin_ptr, _] = pin_ptr_tuple;
-        return double_filter(_configs.delay_filter_op_code,
-                             pin_ptr->incr_delay);
+        return double_filter(_delay_filter_op_code, pin_ptr->incr_delay);
       };
   std::vector<YAML::Node> nodes;
   for (const auto &path : dbs[0]->paths) {
@@ -149,5 +190,5 @@ void arc_analyser::match(
   }
   YAML::Emitter out;
   out << arc_node;
-  fmt::print(_arcs_writers[design]->out_file, "{}", out.c_str());
+  fmt::print(_arcs_writers[cmp_name]->out_file, "{}", out.c_str());
 }
