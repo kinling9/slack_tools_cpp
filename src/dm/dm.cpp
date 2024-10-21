@@ -13,6 +13,15 @@ YAML::Node Pin::to_yaml() {
   return node;
 }
 
+nlohmann::json Pin::to_json() {
+  nlohmann::json node;
+  node["name"] = name;
+  node["incr_delay"] = incr_delay;
+  node["path_delay"] = path_delay;
+  node["location"] = nlohmann::json::array({location.first, location.second});
+  return node;
+}
+
 void basedb::update_loc_from_map(
     const absl::flat_hash_map<std::string, std::pair<double, double>>
         &loc_map) {
