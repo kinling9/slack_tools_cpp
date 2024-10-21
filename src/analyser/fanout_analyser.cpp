@@ -53,9 +53,11 @@ void fanout_analyser::open_writers() {
 void fanout_analyser::check_fanout(const std::shared_ptr<basedb> &db,
                                    const std::string &key) {
   std::unordered_set<std::string> nets;
-  int path_count = 0;
+  int affect_count = 0;
+  int total_count = 0;
   for (const auto &path : db->paths) {
     if (double_filter(_slack_filter_op_code, path->slack)) {
+      ++total_count;
       bool affected = false;
       for (const auto &pin : path->path) {
         if (double_filter(_fanout_filter_op_code, pin->net->fanout)) {
@@ -64,16 +66,19 @@ void fanout_analyser::check_fanout(const std::shared_ptr<basedb> &db,
         }
       }
       if (affected) {
-        path_count++;
+        affect_count++;
       }
+    } else {
+      // the paths is sorted by slack, so we can break here
+      break;
     }
   }
   absl::flat_hash_map<std::string, std::string> row = {
       {"Cmp name", key},
-      {"Num paths", std::to_string(db->paths.size())},
-      {"Affected paths", std::to_string(path_count)},
+      {"Num paths", std::to_string(total_count)},
+      {"Affected paths", std::to_string(affect_count)},
       {"Affected percent",
-       std::to_string(static_cast<double>(path_count) / db->paths.size())},
+       std::to_string(static_cast<double>(affect_count) / total_count)},
       {"Num nets", std::to_string(nets.size())}};
   _writer->add_row(row);
   for (const auto &net : nets) {

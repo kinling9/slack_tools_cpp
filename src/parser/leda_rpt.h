@@ -1,4 +1,5 @@
 #pragma once
+#include <absl/strings/match.h>
 #include <re2/re2.h>
 
 #include <boost/convert.hpp>
@@ -135,6 +136,9 @@ void leda_rpt_parser<T>::parse_line(T line,
         }
       } else if (tokens.size() == 3) {
         if (tokens[0].substr(0, 5) == "clock") {
+          break;
+        }
+        if (absl::StrContains(tokens[0], " ")) {
           break;
         }
         Net net;
