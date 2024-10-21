@@ -24,17 +24,18 @@ bool analyser::parse_configs() {
 }
 
 absl::flat_hash_set<std::string> analyser::check_valid(YAML::Node &rpts) {
-  absl::flat_hash_set<std::string> valid_rpts;
+  absl::flat_hash_set<std::string> exist_rpts;
+  absl::flat_hash_map<std::string, std::string> rpt_design_map;
+  design_cons &cons = design_cons::get_instance();
   for (const auto &rpt : rpts) {
     std::string key = rpt.first.as<std::string>();
     std::string file_path = rpt.second["path"].as<std::string>();
-    design_cons &cons = design_cons::get_instance();
     std::string name = cons.get_name(file_path);
     if (absl::StrContains(rpt.second["type"].as<std::string>(), "def")) {
       if (!rpt.second["def"]) {
         fmt::print(fmt::fg(fmt::color::red),
-                   "Def is not defined in rpt {} with type leda_def, skip.\n",
-                   key);
+                   "Def is not defined in rpt {} with type {}, skip.\n", key,
+                   rpt.second["type"].as<std::string>());
         continue;
       }
       std::string def = rpt.second["def"].as<std::string>();
@@ -50,8 +51,40 @@ absl::flat_hash_set<std::string> analyser::check_valid(YAML::Node &rpts) {
       }
     }
     if (check_file_exists(file_path)) {
-      valid_rpts.insert(key);
+      exist_rpts.insert(key);
+      rpt_design_map[key] = name;
     }
+  }
+  absl::flat_hash_set<std::string> valid_rpts;
+  for (const auto &rpt_tuple : _configs["analyse_tuples"]) {
+    auto rpt_vec = rpt_tuple.as<std::vector<std::string>>();
+    if (rpt_vec.empty()) {
+      continue;
+    }
+
+    if (rpt_vec.size() != _num_rpts) {
+      fmt::print(fmt::fg(fmt::color::red), "Invalid rpt_vec tuple: {}\n",
+                 fmt::join(rpt_vec, ", "));
+      continue;
+    }
+    if (!std::all_of(
+            rpt_vec.begin(), rpt_vec.end(),
+            [&](const std::string &rpt) { return exist_rpts.contains(rpt); })) {
+      continue;
+    }
+    const auto &design_name = rpt_design_map[rpt_vec[0]];
+    if (!std::all_of(rpt_vec.begin(), rpt_vec.end(),
+                     [&](const std::string &rpt) {
+                       return rpt_design_map[rpt] == design_name;
+                     })) {
+      fmt::print(fmt::fg(fmt::color::red),
+                 "Design names are not the same: {}\n",
+                 fmt::join(rpt_vec, ", "));
+      continue;
+    }
+    std::ranges::for_each(
+        rpt_vec, [&](const std::string &rpt) { valid_rpts.insert(rpt); });
+    _analyse_tuples.push_back(rpt_vec);
   }
   return valid_rpts;
 }
@@ -63,24 +96,4 @@ bool analyser::check_file_exists(std::string &file_path) {
     return false;
   }
   return true;
-}
-
-bool analyser::check_tuple_valid(const std::vector<std::string> &rpt_vec,
-                                 const YAML::Node &rpts,
-                                 std::size_t num) const {
-  if (rpt_vec.size() != num) {
-    fmt::print(fmt::fg(fmt::color::red), "Invalid rpt_vec tuple: {}\n",
-               fmt::join(rpt_vec, ", "));
-    return false;
-  }
-  bool valid = true;
-  for (const auto &rpt : rpt_vec) {
-    if (!rpts[rpt]) {
-      valid = false;
-      fmt::print(fmt::fg(fmt::color::red),
-                 "Rpt {} is not defined in the yml file\n", rpt);
-      continue;
-    }
-  }
-  return valid;
 }

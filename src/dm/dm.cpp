@@ -27,7 +27,7 @@ void basedb::update_loc_from_map(
         &loc_map) {
   for (const auto &path : paths) {
     for (const auto &pin : path->path) {
-      size_t pos = pin->name.find_last_of('/');
+      std::size_t pos = pin->name.find_last_of('/');
       if (pos == std::string::npos) {
         continue;
       }
@@ -37,4 +37,13 @@ void basedb::update_loc_from_map(
       }
     }
   }
+}
+
+nlohmann::json Net::to_json() {
+  nlohmann::json node = {
+      {"name", name},
+      {"fanout", fanout},
+      {"cap", cap},
+  };
+  return node;
 }

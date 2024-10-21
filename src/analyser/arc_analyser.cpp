@@ -23,32 +23,6 @@ bool arc_analyser::parse_configs() {
   return valid;
 }
 
-absl::flat_hash_set<std::string> arc_analyser::check_valid(YAML::Node &rpts) {
-  absl::flat_hash_set<std::string> exist_rpts = analyser::check_valid(rpts);
-  absl::flat_hash_set<std::string> valid_rpts;
-  design_cons &cons = design_cons::get_instance();
-  for (const auto &rpt_pair : _configs["analyse_tuples"]) {
-    auto rpt_vec = rpt_pair.as<std::vector<std::string>>();
-    if (!check_tuple_valid(rpt_vec, rpts, 2)) {
-      continue;
-    }
-    std::string rpt_0 = rpts[rpt_vec[0]]["path"].as<std::string>();
-    std::string rpt_1 = rpts[rpt_vec[1]]["path"].as<std::string>();
-    if (cons.get_name(rpt_0) != cons.get_name(rpt_1)) {
-      fmt::print(fmt::fg(fmt::rgb(255, 0, 0)),
-                 "Design names are not the same: {} {}\n", rpt_0, rpt_1);
-      continue;
-    }
-    if (!exist_rpts.contains(rpt_vec[0]) || !exist_rpts.contains(rpt_vec[1])) {
-      continue;
-    }
-    std::ranges::for_each(
-        rpt_vec, [&](const std::string &rpt) { valid_rpts.insert(rpt); });
-    _analyse_tuples.push_back(rpt_vec);
-  }
-  return valid_rpts;
-}
-
 void arc_analyser::open_writers() {
   for (const auto &rpt_pair : _analyse_tuples) {
     std::string cmp_name = fmt::format("{}", fmt::join(rpt_pair, "-"));

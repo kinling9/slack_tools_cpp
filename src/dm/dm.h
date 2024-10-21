@@ -36,6 +36,9 @@ class Net {
   int fanout;
   double cap;
   std::pair<std::shared_ptr<Pin>, std::shared_ptr<Pin>> pins;
+
+ public:
+  nlohmann::json to_json();
 };
 
 class Path {

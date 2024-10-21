@@ -8,7 +8,7 @@
 
 class arc_analyser : public analyser {
  public:
-  arc_analyser(const YAML::Node &configs) : analyser(configs){};
+  arc_analyser(const YAML::Node &configs) : analyser(configs, 2) {};
   ~arc_analyser() override = default;
   void analyse() override;
 
@@ -22,7 +22,6 @@ class arc_analyser : public analyser {
              const absl::flat_hash_map<std::string_view, std::shared_ptr<Path>>
                  &pin_map,
              const std::vector<std::shared_ptr<basedb>> &dbs);
-  absl::flat_hash_set<std::string> check_valid(YAML::Node &rpts) override;
   bool parse_configs() override;
   void open_writers();
 

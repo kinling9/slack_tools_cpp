@@ -3,6 +3,7 @@
 #include <absl/container/btree_set.h>
 #include <absl/container/flat_hash_map.h>
 #include <absl/container/flat_hash_set.h>
+#include <absl/strings/match.h>
 #include <fmt/color.h>
 #include <fmt/core.h>
 #include <fmt/ranges.h>
@@ -23,8 +24,8 @@ bool comparator::parse_configs() {
                _compare_mode);
     valid = false;
   }
-  _writer =
-      std::make_unique<csv_writer>(_configs["compare_mode"].as<std::string>());
+  _writer = std::make_unique<csv_writer>(
+      fmt::format("{}.csv", _configs["compare_mode"].as<std::string>()));
   _writer->set_output_dir(_output_dir);
   collect_from_node("match_paths", _match_paths);
   collect_from_node("slack_margins", _slack_margins);
@@ -41,39 +42,29 @@ bool comparator::parse_configs() {
 absl::flat_hash_set<std::string> comparator::check_valid(YAML::Node &rpts) {
   absl::flat_hash_set<std::string> exist_rpts = analyser::check_valid(rpts);
   absl::flat_hash_set<std::string> valid_rpts;
-  design_cons &cons = design_cons::get_instance();
-  for (const auto &rpt_pair : _configs["analyse_tuples"]) {
-    auto rpt_vec = rpt_pair.as<std::vector<std::string>>();
-    if (!check_tuple_valid(rpt_vec, rpts, 2)) {
+  std::vector<std::vector<std::string>> analyse_tuples;
+  for (const auto &rpt_vec : _analyse_tuples) {
+    if (_compare_mode != "endpoint" &&
+        std::any_of(rpt_vec.begin(), rpt_vec.end(),
+                    [&](const std::string &rpt) {
+                      return absl::StrContains(
+                          rpts[rpt]["type"].as<std::string>(), "endpoint");
+                    })) {
+      fmt::print(fmt::fg(fmt::color::red),
+                 "Endpoint rpt is not allowed in non-endpoint comparison: {}\n",
+                 fmt::join(rpt_vec, ","));
       continue;
     }
-    std::string rpt_0 = rpts[rpt_vec[0]]["path"].as<std::string>();
-    std::string rpt_1 = rpts[rpt_vec[1]]["path"].as<std::string>();
-    if (cons.get_name(rpt_0) != cons.get_name(rpt_1)) {
-      fmt::print(fmt::fg(fmt::rgb(255, 0, 0)),
-                 "Design names are not the same: {} {}\n", rpt_0, rpt_1);
-      continue;
-    }
-    if (!exist_rpts.contains(rpt_vec[0]) || !exist_rpts.contains(rpt_vec[1])) {
-      continue;
-    }
-    std::ranges::for_each(rpt_vec, [&](const std::string &rpt) {
-      if (_compare_mode != "endpoint" &&
-          rpts[rpt]["type"].as<std::string>() == "leda_endpoint") {
-        fmt::print(fmt::fg(fmt::rgb(255, 0, 0)),
-                   "Endpoint rpt {} is not supported in {} mode.\n", rpt,
-                   _compare_mode);
-      }
-    });
     std::ranges::for_each(
         rpt_vec, [&](const std::string &rpt) { valid_rpts.insert(rpt); });
-    _analyse_tuples.push_back(rpt_vec);
+    analyse_tuples.push_back(rpt_vec);
     if (_compare_mode == "endpoint") {
       for (const auto &rpt : rpt_vec) {
         rpts[rpt]["ignore_path"] = true;
       }
     }
   }
+  _analyse_tuples = analyse_tuples;
   return valid_rpts;
 }
 
