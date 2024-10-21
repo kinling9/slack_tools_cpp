@@ -6,7 +6,6 @@
 #include <nlohmann/json.hpp>
 #include <ranges>
 
-#include "absl/strings/internal/str_format/extension.h"
 #include "utils/design_cons.h"
 #include "utils/double_filter/double_filter.h"
 #include "utils/double_filter/filter_machine.h"
