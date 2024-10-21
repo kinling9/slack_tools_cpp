@@ -38,3 +38,12 @@ void basedb::update_loc_from_map(
     }
   }
 }
+
+nlohmann::json Net::to_json() {
+  nlohmann::json node = {
+      {"name", name},
+      {"fanout", fanout},
+      {"cap", cap},
+  };
+  return node;
+}

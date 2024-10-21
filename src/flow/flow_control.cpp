@@ -14,7 +14,6 @@
 #include "parser/invs_rpt.h"
 #include "parser/leda_endpoint.h"
 #include "parser/leda_rpt.h"
-#include "parser/leda_rpt_nopos.h"
 #include "yaml-cpp/yaml.h"
 
 void flow_control::parse_yml(std::string yml_file) {
@@ -111,19 +110,17 @@ void flow_control::parse_rpt(const YAML::Node& rpt, std::string key) {
   if (rpt_type == "leda_endpoint") {
     parser = std::make_shared<leda_endpoint_parser<std::string_view>>(1);
   } else if (ignore_path) {
-    if (rpt_type == "leda") {
+    if (absl::StrContains(rpt_type, "leda")) {
       parser = std::make_shared<leda_rpt_parser<std::string_view>>(1);
-    } else if (rpt_type == "invs") {
+    } else if (absl::StrContains(rpt_type, "invs")) {
       parser = std::make_shared<invs_rpt_parser<std::string_view>>(1);
     }
     std::get<1>(parser)->set_ignore_blocks({Paths});
   } else {
-    if (rpt_type == "leda") {
+    if (absl::StrContains(rpt_type, "leda")) {
       parser = std::make_shared<leda_rpt_parser<std::string>>();
-    } else if (rpt_type == "invs") {
+    } else if (absl::StrContains(rpt_type, "leda")) {
       parser = std::make_shared<invs_rpt_parser<std::string>>();
-    } else if (rpt_type == "leda_def") {
-      parser = std::make_shared<leda_rpt_nopos_parser<std::string>>();
     }
   }
   std::visit(

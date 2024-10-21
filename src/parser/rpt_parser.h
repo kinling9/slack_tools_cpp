@@ -211,8 +211,12 @@ std::shared_ptr<Path> rpt_parser<T>::parse_path(const std::vector<T> &path) {
 template <typename T>
 void rpt_parser<T>::print_paths() {
   for (const auto &path : _db.paths) {
-    std::cout << "Startpoint: " << path->startpoint
-              << " Endpoint: " << path->endpoint << " Group: " << path->group
-              << " Clock: " << path->clock << " Slack: " << path->slack << "\n";
+    fmt::print("Startpoint: {} Endpoint: {} Group: {} Clock: {} Slack: {}\n",
+               path->startpoint, path->endpoint, path->group, path->clock,
+               path->slack);
+    for (const auto &p : path->path) {
+      fmt::print("Pin: {}\n", p->to_json().dump());
+      fmt::print("Net {}\n", p->net->to_json().dump());
+    }
   }
 }

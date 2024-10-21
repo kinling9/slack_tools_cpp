@@ -94,27 +94,39 @@ void leda_rpt_parser<T>::parse_line(T line,
       }
       // Parse the path
       // TODO: auto generate token iter from title line
-      std::vector<std::string_view> tokens = split_string_by_spaces(line, 8);
-      if (tokens.size() == 8) {
+      // std::vector<std::string_view> tokens = split_string_by_spaces(line, 8);
+      auto splits = split_string_by_n_spaces(line, 2, 8);
+
+      std::vector<std::string_view> tokens;
+      std::ranges::transform(splits, std::back_inserter(tokens),
+                             [](const auto &pair) { return pair.second; });
+      if (tokens.size() == 5) {
         Pin pin;
         pin.is_input = path_block->is_input;
         path_block->is_input = !path_block->is_input;
-        pin.name = std::string(tokens[0]);
-        pin.cell = std::string(tokens[1].substr(1, tokens[1].size() - 2));
+        auto name_cell = split_string_by_spaces(tokens[0], 2);
+        pin.name = std::string(name_cell[0]);
+        pin.cell = std::string(name_cell[1].substr(1, name_cell[1].size() - 2));
         pin.trans =
-            boost::convert<double>(tokens[2], boost::cnv::strtol()).value();
+            boost::convert<double>(tokens[1], boost::cnv::strtol()).value();
         pin.incr_delay =
-            boost::convert<double>(tokens[3], boost::cnv::strtol()).value();
+            boost::convert<double>(tokens[2], boost::cnv::strtol()).value();
+        auto delay_rf = split_string_by_spaces(tokens[3], 2);
         pin.path_delay =
-            boost::convert<double>(tokens[4], boost::cnv::strtol()).value();
-        pin.rise_fall = tokens[5] == "r";
-        pin.location = std::make_pair(
-            boost::convert<double>(tokens[6].substr(1, tokens[6].size() - 2),
-                                   boost::cnv::strtol())
-                .value(),
-            boost::convert<double>(tokens[7].substr(0, tokens[7].size() - 2),
-                                   boost::cnv::strtol())
-                .value());
+            boost::convert<double>(delay_rf[0], boost::cnv::strtol()).value();
+        pin.rise_fall = delay_rf[1] == "r";
+        auto space_index = tokens[4].find(" ");
+        if (space_index != std::string::npos) {
+          pin.location = std::make_pair(
+              boost::convert<double>(tokens[4].substr(1, space_index - 2),
+                                     boost::cnv::strtol())
+                  .value(),
+              boost::convert<double>(
+                  tokens[4].substr(space_index + 1,
+                                   tokens[4].size() - space_index - 2),
+                  boost::cnv::strtol())
+                  .value());
+        }
         path_block->pin_obj = std::make_shared<Pin>(pin);
         if (path_block->net_obj->pins.second == nullptr) {
           path_block->net_obj->pins.second = path_block->pin_obj;
@@ -122,6 +134,9 @@ void leda_rpt_parser<T>::parse_line(T line,
           path_block->path_obj->path.push_back(path_block->pin_obj);
         }
       } else if (tokens.size() == 3) {
+        if (tokens[0].substr(0, 5) == "clock") {
+          break;
+        }
         Net net;
         net.name = std::string(tokens[0]);
         net.fanout =
