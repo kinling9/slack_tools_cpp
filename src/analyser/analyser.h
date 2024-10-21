@@ -11,7 +11,8 @@
 
 class analyser {
  public:
-  analyser(const YAML::Node &configs) : _configs(configs) {}
+  analyser(const YAML::Node &configs, const int num_rpts)
+      : _configs(configs), _num_rpts(num_rpts) {}
   virtual ~analyser() = 0;
 
   void set_db(
@@ -30,14 +31,11 @@ class analyser {
   virtual bool parse_configs();
 
  protected:
-  bool check_tuple_valid(const std::vector<std::string> &rpt_vec,
-                         const YAML::Node &rpts, std::size_t num) const;
-
- protected:
   YAML::Node _configs;
   absl::flat_hash_map<std::string, std::shared_ptr<basedb>> _dbs;
   std::vector<std::vector<std::string>> _analyse_tuples;
   std::string _output_dir;
+  std::size_t _num_rpts;
 
  private:
   bool check_file_exists(std::string &file_path);

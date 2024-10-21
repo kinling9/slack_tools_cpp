@@ -4,25 +4,6 @@
 
 #include "utils/writer.h"
 
-absl::flat_hash_set<std::string> existence_checker::check_valid(
-    YAML::Node &rpts) {
-  absl::flat_hash_set<std::string> exist_rpts = analyser::check_valid(rpts);
-  absl::flat_hash_set<std::string> valid_rpts;
-  for (const auto &rpt_pair : _configs["analyse_tuples"]) {
-    auto rpt_vec = rpt_pair.as<std::vector<std::string>>();
-    if (!check_tuple_valid(rpt_vec, rpts, 1)) {
-      continue;
-    }
-    if (!exist_rpts.contains(rpt_vec[0])) {
-      continue;
-    }
-    std::ranges::for_each(
-        rpt_vec, [&](const std::string &rpt) { valid_rpts.insert(rpt); });
-    _analyse_tuples.push_back(rpt_vec);
-  }
-  return valid_rpts;
-}
-
 void existence_checker::analyse() {
   for (const auto &rpt_pair : _analyse_tuples) {
     std::string key = rpt_pair[0];

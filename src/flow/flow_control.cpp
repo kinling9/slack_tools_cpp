@@ -119,7 +119,7 @@ void flow_control::parse_rpt(const YAML::Node& rpt, std::string key) {
   } else {
     if (absl::StrContains(rpt_type, "leda")) {
       parser = std::make_shared<leda_rpt_parser<std::string>>();
-    } else if (absl::StrContains(rpt_type, "leda")) {
+    } else if (absl::StrContains(rpt_type, "invs")) {
       parser = std::make_shared<invs_rpt_parser<std::string>>();
     }
   }

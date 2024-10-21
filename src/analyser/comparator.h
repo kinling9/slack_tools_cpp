@@ -7,7 +7,7 @@
 
 class comparator : public analyser {
  public:
-  comparator(const YAML::Node &configs) : analyser(configs) {};
+  comparator(const YAML::Node &configs) : analyser(configs, 2) {};
   ~comparator() override = default;
   void match(
       const std::string &cmp_name,

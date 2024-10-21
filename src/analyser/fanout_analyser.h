@@ -3,12 +3,11 @@
 
 class fanout_analyser : public analyser {
  public:
-  fanout_analyser(const YAML::Node &configs) : analyser(configs) {};
+  fanout_analyser(const YAML::Node &configs) : analyser(configs, 1) {};
   ~fanout_analyser() override = default;
   void analyse() override;
 
  private:
-  absl::flat_hash_set<std::string> check_valid(YAML::Node &rpts) override;
   bool parse_configs() override;
   void open_writers();
   void check_fanout(const std::shared_ptr<basedb> &db, const std::string &key);

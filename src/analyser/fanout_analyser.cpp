@@ -5,26 +5,6 @@
 #include "utils/double_filter/double_filter.h"
 #include "utils/double_filter/filter_machine.h"
 
-absl::flat_hash_set<std::string> fanout_analyser::check_valid(
-    YAML::Node &rpts) {
-  absl::flat_hash_set<std::string> exist_rpts = analyser::check_valid(rpts);
-  absl::flat_hash_set<std::string> valid_rpts;
-  for (const auto &rpt_pair : _configs["analyse_tuples"]) {
-    auto rpt_vec = rpt_pair.as<std::vector<std::string>>();
-    if (!check_tuple_valid(rpt_vec, rpts, 1)) {
-      continue;
-    }
-    // TODO: ugly
-    if (!exist_rpts.contains(rpt_vec[0])) {
-      continue;
-    }
-    std::ranges::for_each(
-        rpt_vec, [&](const std::string &rpt) { valid_rpts.insert(rpt); });
-    _analyse_tuples.push_back(rpt_vec);
-  }
-  return valid_rpts;
-}
-
 bool fanout_analyser::parse_configs() {
   bool valid = analyser::parse_configs();
   _writer = std::make_unique<csv_writer>("fanout_analyse.csv");
