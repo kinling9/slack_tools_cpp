@@ -5,5 +5,5 @@ configs:
   output_dir: output
   analyse_tuples:
     - ["leda0"]
-  fanout_filter: x >= 1
+  fanout_filter: x >= 10
   slack_filter: x < 0

@@ -18,4 +18,5 @@ class fanout_analyser : public analyser {
   std::unordered_map<std::string, std::shared_ptr<writer>> _arcs_writers;
   std::vector<double> _slack_filter_op_code;
   std::vector<double> _fanout_filter_op_code;
+  std::unique_ptr<csv_writer> _writer;
 };

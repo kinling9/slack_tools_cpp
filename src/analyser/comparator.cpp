@@ -23,8 +23,8 @@ bool comparator::parse_configs() {
                _compare_mode);
     valid = false;
   }
-  _writer =
-      std::make_unique<csv_writer>(_configs["compare_mode"].as<std::string>());
+  _writer = std::make_unique<csv_writer>(
+      fmt::format("{}.csv", _configs["compare_mode"].as<std::string>()));
   _writer->set_output_dir(_output_dir);
   collect_from_node("match_paths", _match_paths);
   collect_from_node("slack_margins", _slack_margins);
