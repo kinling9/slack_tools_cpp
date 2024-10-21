@@ -3,8 +3,10 @@
 #include <fmt/color.h>
 #include <fmt/ranges.h>
 
+#include <nlohmann/json.hpp>
 #include <ranges>
 
+#include "absl/strings/internal/str_format/extension.h"
 #include "utils/design_cons.h"
 #include "utils/double_filter/double_filter.h"
 #include "utils/double_filter/filter_machine.h"
@@ -51,7 +53,8 @@ absl::flat_hash_set<std::string> arc_analyser::check_valid(YAML::Node &rpts) {
 void arc_analyser::open_writers() {
   for (const auto &rpt_pair : _analyse_tuples) {
     std::string cmp_name = fmt::format("{}", fmt::join(rpt_pair, "-"));
-    _arcs_writers[cmp_name] = std::make_shared<writer>(writer(cmp_name));
+    _arcs_writers[cmp_name] =
+        std::make_shared<writer>(writer(fmt::format("{}.json", cmp_name)));
     _arcs_writers[cmp_name]->set_output_dir(_output_dir);
     _arcs_writers[cmp_name]->open();
   }
@@ -108,7 +111,6 @@ void arc_analyser::match(
         const auto &[pin_ptr, _] = pin_ptr_tuple;
         return double_filter(_delay_filter_op_code, pin_ptr->incr_delay);
       };
-  std::vector<YAML::Node> nodes;
   for (const auto &path : dbs[0]->paths) {
     for (const auto &pin_tuple : path->path | std::views::adjacent<2> |
                                      std::views::filter(delay_filter) |
@@ -120,14 +122,16 @@ void arc_analyser::match(
           std::vector<std::pair<float, float>> key_locs = {pin_from->location,
                                                            pin_to->location};
           std::vector<std::pair<float, float>> value_locs;
-          YAML::Node node;
-          node["type"] = pin_from->is_input ? "cell arc" : "net arc";
-          node["from"] = pin_from->name;
-          node["to"] = pin_to->name;
-          node["key"] = YAML::Node();
-          node["key"]["pins"].push_back(pin_from->to_yaml());
-          node["key"]["pins"].push_back(pin_to->to_yaml());
-          node["value"] = YAML::Node();
+          nlohmann::json node = {
+              {"type", pin_from->is_input ? "cell arc" : "net arc"},
+              {"from", pin_from->name},
+              {"to", pin_to->name},
+          };
+          node["key"] = nlohmann::json::object();
+          node["key"]["pins"] = nlohmann::json::array();
+          node["key"]["pins"].push_back(pin_from->to_json());
+          node["key"]["pins"].push_back(pin_to->to_json());
+          node["value"] = nlohmann::json::object();
           auto &value_path = pin_map.at(pin_from->name);
           bool match = true;
           double key_delay = pin_to->incr_delay;
@@ -147,7 +151,7 @@ void arc_analyser::match(
                          }
                          return match || to_pin->name == pin_to->name;
                        })) {
-            node["value"]["pins"].push_back(value_pin->to_yaml());
+            node["value"]["pins"].push_back(value_pin->to_json());
             value_locs.push_back(value_pin->location);
             if (value_pin->name == pin_from->name) {
               continue;
@@ -184,11 +188,9 @@ void arc_analyser::match(
   std::sort(
       sorted_arcs.begin(), sorted_arcs.end(),
       [](const auto &lhs, const auto &rhs) { return lhs.second > rhs.second; });
-  YAML::Node arc_node;
+  nlohmann::json arc_node;
   for (const auto &[arc, _] : sorted_arcs) {
     arc_node.push_back(_arcs_buffer[arc]);
   }
-  YAML::Emitter out;
-  out << arc_node;
-  fmt::print(_arcs_writers[cmp_name]->out_file, "{}", out.c_str());
+  fmt::print(_arcs_writers[cmp_name]->out_file, "{}", arc_node.dump(2));
 }

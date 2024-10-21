@@ -8,7 +8,7 @@
 
 class arc_analyser : public analyser {
  public:
-  arc_analyser(const YAML::Node &configs) : analyser(configs) {};
+  arc_analyser(const YAML::Node &configs) : analyser(configs){};
   ~arc_analyser() override = default;
   void analyse() override;
 
@@ -29,7 +29,7 @@ class arc_analyser : public analyser {
  private:
   // TODO: using yml
   absl::flat_hash_map<std::string, std::shared_ptr<writer>> _arcs_writers;
-  absl::flat_hash_map<std::pair<std::string, std::string>, YAML::Node>
+  absl::flat_hash_map<std::pair<std::string, std::string>, nlohmann::json>
       _arcs_buffer;
   absl::flat_hash_map<std::pair<std::string, std::string>, double> _arcs_delta;
   std::vector<double> _delay_filter_op_code;

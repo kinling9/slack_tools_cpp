@@ -2,6 +2,7 @@
 #include <absl/container/flat_hash_map.h>
 
 #include <memory>
+#include <nlohmann/json.hpp>
 #include <string>
 #include <vector>
 
@@ -26,6 +27,7 @@ class Pin {
 
  public:
   YAML::Node to_yaml();
+  nlohmann::json to_json();
 };
 
 class Net {
