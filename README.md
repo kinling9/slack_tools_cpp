@@ -19,15 +19,19 @@ this:
 
 ```yml
 mode: compare
-compare_mode: full_path # [endpoint, startpoint, start_end, full_path]
-rpts: 
-  - ["rpt/invs_rpts/z80_core_top_N7_LEC_preCTS_place.tarpt.gz", "rpt/invs_rpts/z80_core_top_N7_LEC_preCTS_popt.tarpt.gz"]
-  - ["rpt/invs_rpts/axi4lscope.simple.gz", "rpt/invs_rpts/axi4lscope.simple.gz"]
-type: ["invs", "invs"] # [invs, leda]
-slack_margins: [0.01, 0.03, 0.05, 0.1, 1] # optional
-match_percentages: [0.01, 0.03, 0.1, 0.5, 1] # optional
-output_dir: output # optional
-match_paths: 10 # optional
+rpts:
+  leda0: {path: "rpt/leda_rpts/B005_allpath.rpt.gz", type: "leda"}
+  leda1: {path: "rpt/leda_rpts/B005_allpath2.rpt.gz", type: "leda"}
+  leda2: {path: "rpt/leda_rpts/SEED_allpath.rpt.gz", type: "leda"}
+  leda3: {path: "rpt/leda_rpts/SEED_allpath2.rpt.gz", type: "leda"}
+configs:
+  compare_mode: endpoint # [endpoint, startpoint, start_end, full_path]
+  analyse_tuples:
+    - ["leda0", "leda1"]
+    - ["leda2", "leda3"]
+  slack_margins: [0.01, 0.03, 0.05, 0.1, 1]
+  match_percentages: [0.01, 0.03, 0.1, 0.5, 1]
+  output_dir: output
 ```
 
 Compare result will located in ${output_dir}/${compare_mode}_${match_paths}.csv
@@ -36,8 +40,10 @@ Compare result will located in ${output_dir}/${compare_mode}_${match_paths}.csv
 
 ```yml
 mode: cell in def
-rpt_defs:
-  - ["rpt/invs_rpts/z80_core_top_N7_LEC_preCTS_popt.tarpt.gz", "rpt/defs/z80_core_top_N7_LEC_placeOpt.def"]
-rpt_type: invs
-output_dir: output
+rpts:
+  invs0: {path: "rpt/invs_rpts/z80_core_top_N7_LEC_preCTS_popt.tarpt.gz", type: "invs", def: "rpt/defs/z80_core_top_N7_LEC_placeOpt.def"}
+configs:
+  output_dir: output
+  analyse_tuples:
+    - [invs0]
 ```
