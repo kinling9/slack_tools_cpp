@@ -19,6 +19,7 @@ configs:
       - leda1
   analyse_patterns:
     - name: fanout
+      target: net arc
       filters:
         - attribute: fanout
           filter: x > 100
