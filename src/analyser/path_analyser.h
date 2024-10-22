@@ -8,11 +8,13 @@
 
 class path_analyser : public analyser {
  public:
-  path_analyser(const configs &configs,
-                const absl::flat_hash_map<
-                    std::string, std::vector<std::shared_ptr<basedb>>> &dbs);
+  path_analyser(const YAML::Node &configs) : analyser(configs, 2) {};
+  ~path_analyser() override = default;
 
   void analyse() override;
 
  private:
+  bool parse_configs() override;
+  void open_writers();
+  void check_path(const std::shared_ptr<basedb> &db, const std::string &key);
 };

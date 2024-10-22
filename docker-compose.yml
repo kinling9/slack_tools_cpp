@@ -5,5 +5,8 @@ services:
       dockerfile: Dockerfile
     volumes:
       - .:/app
-    command: ["python3", "./script/build.py", "--docker"]
+    command:
+      - python3
+      - ./script/build.py
+      - --docker
     # command: ["ls"]
