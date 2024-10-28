@@ -26,8 +26,8 @@ class arc_analyser : public analyser {
   void open_writers();
 
  private:
-  // TODO: using yml
   absl::flat_hash_map<std::string, std::shared_ptr<writer>> _arcs_writers;
+  // TODO: clear for each db for acc
   absl::flat_hash_map<std::pair<std::string, std::string>, nlohmann::json>
       _arcs_buffer;
   absl::flat_hash_map<std::pair<std::string, std::string>, double> _arcs_delta;

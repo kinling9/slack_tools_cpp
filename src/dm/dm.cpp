@@ -19,6 +19,7 @@ nlohmann::json Pin::to_json() {
   node["incr_delay"] = incr_delay;
   node["path_delay"] = path_delay;
   node["location"] = nlohmann::json::array({location.first, location.second});
+  node["is_input"] = is_input;
   return node;
 }
 

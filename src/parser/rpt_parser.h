@@ -31,7 +31,7 @@ enum block {
 
 struct data_block {
   std::shared_ptr<Path> path_obj = std::make_shared<Path>();
-  std::shared_ptr<Pin> pin_obj = std::make_shared<Pin>();
+  std::shared_ptr<Pin> pin_obj = nullptr;
   std::shared_ptr<Net> net_obj = std::make_shared<Net>();
   block iter = Beginpoint;
   bool is_input = true;

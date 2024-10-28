@@ -1,3 +1,4 @@
+---
 mode: path analyse
 rpts:
   invs0:
@@ -22,10 +23,23 @@ configs:
       target: net arc
       filters:
         - attribute: fanout
-          filter: x > 100
-          type: real
-          is_delta: false
+          filter: x > 1
+          type:
+        - attribute: delay
+          filter: x >= 0
+          type:
+            # - delta
+            - abs
+    - name: length
+      target: net arc
+      filters:
+        - attribute: length
+          filter: x > 2
+          type:
+            - percent
+            - delta
         - attribute: delay
           filter: x > 0.1
-          type: abs
-          is_delta: true
+          type:
+            - delta
+            - abs

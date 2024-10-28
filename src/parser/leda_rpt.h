@@ -104,7 +104,7 @@ void leda_rpt_parser<T>::parse_line(T line,
       if (tokens.size() == 5) {
         Pin pin;
         pin.is_input = path_block->is_input;
-        path_block->is_input = !path_block->is_input;
+        // path_block->is_input = !path_block->is_input;
         auto name_cell = split_string_by_spaces(tokens[0], 2);
         pin.name = std::string(name_cell[0]);
         pin.cell = std::string(name_cell[1].substr(1, name_cell[1].size() - 2));
@@ -141,16 +141,26 @@ void leda_rpt_parser<T>::parse_line(T line,
         if (absl::StrContains(tokens[0], " ")) {
           break;
         }
-        Net net;
-        net.name = std::string(tokens[0]);
-        net.fanout =
+        bool push = true;
+        if (path_block->net_obj->pins.first == nullptr &&
+            path_block->net_obj->pins.second == path_block->pin_obj) {
+          push = false;
+        } else {
+          path_block->net_obj = std::make_shared<Net>();
+        }
+        auto &net = path_block->net_obj;
+        net->name = std::string(tokens[0]);
+        net->fanout =
             boost::convert<int>(tokens[1], boost::cnv::strtol()).value();
-        net.cap =
+        net->cap =
             boost::convert<double>(tokens[2], boost::cnv::strtol()).value();
-        net.pins = std::make_pair(path_block->pin_obj, nullptr);
-        path_block->net_obj = std::make_shared<Net>(net);
-        path_block->pin_obj->net = path_block->net_obj;
-        path_block->path_obj->path.push_back(path_block->pin_obj);
+        path_block->pin_obj->is_input = false;
+        net->pins = std::make_pair(path_block->pin_obj, nullptr);
+        path_block->pin_obj->net = net;
+        if (push) {
+          path_block->path_obj->path.push_back(path_block->pin_obj);
+        }
+        path_block->is_input = true;
       }
       break;
     }
