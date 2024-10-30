@@ -18,10 +18,10 @@ class path_analyser : public analyser {
  private:
   bool parse_configs() override;
   void open_writers();
-  // void check_path(const std::shared_ptr<basedb> &db, const std::string &key);
+  void gen_headers();
   nlohmann::json path_analyse(const std::vector<std::shared_ptr<Path>> &paths);
   void match(
-      const std::string &cmp_name,
+      const std::string &cmp_name, const std::string &design,
       const std::vector<absl::flat_hash_map<std::string, std::shared_ptr<Path>>>
           &path_maps);
   void gen_endpoints_map(
@@ -41,4 +41,5 @@ class path_analyser : public analyser {
   std::unordered_set<std::string> _path_keys;
   std::vector<std::unique_ptr<analyse_filter>> _filters;
   mbff_pattern _mbff;
+  std::unique_ptr<csv_writer> _writer;
 };

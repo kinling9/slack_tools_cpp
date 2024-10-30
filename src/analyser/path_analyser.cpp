@@ -17,6 +17,8 @@ bool path_analyser::parse_configs() {
     auto filters = pattern["filters"];
     _filters.push_back(std::make_unique<analyse_filter>(filters, name, target));
   }
+  _writer = std::make_unique<csv_writer>("path_summary.csv");
+  _writer->set_output_dir(_output_dir);
   return valid;
 }
 
@@ -56,6 +58,7 @@ void path_analyser::analyse() {
     _mbff.load_pattern("yml/mbff_pattern.yml");
   }
   open_writers();
+  gen_headers();
   for (const auto &rpt_pair : _analyse_tuples) {
     std::vector<absl::flat_hash_map<std::string, std::shared_ptr<Path>>>
         path_maps;
@@ -65,12 +68,14 @@ void path_analyser::analyse() {
           gen_endpoints_map(_dbs[rpt]->type, _dbs[rpt]->paths, path_map);
           return path_map;
         });
-    match(fmt::format("{}", fmt::join(rpt_pair, "-")), path_maps);
+    match(fmt::format("{}", fmt::join(rpt_pair, "-")),
+          _dbs[rpt_pair[0]]->design, path_maps);
   }
+  _writer->write();
 }
 
 void path_analyser::match(
-    const std::string &cmp_name,
+    const std::string &cmp_name, const std::string &design,
     const std::vector<absl::flat_hash_map<std::string, std::shared_ptr<Path>>>
         &path_maps) {
   absl::flat_hash_set<std::shared_ptr<Path>> path_set;
@@ -90,8 +95,25 @@ void path_analyser::match(
               return _paths_delay[lhs.first] > _paths_delay[rhs.first];
             });
   nlohmann::json path_node;
-  for (const auto &[path, _] : sorted_paths) {
+  std::unordered_map<std::string, std::size_t> filter_occur;
+  std::unordered_map<std::string, std::size_t> filter_domin;
+  std::ranges::for_each(_filters, [&](const auto &filter) {
+    filter_occur[filter->_name] = 0;
+    filter_domin[filter->_name] = 0;
+  });
+  std::size_t no_issue = _paths_buffer.size();
+  for (const auto &[path, _] :
+       sorted_paths | std::views::filter([&](const auto &path) {
+         return !_paths_buffer[path.first].empty();
+       })) {
     path_node.push_back(_paths_buffer[path]);
+    if (!_paths_buffer[path].empty()) {
+      filter_domin[_paths_buffer[path]["domin"].get<std::string>()] += 1;
+      for (const auto &filter : _paths_buffer[path]["filters"]) {
+        filter_occur[filter["name"]] += 1;
+      }
+      no_issue -= 1;
+    }
   }
   fmt::print(_paths_writers[cmp_name]->out_file, "{}", path_node.dump(2));
   std::vector<std::pair<std::pair<std::string, std::string>, double>>
@@ -112,6 +134,18 @@ void path_analyser::match(
     arc_node.push_back(_arcs_buffer[arc]);
   }
   fmt::print(_arcs_writers[cmp_name]->out_file, "{}", arc_node.dump(2));
+
+  absl::flat_hash_map<std::string, std::string> row;
+  row["Design"] = design;
+  row["Cmp name"] = cmp_name;
+  for (const auto &filter : _filters) {
+    row[fmt::format("{}_domin", filter->_name)] =
+        fmt::format("{}", filter_domin[filter->_name]);
+    row[fmt::format("{}_occur", filter->_name)] =
+        fmt::format("{}", filter_occur[filter->_name]);
+  }
+  row["No issue"] = fmt::format("{}", no_issue);
+  _writer->add_row(row);
 }
 
 nlohmann::json path_analyser::path_analyse(
@@ -209,10 +243,15 @@ nlohmann::json path_analyser::path_analyse(
       }
     }
   }
+  if (filter_arcs_map.empty()) {
+    return nlohmann::json();
+  }
   nlohmann::json result;
   result["endpoint"] = key_path->endpoint;
   // result["slack"] = key_path->slack;
   result["filters"] = nlohmann::json::array();
+  result["domin"] = "";
+  double max_delta = 0.;
   for (const auto &[filter_name, filter_arcs] : filter_arcs_map) {
     nlohmann::json filter;
     filter["name"] = filter_name;
@@ -225,7 +264,22 @@ nlohmann::json path_analyser::path_analyse(
         std::abs(delta_slack) < 1e-9 ? 0 : total_delta / delta_slack * 100;
     filter["total_delta"] = total_delta;
     filter["delta_percent"] = delta_percent;
+    if (total_delta >= max_delta) {
+      max_delta = total_delta;
+      result["domin"] = filter_name;
+    }
     result["filters"].push_back(filter);
   }
   return result;
+}
+
+void path_analyser::gen_headers() {
+  // output headers
+  std::vector<std::string> headers = {"Design", "Cmp name"};
+  for (const auto &filter : _filters) {
+    headers.push_back(fmt::format("{}_domin", filter->_name));
+    headers.push_back(fmt::format("{}_occur", filter->_name));
+  }
+  headers.push_back("No issue");
+  _writer->set_headers(headers);
 }

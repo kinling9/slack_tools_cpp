@@ -241,7 +241,7 @@ void comparator::gen_map(
       std::vector<std::string> output_vec;
       for (const auto &ff : last_ff) {
         output_vec.push_back(
-            fmt::format("{}->{}", fmt::join(full_path, "->"), ff));
+            fmt::format("{}-{}", fmt::join(full_path, "-"), ff));
       }
       return output_vec;
     };

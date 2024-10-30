@@ -34,7 +34,7 @@ configs:
       target: net arc
       filters:
         - attribute: length
-          filter: x >= 0
+          filter: x >= 10
           type:
             # - percent
             # - delta
