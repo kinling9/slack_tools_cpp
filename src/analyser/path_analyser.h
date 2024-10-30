@@ -10,7 +10,7 @@
 
 class path_analyser : public analyser {
  public:
-  path_analyser(const YAML::Node &configs) : analyser(configs, 2) {};
+  path_analyser(const YAML::Node &configs) : analyser(configs, 2){};
   ~path_analyser() override = default;
 
   void analyse() override;
@@ -19,19 +19,18 @@ class path_analyser : public analyser {
   bool parse_configs() override;
   void open_writers();
   // void check_path(const std::shared_ptr<basedb> &db, const std::string &key);
-  nlohmann::json path_analyse(const std::vector<std::shared_ptr<Path>> paths);
+  nlohmann::json path_analyse(const std::vector<std::shared_ptr<Path>> &paths);
   void match(
       const std::string &cmp_name,
       const std::vector<absl::flat_hash_map<std::string, std::shared_ptr<Path>>>
-          &path_maps,
-      const std::vector<std::shared_ptr<basedb>> &dbs);
+          &path_maps);
   void gen_endpoints_map(
       const std::string &type, std::ranges::input_range auto &&paths,
       absl::flat_hash_map<std::string, std::shared_ptr<Path>> &path_map);
 
  private:
   bool _enable_mbff;
-  // std::unordered_map<std::string, std::shared_ptr<writer>> _arcs_writers;
+  std::unordered_map<std::string, std::shared_ptr<writer>> _arcs_writers;
   std::unordered_map<std::string, std::shared_ptr<writer>> _paths_writers;
   std::unordered_map<std::string, nlohmann::json> _paths_buffer;
   std::unordered_map<std::string, double> _paths_delay;

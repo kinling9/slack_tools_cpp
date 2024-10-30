@@ -24,9 +24,13 @@ void path_analyser::open_writers() {
   for (const auto &rpt_pair : _analyse_tuples) {
     std::string cmp_name = fmt::format("{}", fmt::join(rpt_pair, "-"));
     _paths_writers[cmp_name] =
-        std::make_shared<writer>(writer(fmt::format("{}.json", cmp_name)));
+        std::make_shared<writer>(writer(fmt::format("{}_path.json", cmp_name)));
     _paths_writers[cmp_name]->set_output_dir(_output_dir);
     _paths_writers[cmp_name]->open();
+    _arcs_writers[cmp_name] =
+        std::make_shared<writer>(writer(fmt::format("{}_arc.json", cmp_name)));
+    _arcs_writers[cmp_name]->set_output_dir(_output_dir);
+    _arcs_writers[cmp_name]->open();
   }
 }
 
@@ -51,6 +55,7 @@ void path_analyser::analyse() {
     fmt::print("Load MBFF pattern\n");
     _mbff.load_pattern("yml/mbff_pattern.yml");
   }
+  open_writers();
   for (const auto &rpt_pair : _analyse_tuples) {
     std::vector<absl::flat_hash_map<std::string, std::shared_ptr<Path>>>
         path_maps;
@@ -60,40 +65,57 @@ void path_analyser::analyse() {
           gen_endpoints_map(_dbs[rpt]->type, _dbs[rpt]->paths, path_map);
           return path_map;
         });
-    std::vector<std::shared_ptr<basedb>> dbs;
-    std::ranges::transform(rpt_pair, std::back_inserter(dbs),
-                           [&](const auto &rpt) { return _dbs[rpt]; });
-    match(fmt::format("{}", fmt::join(rpt_pair, "-")), path_maps, dbs);
+    match(fmt::format("{}", fmt::join(rpt_pair, "-")), path_maps);
   }
 }
 
 void path_analyser::match(
     const std::string &cmp_name,
     const std::vector<absl::flat_hash_map<std::string, std::shared_ptr<Path>>>
-        &path_maps,
-    const std::vector<std::shared_ptr<basedb>> &dbs) {
+        &path_maps) {
   absl::flat_hash_set<std::shared_ptr<Path>> path_set;
+  _paths_buffer.clear();
+  _paths_delay.clear();
   for (const auto &[key, path] : path_maps[0]) {
     if (path_maps[1].contains(key) && !path_set.contains(path)) {
       path_set.emplace(path);
-      _paths_buffer["key"] = path_analyse({path, path_maps[1].at(key)});
-      _path_delay[key] = path->slack - path_maps[1].at(key)->slack;
+      _paths_buffer[key] = path_analyse({path, path_maps[1].at(key)});
+      _paths_delay[key] = path->slack - path_maps[1].at(key)->slack;
     }
   }
-  std::vector<std::pair<std::string, double>> sorted_paths(
+  std::vector<std::pair<std::string, nlohmann::json>> sorted_paths(
       _paths_buffer.begin(), _paths_buffer.end());
-  std::sort(
-      sorted_paths.begin(), sorted_paths.end(),
-      [](const auto &lhs, const auto &rhs) { return lhs.second > rhs.second; });
+  std::sort(sorted_paths.begin(), sorted_paths.end(),
+            [&](const auto &lhs, const auto &rhs) {
+              return _paths_delay[lhs.first] > _paths_delay[rhs.first];
+            });
   nlohmann::json path_node;
   for (const auto &[path, _] : sorted_paths) {
     path_node.push_back(_paths_buffer[path]);
   }
   fmt::print(_paths_writers[cmp_name]->out_file, "{}", path_node.dump(2));
+  std::vector<std::pair<std::pair<std::string, std::string>, double>>
+      sorted_arcs;
+  std::ranges::transform(
+      _arcs_buffer, std::back_inserter(sorted_arcs),
+      [](const std::pair<std::pair<std::string, std::string>, nlohmann::json>
+             &arc) {
+        return std::make_pair(arc.first,
+                              arc.second["delta_delay"].get<double>() *
+                                  arc.second["count"].get<std::size_t>());
+      });
+  std::sort(
+      sorted_arcs.begin(), sorted_arcs.end(),
+      [](const auto &lhs, const auto &rhs) { return lhs.second > rhs.second; });
+  nlohmann::json arc_node;
+  for (const auto &[arc, _] : sorted_arcs) {
+    arc_node.push_back(_arcs_buffer[arc]);
+  }
+  fmt::print(_arcs_writers[cmp_name]->out_file, "{}", arc_node.dump(2));
 }
 
 nlohmann::json path_analyser::path_analyse(
-    const std::vector<std::shared_ptr<Path>> paths) {
+    const std::vector<std::shared_ptr<Path>> &paths) {
   std::unordered_map<std::string,
                      std::vector<std::tuple<std::string, std::string, double>>>
       filter_arcs_map;
@@ -155,6 +177,7 @@ nlohmann::json path_analyser::path_analyse(
         node["delta_length"] = key_len - value_len;
         node["key"]["length"] = key_len;
         node["value"]["length"] = value_len;
+        node["count"] = 1;
         _arcs_buffer[std::make_pair(pin_from->name, pin_to->name)] = node;
 
         std::vector<std::unordered_map<std::string, double>> attributes;
@@ -176,6 +199,8 @@ nlohmann::json path_analyser::path_analyse(
         }
       } else {
         auto name_pair = std::make_pair(pin_from->name, pin_to->name);
+        std::size_t count = _arcs_buffer[name_pair]["count"].get<std::size_t>();
+        _arcs_buffer[name_pair]["count"] = count + 1;
         if (_filter_cache.contains(name_pair)) {
           filter_arcs_map[_filter_cache[name_pair]].push_back(
               {name_pair.first, name_pair.second,
@@ -186,6 +211,7 @@ nlohmann::json path_analyser::path_analyse(
   }
   nlohmann::json result;
   result["endpoint"] = key_path->endpoint;
+  // result["slack"] = key_path->slack;
   result["filters"] = nlohmann::json::array();
   for (const auto &[filter_name, filter_arcs] : filter_arcs_map) {
     nlohmann::json filter;

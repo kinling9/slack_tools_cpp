@@ -23,7 +23,7 @@ configs:
       target: net arc
       filters:
         - attribute: fanout
-          filter: x > 1
+          filter: x > 3
           type:
         - attribute: delay
           filter: x >= 0
@@ -34,12 +34,13 @@ configs:
       target: net arc
       filters:
         - attribute: length
-          filter: x > 2
+          filter: x >= 0
           type:
-            - percent
-            - delta
+            # - percent
+            # - delta
+            - abs
         - attribute: delay
-          filter: x > 0.1
+          filter: x >= 0
           type:
-            - delta
+            # - delta
             - abs
