@@ -81,6 +81,7 @@ void path_analyser::match(
   absl::flat_hash_set<std::shared_ptr<Path>> path_set;
   _paths_buffer.clear();
   _paths_delay.clear();
+  // analyse and sort path
   for (const auto &[key, path] : path_maps[0]) {
     if (path_maps[1].contains(key) && !path_set.contains(path)) {
       path_set.emplace(path);
@@ -94,6 +95,7 @@ void path_analyser::match(
             [&](const auto &lhs, const auto &rhs) {
               return _paths_delay[lhs.first] > _paths_delay[rhs.first];
             });
+
   nlohmann::json path_node;
   std::unordered_map<std::string, std::size_t> filter_occur;
   std::unordered_map<std::string, std::size_t> filter_domin;
@@ -101,6 +103,8 @@ void path_analyser::match(
     filter_occur[filter->_name] = 0;
     filter_domin[filter->_name] = 0;
   });
+
+  // append path node and fill occur and dominate
   std::size_t no_issue = _paths_buffer.size();
   for (const auto &[path, _] :
        sorted_paths | std::views::filter([&](const auto &path) {
@@ -116,22 +120,11 @@ void path_analyser::match(
     }
   }
   fmt::print(_paths_writers[cmp_name]->out_file, "{}", path_node.dump(2));
-  std::vector<std::pair<std::pair<std::string, std::string>, double>>
-      sorted_arcs;
-  std::ranges::transform(
-      _arcs_buffer, std::back_inserter(sorted_arcs),
-      [](const std::pair<std::pair<std::string, std::string>, nlohmann::json>
-             &arc) {
-        return std::make_pair(arc.first,
-                              arc.second["delta_delay"].get<double>() *
-                                  arc.second["count"].get<std::size_t>());
-      });
-  std::sort(
-      sorted_arcs.begin(), sorted_arcs.end(),
-      [](const auto &lhs, const auto &rhs) { return lhs.second > rhs.second; });
+
+  // write all arcs
   nlohmann::json arc_node;
-  for (const auto &[arc, _] : sorted_arcs) {
-    arc_node.push_back(_arcs_buffer[arc]);
+  for (const auto &[arc, _] : _arcs_buffer) {
+    arc_node[fmt::format("{}-{}", arc.first, arc.second)] = _arcs_buffer[arc];
   }
   fmt::print(_arcs_writers[cmp_name]->out_file, "{}", arc_node.dump(2));
 
@@ -150,14 +143,30 @@ void path_analyser::match(
 
 nlohmann::json path_analyser::path_analyse(
     const std::vector<std::shared_ptr<Path>> &paths) {
+  auto key_path = paths[0];
+  auto value_path = paths[1];
+  double delta_slack = key_path->slack - value_path->slack;
+  // analyse path
+  std::unordered_set<std::string> filter_path_set;
+  std::vector<std::unordered_map<std::string, double>> attributes;
+  for (auto &path : paths) {
+    attributes.push_back({{"length", path->get_length()},
+                          {"detour", path->get_detour()},
+                          {"cell_delay_pct", path->get_cell_delay_pct()},
+                          {"net_delay_pct", path->get_net_delay_pct()}});
+  }
+  for (const auto &filter : _filters) {
+    if (filter->_target == "path") {
+      if (filter->check(attributes)) {
+        filter_path_set.emplace(filter->_name);
+      }
+    }
+  }
+  // analyse arc
   std::unordered_map<std::string,
                      std::vector<std::tuple<std::string, std::string, double>>>
       filter_arcs_map;
   std::unordered_set<std::string> pin_set;
-  auto key_path = paths[0];
-  auto value_path = paths[1];
-  double delta_slack = key_path->slack - value_path->slack;
-  // analyse arc
   std::ranges::transform(
       value_path->path, std::inserter(pin_set, pin_set.end()),
       [](const std::shared_ptr<Pin> &pin) { return pin->name; });
@@ -243,7 +252,7 @@ nlohmann::json path_analyser::path_analyse(
       }
     }
   }
-  if (filter_arcs_map.empty()) {
+  if (filter_arcs_map.empty() && filter_path_set.empty()) {
     return nlohmann::json();
   }
   nlohmann::json result;
@@ -252,6 +261,9 @@ nlohmann::json path_analyser::path_analyse(
   result["filters"] = nlohmann::json::array();
   result["domin"] = "";
   double max_delta = 0.;
+  for (const auto &filter_name : filter_path_set) {
+    result["filters"].push_back({{"name", filter_name}});
+  }
   for (const auto &[filter_name, filter_arcs] : filter_arcs_map) {
     nlohmann::json filter;
     filter["name"] = filter_name;

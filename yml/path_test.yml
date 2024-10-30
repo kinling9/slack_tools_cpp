@@ -44,3 +44,12 @@ configs:
           type:
             # - delta
             - abs
+    - name: total length
+      target: path
+      filters:
+        - attribute: length
+          filter: x >= 10
+          type:
+            # - percent
+            # - delta
+            - abs

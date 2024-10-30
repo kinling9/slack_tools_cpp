@@ -48,7 +48,24 @@ class Path {
   std::string group;
   std::string clock;
   double slack;
+  double clock_latency;
   std::vector<std::shared_ptr<Pin>> path;
+  std::optional<double> length;
+  std::optional<double> detour;
+  std::optional<double> cell_delay_pct;
+  std::optional<double> net_delay_pct;
+
+ public:
+  double get_length();
+  double get_detour();
+  double get_cell_delay_pct();
+  double get_net_delay_pct();
+
+ private:
+  std::optional<double> total_delay;
+
+ private:
+  double get_delay();
 };
 
 class basedb {
