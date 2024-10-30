@@ -1,6 +1,5 @@
 #pragma once
 
-#include <chrono>
 #include <ctime>
 #include <functional>
 #include <ranges>
@@ -8,6 +7,7 @@
 #include <vector>
 
 #include "fmt/core.h"
+#include "yaml-cpp/yaml.h"
 
 std::vector<std::string_view> split_string_by_spaces(
     const std::string_view &str, std::size_t size);
@@ -30,3 +30,11 @@ T manhattan_distance(const std::vector<std::pair<T, T>> &points) {
   }
   return distance;
 }
+
+void collect_from_node(const YAML::Node configs, std::string name,
+                       auto &value) {
+  if (configs[name] && !configs[name].IsNull()) {
+    using T = std::remove_reference<decltype(value)>::type;
+    value = configs[name].as<T>();
+  }
+};

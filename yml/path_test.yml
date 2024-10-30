@@ -1,0 +1,55 @@
+---
+mode: path analyse
+rpts:
+  invs0:
+    path: rpt/invs_rpts/axi4lscope.simple.gz
+    type: invs
+  invs1:
+    path: rpt/invs_rpts/axi4lscope.simple.gz
+    type: invs
+  leda0:
+    path: rpt/leda_rpts/B005_allpath.rpt.gz
+    type: leda
+  leda1:
+    path: rpt/leda_rpts/B005_allpath.rpt.gz
+    type: leda
+configs:
+  output_dir: output
+  analyse_tuples:
+    - - leda0
+      - leda1
+  analyse_patterns:
+    - name: fanout
+      target: net arc
+      filters:
+        - attribute: fanout
+          filter: x > 3
+          type:
+        - attribute: delay
+          filter: x >= 0
+          type:
+            # - delta
+            - abs
+    - name: length
+      target: net arc
+      filters:
+        - attribute: length
+          filter: x >= 10
+          type:
+            # - percent
+            # - delta
+            - abs
+        - attribute: delay
+          filter: x >= 0
+          type:
+            # - delta
+            - abs
+    - name: total length
+      target: path
+      filters:
+        - attribute: length
+          filter: x >= 10
+          type:
+            # - percent
+            # - delta
+            - abs

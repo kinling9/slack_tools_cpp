@@ -4,10 +4,10 @@ cpp analysis slack tools
 
 ## Usage
 
-the binary file located in build/scr/slack_tool
+the binary file located in build/slack_tool
 
 ```bash
-./build/scr/slack_tool ${yml_file_path}
+./build/slack_tool ${yml_file_path}
 ```
 
 the yml file is used to config the compare/analysis flow, the format is like

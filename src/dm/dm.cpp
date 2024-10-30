@@ -1,5 +1,7 @@
 #include "dm/dm.h"
 
+#include "utils/utils.h"
+
 YAML::Node Pin::to_yaml() {
   YAML::Node node;
   // pack for arc analyser
@@ -19,7 +21,86 @@ nlohmann::json Pin::to_json() {
   node["incr_delay"] = incr_delay;
   node["path_delay"] = path_delay;
   node["location"] = nlohmann::json::array({location.first, location.second});
+  node["is_input"] = is_input;
   return node;
+}
+
+nlohmann::json Net::to_json() {
+  nlohmann::json node = {
+      {"name", name},
+      {"fanout", fanout},
+      {"cap", cap},
+  };
+  return node;
+}
+
+double Path::get_length() {
+  if (length.has_value()) {
+    return length.value();
+  }
+  std::vector<std::pair<float, float>> locs;
+  for (const auto &pin : path) {
+    locs.push_back(pin->location);
+  }
+  double len = manhattan_distance(locs);
+  length = len;
+  return len;
+}
+
+double Path::get_detour() {
+  if (detour.has_value()) {
+    return detour.value();
+  }
+  std::vector<std::pair<float, float>> locs = {path.front()->location,
+                                               path.back()->location};
+  double len = manhattan_distance(locs);
+  double det = get_length() / len;
+  detour = det;
+  return det;
+}
+
+double Path::get_delay() {
+  if (total_delay.has_value()) {
+    return total_delay.value();
+  }
+  double delay = 0;
+  for (const auto &pin : path) {
+    delay += pin->incr_delay;
+  }
+  total_delay = delay;
+  return delay;
+}
+
+double Path::get_cell_delay_pct() {
+  if (cell_delay_pct.has_value()) {
+    return cell_delay_pct.value();
+  }
+  double cell_delay = 0;
+  for (const auto &pin : path | std::views::filter([](const auto &pin) {
+                           return !pin->is_input;
+                         })) {
+    cell_delay += pin->incr_delay;
+  }
+  double total_delay = get_delay();
+  double pct = cell_delay / total_delay;
+  cell_delay_pct = pct;
+  return pct;
+}
+
+double Path::get_net_delay_pct() {
+  if (net_delay_pct.has_value()) {
+    return net_delay_pct.value();
+  }
+  double net_delay = 0;
+  for (const auto &pin : path | std::views::filter([](const auto &pin) {
+                           return pin->is_input;
+                         })) {
+    net_delay += pin->incr_delay;
+  }
+  double total_delay = get_delay();
+  double pct = net_delay / total_delay;
+  net_delay_pct = pct;
+  return pct;
 }
 
 void basedb::update_loc_from_map(
@@ -37,13 +118,4 @@ void basedb::update_loc_from_map(
       }
     }
   }
-}
-
-nlohmann::json Net::to_json() {
-  nlohmann::json node = {
-      {"name", name},
-      {"fanout", fanout},
-      {"cap", cap},
-  };
-  return node;
 }

@@ -1,11 +1,26 @@
 mode: compare
 rpts:
-  leda_end0: {path: "rpt/leda_endpoints/B005.rpt", type: "leda_endpoint"}
-  leda_end1: {path: "rpt/leda_endpoints/B005.rpt", type: "leda_endpoint"}
+  leda_end0:
+    path: rpt/leda_endpoints/B005.rpt
+    type: leda_endpoint
+  leda_end1:
+    path: rpt/leda_endpoints/B005.rpt
+    type: leda_endpoint
 configs:
   compare_mode: endpoint # [endpoint, startpoint, start_end, full_path]
   analyse_tuples:
-    - ["leda_end0", "leda_end1"]
-  slack_margins: [0.01, 0.03, 0.05, 0.1, 1]
-  match_percentages: [0.01, 0.03, 0.1, 0.5, 1]
+    - - leda_end0
+      - leda_end1
+  slack_margins:
+    - 0.01
+    - 0.03
+    - 0.05
+    - 0.1
+    - 1
+  match_percentages:
+    - 0.01
+    - 0.03
+    - 0.1
+    - 0.5
+    - 1
   output_dir: output

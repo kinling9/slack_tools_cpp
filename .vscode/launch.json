@@ -6,7 +6,7 @@
       "type": "lldb",
       "request": "launch",
       "cwd": "${workspaceFolder}",
-      "args": ["yml/leda_fanout_test.yml"],
+      "args": ["yml/path_test.yml"],
       "program": "build_debug/slack_tool-debug"
     }
   ]

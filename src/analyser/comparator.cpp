@@ -241,7 +241,7 @@ void comparator::gen_map(
       std::vector<std::string> output_vec;
       for (const auto &ff : last_ff) {
         output_vec.push_back(
-            fmt::format("{}->{}", fmt::join(full_path, "->"), ff));
+            fmt::format("{}-{}", fmt::join(full_path, "-"), ff));
       }
       return output_vec;
     };
@@ -271,7 +271,7 @@ void comparator::analyse() {
   gen_headers();
   for (const auto &rpt_pair : _analyse_tuples) {
     std::vector<absl::flat_hash_map<std::string, std::shared_ptr<Path>>>
-        path_maps(2);
+        path_maps;
     std::ranges::transform(
         rpt_pair, std::back_inserter(path_maps), [&](const auto &rpt) {
           absl::flat_hash_map<std::string, std::shared_ptr<Path>> path_map;
@@ -288,7 +288,7 @@ void comparator::analyse() {
     std::vector<std::shared_ptr<basedb>> dbs;
     std::ranges::transform(rpt_pair, std::back_inserter(dbs),
                            [&](const auto &rpt) { return _dbs[rpt]; });
-    match(fmt::format("{}", fmt::join(rpt_pair, "->")), path_maps, dbs);
+    match(fmt::format("{}", fmt::join(rpt_pair, "-")), path_maps, dbs);
   }
   _writer->write();
 }

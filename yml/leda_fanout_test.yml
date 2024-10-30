@@ -1,9 +1,11 @@
 mode: fanout analyse
 rpts:
-  leda0 : {path: "rpt/leda_rpts/B005_allpath.rpt.gz", type: "leda"}
+  leda0:
+    path: rpt/leda_rpts/B005_allpath.rpt.gz
+    type: leda
 configs:
   output_dir: output
   analyse_tuples:
-    - ["leda0"]
+    - - leda0
   fanout_filter: x >= 10
   slack_filter: x < 0
