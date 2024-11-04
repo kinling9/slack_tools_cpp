@@ -134,13 +134,7 @@ void leda_rpt_parser<T>::parse_line(T line,
           path_block->pin_obj->net = path_block->net_obj;
           path_block->path_obj->path.push_back(path_block->pin_obj);
         }
-      } else if (tokens.size() == 3) {
-        if (tokens[0].substr(0, 5) == "clock") {
-          break;
-        }
-        if (absl::StrContains(tokens[0], " ")) {
-          break;
-        }
+      } else if (tokens.size() == 3 && absl::StrContains(tokens[0], "(net)")) {
         bool push = true;
         if (path_block->net_obj->pins.first == nullptr &&
             path_block->net_obj->pins.second == path_block->pin_obj) {
