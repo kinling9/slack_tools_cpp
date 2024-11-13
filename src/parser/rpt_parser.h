@@ -36,11 +36,13 @@ struct data_block {
   std::shared_ptr<Net> net_obj = std::make_shared<Net>();
   block iter = Beginpoint;
   bool is_input = true;
-
-  // invs
   int split_count = 0;
   std::unordered_map<std::string, std::size_t> row;
+  // temporary storage for string, parsing headers for invs, parsing two row pins for leda
   std::string headers;
+
+  // leda index_size
+  std::tuple<std::size_t, std::size_t> index_size;
 
   data_block(block start_iter = Beginpoint) : iter(start_iter) {}
 };

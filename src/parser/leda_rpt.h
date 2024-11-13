@@ -1,5 +1,7 @@
 #pragma once
 #include <absl/strings/match.h>
+#include <fmt/color.h>
+#include <fmt/core.h>
 #include <re2/re2.h>
 
 #include <boost/convert.hpp>
@@ -12,6 +14,35 @@
 #include "utils/utils.h"
 
 template <typename T>
+void get_param(const std::vector<std::string_view> &tokens,
+               const std::string &key,
+               const std::unordered_map<std::string, std::size_t> &row,
+               T &param) {
+  if (row.contains(key)) {
+    int index = row.at(key);
+    index = index < 0 ? -index : index;
+    auto token = tokens[index];
+    param = boost::convert<T>(token, boost::cnv::strtol()).value();
+  }
+}
+
+void get_path_dly(const std::vector<std::string_view> &tokens,
+                  const std::unordered_map<std::string, std::size_t> &row,
+                  Pin &pin);
+
+void get_location(const std::vector<std::string_view> &tokens,
+                  const std::unordered_map<std::string, std::size_t> &row,
+                  Pin &pin);
+
+void get_name(const std::vector<std::string_view> &tokens,
+              const std::unordered_map<std::string, std::size_t> &row,
+              Pin &pin);
+
+void get_net_name(const std::vector<std::string_view> &tokens,
+                  const std::unordered_map<std::string, std::size_t> &row,
+                  std::shared_ptr<Net> &net);
+
+template <typename T>
 class leda_rpt_parser : public rpt_parser<T> {
  public:
   leda_rpt_parser() : rpt_parser<T>("^Startpoint:", Beginpoint) {}
@@ -22,6 +53,7 @@ class leda_rpt_parser : public rpt_parser<T> {
 
  protected:
   using rpt_parser<T>::_ignore_blocks;
+  const RE2 _split_pattern{"^-"};
   const RE2 _at_pattern{"^data arrival time"};
   const RE2 _rat_pattern{"^data required time"};
   const RE2 _begin_pattern{"^Startpoint: (\\S*)"};
@@ -30,6 +62,16 @@ class leda_rpt_parser : public rpt_parser<T> {
   const RE2 _path_type_pattern{"^Path Type: (\\S*)$"};
   const RE2 _clock_pattern{"clocked\\s+by\\s+(.*?)\\)$"};
   const RE2 _slack_pattern{"^slack \\(\\S+\\)\\s+([0-9.-]*)"};
+  const std::unordered_map<std::string, bool> _row_type{
+      {"Fanout", false},    {"Cap", false},     {"CX-Derate", false},
+      {"CG-Derate", false}, {"Trans", true},    {"Incr", true},
+      {"Path", true},       {"Location", true}, {"Point", true},
+      {"Derate", true}};
+  absl::flat_hash_map<std::size_t, std::unordered_map<std::string, std::size_t>>
+      _row_cache;
+  absl::flat_hash_map<std::size_t, std::tuple<std::size_t, std::size_t>>
+      _size_cache;
+  std::mutex _row_cache_mutex;
 };
 
 template <typename T>
@@ -97,75 +139,141 @@ void leda_rpt_parser<T>::parse_line(T line,
         update_iter(path_block->iter);
         break;
       }
-      // Parse the path
-      // TODO: auto generate token iter from title line
-      // std::vector<std::string_view> tokens = split_string_by_spaces(line, 8);
-      auto splits = split_string_by_n_spaces(line, 2, 8);
-
-      std::vector<std::string_view> tokens;
-      std::ranges::transform(splits, std::back_inserter(tokens),
-                             [](const auto &pair) { return pair.second; });
-      if (tokens.size() == 5) {
-        Pin pin;
-        pin.is_input = path_block->is_input;
-        // path_block->is_input = !path_block->is_input;
-        auto name_cell = split_string_by_spaces(tokens[0], 2);
-        pin.name = std::string(name_cell[0]);
-        pin.cell = std::string(name_cell[1].substr(1, name_cell[1].size() - 2));
-        pin.trans =
-            boost::convert<double>(tokens[1], boost::cnv::strtol()).value();
-        pin.incr_delay =
-            boost::convert<double>(tokens[2], boost::cnv::strtol()).value();
-        auto delay_rf = split_string_by_spaces(tokens[3], 2);
-        pin.path_delay =
-            boost::convert<double>(delay_rf[0], boost::cnv::strtol()).value();
-        pin.rise_fall = delay_rf[1] == "r";
-        auto space_index = tokens[4].find(" ");
-        if (space_index != std::string::npos) {
-          pin.location = std::make_pair(
-              boost::convert<double>(tokens[4].substr(1, space_index - 2),
-                                     boost::cnv::strtol())
-                  .value(),
-              boost::convert<double>(
-                  tokens[4].substr(space_index + 1,
-                                   tokens[4].size() - space_index - 2),
-                  boost::cnv::strtol())
-                  .value());
-        }
-        path_block->pin_obj = std::make_shared<Pin>(pin);
-        if (path_block->net_obj->pins.second == nullptr) {
-          path_block->net_obj->pins.second = path_block->pin_obj;
-          path_block->pin_obj->net = path_block->net_obj;
-          path_block->path_obj->path.push_back(path_block->pin_obj);
-        }
-      } else if (tokens.size() == 3 && absl::StrContains(tokens[0], "(net)")) {
-        bool push = true;
-        if (path_block->net_obj->pins.first == nullptr &&
-            path_block->net_obj->pins.second == path_block->pin_obj) {
-          push = false;
+      if (RE2::PartialMatch(line, _split_pattern)) {
+        ++path_block->split_count;
+        return;
+      }
+      if (path_block->split_count == 0) {
+        auto tokens = split_string_by_n_spaces(line, 2, 8);
+        std::size_t key_tokens = tokens.size();
+        if (_row_cache.contains(key_tokens)) {
+          path_block->row = _row_cache[key_tokens];
+          path_block->index_size = _size_cache[key_tokens];
         } else {
-          path_block->net_obj = std::make_shared<Net>();
+          int i = 0, j = -1;
+          for (const auto &[_, str] : tokens) {
+            std::string key = std::string(str);
+            if (_row_type.contains(key)) {
+              if (_row_type.at(key)) {
+                path_block->row[key] = i++;
+              } else {
+                path_block->row[key] = j--;
+              }
+            } else {
+              throw std::system_error(errno, std::generic_category(),
+                                      fmt::format(fmt::fg(fmt::color::red),
+                                                  "invalid row key: {}", str));
+              std::exit(1);
+            }
+          }
+          path_block->index_size = std::make_tuple(i, -j);
+          _row_cache_mutex.lock();
+          _row_cache[key_tokens] = path_block->row;
+          _size_cache[key_tokens] = std::make_tuple(i, -j);
+          _row_cache_mutex.unlock();
         }
-        auto &net = path_block->net_obj;
-        net->name = std::string(tokens[0]);
-        net->fanout =
-            boost::convert<int>(tokens[1], boost::cnv::strtol()).value();
-        net->cap =
-            boost::convert<double>(tokens[2], boost::cnv::strtol()).value();
-        path_block->pin_obj->is_input = false;
-        net->pins = std::make_pair(path_block->pin_obj, nullptr);
-        path_block->pin_obj->net = net;
-        if (push) {
-          path_block->path_obj->path.push_back(path_block->pin_obj);
+      } else if (path_block->split_count == 1) {
+        // Parse the path
+        auto splits = split_string_by_n_spaces(line, 2, 8);
+        std::vector<std::string_view> tokens;
+        std::ranges::transform(splits, std::back_inserter(tokens),
+                               [](const auto &pair) { return pair.second; });
+        std::string pre_token;
+        if (tokens.size() == 1) {
+          path_block->headers = std::string(tokens[0]);
+          break;
+        } else if (!path_block->headers.empty()) {
+          pre_token = path_block->headers;
+          tokens.emplace(tokens.begin(), pre_token);
+          path_block->headers.clear();
         }
-        path_block->is_input = true;
-      } else if (tokens.size() == 3) {
-        if (absl::StrContains(tokens[0], "input external delay")) {
-          path_block->path_obj->input_external_delay =
-              boost::convert<double>(tokens[1], boost::cnv::strtol()).value();
-        } else if (absl::StrContains(tokens[0], "clock offset latency")) {
-          path_block->path_obj->data_latency =
-              boost::convert<double>(tokens[1], boost::cnv::strtol()).value();
+        fmt::print("token {}, index_size {}\n", tokens.size(),
+                   std::get<0>(path_block->index_size));
+        if (tokens.size() == std::get<0>(path_block->index_size) &&
+            !absl::StrContains(tokens[0], "(net)")) {
+          Pin pin;
+          pin.is_input = path_block->is_input;
+          get_name(tokens, path_block->row, pin);
+          get_param(tokens, "Trans", path_block->row, pin.trans);
+          get_param(tokens, "Incr", path_block->row, pin.incr_delay);
+          get_path_dly(tokens, path_block->row, pin);
+          get_location(tokens, path_block->row, pin);
+          // auto name_cell =
+          //     split_string_by_spaces(tokens[path_block->row["Point"]], 2);
+          // pin.name = std::string(name_cell[0]);
+          // pin.cell =
+          //     std::string(name_cell[1].substr(1, name_cell[1].size() - 2));
+          // pin.trans = boost::convert<double>(tokens[path_block->row["Trans"]],
+          //                                    boost::cnv::strtol())
+          //                 .value();
+          // pin.incr_delay =
+          //     boost::convert<double>(tokens[path_block->row["Incr"]],
+          //                            boost::cnv::strtol())
+          //         .value();
+          // auto delay_rf =
+          //     split_string_by_spaces(tokens[path_block->row["Path"]], 2);
+          // pin.path_delay =
+          //     boost::convert<double>(delay_rf[0], boost::cnv::strtol()).value();
+          // pin.rise_fall = delay_rf[1] == "r";
+          // auto loc_index = path_block->row["Location"];
+          // auto space_index = tokens[loc_index].find(" ");
+          // if (space_index != std::string::npos) {
+          //   pin.location = std::make_pair(
+          //       boost::convert<double>(
+          //           tokens[loc_index].substr(1, space_index - 2),
+          //           boost::cnv::strtol())
+          //           .value(),
+          //       boost::convert<double>(
+          //           tokens[loc_index].substr(
+          //               space_index + 1,
+          //               tokens[loc_index].size() - space_index - 2),
+          //           boost::cnv::strtol())
+          //           .value());
+          // }
+          path_block->pin_obj = std::make_shared<Pin>(pin);
+          if (path_block->net_obj->pins.second == nullptr) {
+            path_block->net_obj->pins.second = path_block->pin_obj;
+            path_block->pin_obj->net = path_block->net_obj;
+            path_block->path_obj->path.push_back(path_block->pin_obj);
+          }
+        } else if (tokens.size() == std::get<1>(path_block->index_size) &&
+                   absl::StrContains(tokens[0], "(net)")) {
+          bool push = true;
+          if (path_block->net_obj->pins.first == nullptr &&
+              path_block->net_obj->pins.second == path_block->pin_obj) {
+            push = false;
+          } else {
+            path_block->net_obj = std::make_shared<Net>();
+          }
+          auto &net = path_block->net_obj;
+
+          // auto net_name =
+          //     split_string_by_spaces(tokens[path_block->row["Point"]], 2);
+          // net->name = std::string(net_name[0]);
+          get_net_name(tokens, path_block->row, net);
+          get_param(tokens, "Fanout", path_block->row, net->fanout);
+          get_param(tokens, "Cap", path_block->row, net->cap);
+          // net->fanout = boost::convert<int>(tokens[-path_block->row["Fanout"]],
+          //                                   boost::cnv::strtol())
+          //                   .value();
+          // net->cap = boost::convert<double>(tokens[-path_block->row["Cap"]],
+          //                                   boost::cnv::strtol())
+          //                .value();
+          path_block->pin_obj->is_input = false;
+          net->pins = std::make_pair(path_block->pin_obj, nullptr);
+          path_block->pin_obj->net = net;
+          if (push) {
+            path_block->path_obj->path.push_back(path_block->pin_obj);
+          }
+          path_block->is_input = true;
+        } else if (tokens.size() == 3) {
+          if (absl::StrContains(tokens[0], "input external delay")) {
+            path_block->path_obj->input_external_delay =
+                boost::convert<double>(tokens[1], boost::cnv::strtol()).value();
+          } else if (absl::StrContains(tokens[0], "clock offset latency")) {
+            path_block->path_obj->data_latency =
+                boost::convert<double>(tokens[1], boost::cnv::strtol()).value();
+          }
         }
       }
       break;

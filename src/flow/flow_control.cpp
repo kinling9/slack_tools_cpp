@@ -129,6 +129,7 @@ void flow_control::parse_rpt(const YAML::Node& rpt, std::string key) {
   std::visit(
       [&](auto&& arg) {
         if (arg->parse_file(rpt_file)) {
+          arg->print_paths();
           cur_db = std::make_shared<basedb>(arg->get_db());
           cur_db->type = rpt_type;
         } else {

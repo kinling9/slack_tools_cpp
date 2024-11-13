@@ -28,3 +28,4 @@ B025: 0.35
 SEED: 0.35
 z80_core_top_N7_LEC: 0.5
 axi4lscope: 1
+aes: 1

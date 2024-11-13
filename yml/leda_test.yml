@@ -1,7 +1,7 @@
 mode: compare
 rpts:
   leda0:
-    path: rpt/leda_rpts/B005_allpath.rpt.gz
+    path: rpt/leda_rpts/aes_reg2reg.rpt
     type: leda
   leda1:
     path: rpt/leda_rpts/B005_allpath2.rpt.gz
@@ -13,12 +13,12 @@ rpts:
     path: rpt/leda_rpts/SEED_allpath2.rpt.gz
     type: leda
 configs:
-  compare_mode: endpoint # [endpoint, startpoint, start_end, full_path]
+  compare_mode: full_path # [endpoint, startpoint, start_end, full_path]
   analyse_tuples:
     - - leda0
-      - leda1
-    - - leda2
-      - leda3
+      - leda0
+    # - - leda2
+    #   - leda3
   slack_margins:
     - 0.01
     - 0.03
