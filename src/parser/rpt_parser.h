@@ -26,6 +26,7 @@ enum block {
   PathType,
   Slack,
   Paths,
+  Clock,
   End,
 };
 

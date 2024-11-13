@@ -48,7 +48,11 @@ class Path {
   std::string group;
   std::string clock;
   double slack;
+  double data_latency;
   double clock_latency;
+  double clock_uncertainty;
+  double input_external_delay;
+  double output_external_delay;
   std::vector<std::shared_ptr<Pin>> path;
   std::optional<double> length;
   std::optional<double> detour;

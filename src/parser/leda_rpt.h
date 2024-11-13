@@ -23,6 +23,7 @@ class leda_rpt_parser : public rpt_parser<T> {
  protected:
   using rpt_parser<T>::_ignore_blocks;
   const RE2 _at_pattern{"^data arrival time"};
+  const RE2 _rat_pattern{"^data required time"};
   const RE2 _begin_pattern{"^Startpoint: (\\S*)"};
   const RE2 _end_pattern{"^Endpoint: (\\S*)"};
   const RE2 _group_pattern{"^Path Group: (\\S*)$"};
@@ -47,6 +48,9 @@ void leda_rpt_parser<T>::update_iter(block &iter) {
       iter = Paths;
       break;
     case Paths:
+      iter = Clock;
+      break;
+    case Clock:
       iter = Slack;
       break;
     case Slack:
@@ -155,6 +159,38 @@ void leda_rpt_parser<T>::parse_line(T line,
           path_block->path_obj->path.push_back(path_block->pin_obj);
         }
         path_block->is_input = true;
+      } else if (tokens.size() == 3) {
+        if (absl::StrContains(tokens[0], "input external delay")) {
+          path_block->path_obj->input_external_delay =
+              boost::convert<double>(tokens[1], boost::cnv::strtol()).value();
+        } else if (absl::StrContains(tokens[0], "clock offset latency")) {
+          path_block->path_obj->data_latency =
+              boost::convert<double>(tokens[1], boost::cnv::strtol()).value();
+        }
+      }
+      break;
+    }
+    case Clock: {
+      if (RE2::PartialMatch(line, _rat_pattern)) {
+        update_iter(path_block->iter);
+        break;
+      }
+      auto splits = split_string_by_n_spaces(line, 2, 8);
+
+      std::vector<std::string_view> tokens;
+      std::ranges::transform(splits, std::back_inserter(tokens),
+                             [](const auto &pair) { return pair.second; });
+      if (tokens.size() == 3) {
+        if (absl::StrContains(tokens[0], "clock uncertainty")) {
+          path_block->path_obj->clock_uncertainty =
+              boost::convert<double>(tokens[1], boost::cnv::strtol()).value();
+        } else if (absl::StrContains(tokens[0], "output external delay")) {
+          path_block->path_obj->output_external_delay =
+              boost::convert<double>(tokens[1], boost::cnv::strtol()).value();
+        } else if (absl::StrContains(tokens[0], "clock offset latency")) {
+          path_block->path_obj->clock_latency =
+              boost::convert<double>(tokens[1], boost::cnv::strtol()).value();
+        }
       }
       break;
     }
