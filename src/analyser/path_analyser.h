@@ -31,11 +31,12 @@ class path_analyser : public analyser {
 
  private:
   bool _enable_mbff;
-  std::unordered_map<std::string, std::shared_ptr<writer>> _arcs_writers;
-  std::unordered_map<std::string, std::shared_ptr<writer>> _paths_writers;
+  std::unordered_map<std::string,
+                     std::unordered_map<std::string, std::shared_ptr<writer>>>
+      _writers;
+  std::unordered_map<std::string, nlohmann::json> _cmps_buffer;
   std::unordered_map<std::string, nlohmann::json> _paths_buffer;
-  std::unordered_map<std::string, nlohmann::json> _paths_data;
-  std::unordered_map<std::string, double> _paths_delay;
+  std::unordered_map<std::string, double> _cmps_delay;
   absl::flat_hash_map<std::pair<std::string, std::string>, nlohmann::json>
       _arcs_buffer;
   absl::flat_hash_map<std::pair<std::string, std::string>, std::string>
@@ -43,5 +44,5 @@ class path_analyser : public analyser {
   std::unordered_set<std::string> _path_keys;
   std::vector<std::unique_ptr<analyse_filter>> _filters;
   mbff_pattern _mbff;
-  std::unique_ptr<csv_writer> _writer;
+  std::unique_ptr<csv_writer> _csv_writer;
 };

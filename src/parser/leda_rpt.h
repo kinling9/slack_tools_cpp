@@ -42,9 +42,10 @@ void get_net_name(const std::vector<std::string_view> &tokens,
                   const std::unordered_map<std::string, std::size_t> &row,
                   std::shared_ptr<Net> &net);
 
-void get_params_from_line(const std::vector<std::string_view> &tokens,
-                          const std::vector<std::string_view> &keys,
-                          std::shared_ptr<Path> &path);
+void get_params_from_line(
+    const std::vector<std::string_view> &tokens,
+    const std::unordered_map<std::string, std::string_view> &keys,
+    std::shared_ptr<Path> &path);
 
 template <typename T>
 class leda_rpt_parser : public rpt_parser<T> {
@@ -228,9 +229,11 @@ void leda_rpt_parser<T>::parse_line(T line,
           }
           path_block->is_input = true;
         } else if (tokens.size() == 3) {
-          get_params_from_line(tokens,
-                               {"input external delay", "clock offset latency"},
-                               path_block->path_obj);
+          get_params_from_line(
+              tokens,
+              {{"input_external_delay", "input external delay"},
+               {"data_latency", "clock offset latency"}},
+              path_block->path_obj);
         }
       }
       break;
@@ -246,10 +249,12 @@ void leda_rpt_parser<T>::parse_line(T line,
       std::ranges::transform(splits, std::back_inserter(tokens),
                              [](const auto &pair) { return pair.second; });
       if (tokens.size() == 3) {
-        get_params_from_line(tokens,
-                             {"clock uncertainty", "output external delay",
-                              "clock offset latency"},
-                             path_block->path_obj);
+        get_params_from_line(
+            tokens,
+            {{"clock_uncertainty", "clock uncertainty"},
+             {"output_external_delay", "output external delay"},
+             {"clock_latency", "clock offset latency"}},
+            path_block->path_obj);
       }
       break;
     }
