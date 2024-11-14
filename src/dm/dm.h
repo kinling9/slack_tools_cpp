@@ -48,7 +48,7 @@ class Path {
   std::string group;
   std::string clock;
   double slack;
-  double clock_latency;
+  std::unordered_map<std::string, double> path_params;
   std::vector<std::shared_ptr<Pin>> path;
   std::optional<double> length;
   std::optional<double> detour;
@@ -75,10 +75,16 @@ class basedb {
           loc_map);
 
  public:
-  // std::vector<std::shared_ptr<Net>> nets;
-  // std::vector<std::shared_ptr<Pin>> pins;
   std::vector<std::shared_ptr<Path>> paths;
   std::string type;
   std::string design;
   absl::flat_hash_map<std::string, std::string> type_map;
 };
+
+namespace dm {
+static std::unordered_map<std::string, bool> path_param_is_data = {
+    {"data_latency", true},           {"clock_latency", false},
+    {"clock_uncertainty", false},     {"input_external_delay", true},
+    {"output_external_delay", false},
+};
+}

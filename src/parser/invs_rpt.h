@@ -169,22 +169,20 @@ void invs_rpt_parser<T>::parse_line(T line,
             boost::convert<double>(tokens[path_block->row["Delay"]],
                                    boost::cnv::strtol())
                 .value_or(0);
-        auto space_index =
-            tokens[path_block->row["Instance Location"]].find(' ');
+        auto loc_index = path_block->row["Instance Location"];
+        auto space_index = tokens[loc_index].find(' ');
         if (space_index != std::string::npos) {
-          pin.location = std::make_pair(
-              boost::convert<double>(
-                  tokens[path_block->row["Instance Location"]].substr(
-                      1, space_index - 2),
-                  boost::cnv::strtol())
-                  .value_or(0),
-              boost::convert<double>(
-                  tokens[path_block->row["Instance Location"]].substr(
-                      space_index + 1,
-                      tokens[path_block->row["Instance Location"]].size() -
-                          space_index - 2),
-                  boost::cnv::strtol())
-                  .value_or(0));
+          pin.location =
+              std::make_pair(boost::convert<double>(
+                                 tokens[loc_index].substr(1, space_index - 2),
+                                 boost::cnv::strtol())
+                                 .value_or(0),
+                             boost::convert<double>(
+                                 tokens[loc_index].substr(
+                                     space_index + 1, tokens[loc_index].size() -
+                                                          space_index - 2),
+                                 boost::cnv::strtol())
+                                 .value_or(0));
         }
         path_block->pin_obj = std::make_shared<Pin>(pin);
         if (path_block->net_obj->pins.second == nullptr) {

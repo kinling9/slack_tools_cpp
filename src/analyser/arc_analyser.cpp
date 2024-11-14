@@ -65,6 +65,8 @@ void arc_analyser::match(
     const std::string &cmp_name,
     const absl::flat_hash_map<std::string_view, std::shared_ptr<Path>> &pin_map,
     const std::vector<std::shared_ptr<basedb>> &dbs) {
+  _arcs_buffer.clear();
+  _arcs_delta.clear();
   auto fanout_filter =
       [&](const std::tuple<std::shared_ptr<Pin>, std::shared_ptr<Pin>>
               pin_ptr_tuple) {

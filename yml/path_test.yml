@@ -4,20 +4,16 @@ rpts:
   invs0:
     path: rpt/invs_rpts/axi4lscope.simple.gz
     type: invs
-  invs1:
-    path: rpt/invs_rpts/axi4lscope.simple.gz
-    type: invs
-  leda0:
-    path: rpt/leda_rpts/B005_allpath.rpt.gz
-    type: leda
-  leda1:
-    path: rpt/leda_rpts/B005_allpath.rpt.gz
+  leda:
+    path: rpt/leda_rpts/z80_core_top_N7_LEC_allpath.rpt.gz
     type: leda
 configs:
   output_dir: output
   analyse_tuples:
-    - - leda0
-      - leda1
+    - - invs0
+      - invs0
+    - - leda
+      - leda
   analyse_patterns:
     - name: fanout
       target: net arc

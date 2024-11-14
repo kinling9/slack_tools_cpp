@@ -91,8 +91,7 @@ absl::flat_hash_set<std::string> analyser::check_valid(YAML::Node &rpts) {
 
 bool analyser::check_file_exists(std::string &file_path) {
   if (!std::filesystem::exists(file_path)) {
-    fmt::print(fmt::fg(fmt::color::red), "Output dir {} does not exist\n",
-               file_path);
+    fmt::print(fmt::fg(fmt::color::red), "File {} does not exist\n", file_path);
     return false;
   }
   return true;

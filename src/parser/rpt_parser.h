@@ -1,4 +1,6 @@
 #pragma once
+#include <fmt/ranges.h>
+
 #include <boost/iostreams/copy.hpp>
 #include <boost/iostreams/filter/gzip.hpp>
 #include <boost/iostreams/filtering_streambuf.hpp>
@@ -26,6 +28,7 @@ enum block {
   PathType,
   Slack,
   Paths,
+  Clock,
   End,
 };
 
@@ -35,11 +38,13 @@ struct data_block {
   std::shared_ptr<Net> net_obj = std::make_shared<Net>();
   block iter = Beginpoint;
   bool is_input = true;
-
-  // invs
   int split_count = 0;
   std::unordered_map<std::string, std::size_t> row;
+  // temporary storage for string, parsing headers for invs, parsing two row pins for leda
   std::string headers;
+
+  // leda index_size
+  std::tuple<std::size_t, std::size_t> index_size;
 
   data_block(block start_iter = Beginpoint) : iter(start_iter) {}
 };
@@ -214,6 +219,8 @@ void rpt_parser<T>::print_paths() {
     fmt::print("Startpoint: {} Endpoint: {} Group: {} Clock: {} Slack: {}\n",
                path->startpoint, path->endpoint, path->group, path->clock,
                path->slack);
+    // print latency params
+    fmt::print("{}\n", fmt::join(path->path_params, ""));
     for (const auto &p : path->path) {
       fmt::print("Pin: {}\n", p->to_json().dump());
       fmt::print("Net {}\n", p->net->to_json().dump());

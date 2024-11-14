@@ -79,9 +79,7 @@ void comparator::match(
   auto period = cons.get_period(dbs[0]->design);
   absl::flat_hash_map<std::string, std::string> row;
 
-  // TODO: filter only once to acc
   for (int i = 0; i < 2; i++) {
-    // path_nums[i] = std::min(dbs[i]->paths.size(), _match_paths);
     for (const auto &path :
          dbs[i]->paths | std::views::take(_match_paths) |
              std::views::filter([&](const std::shared_ptr<Path> &path) {
@@ -101,10 +99,6 @@ void comparator::match(
   std::vector<std::shared_ptr<writer>> writers(2);
   for (int i = 0; i < 2; i++) {
     std::string scatter_file = fmt::format("{}_scatter_{}.txt", cmp_name, i);
-    if (_match_paths != std::numeric_limits<std::size_t>::max()) {
-      scatter_file =
-          fmt::format("{}_scatter_{}_{}.txt", cmp_name, _match_paths, i);
-    }
     writers[i] = std::make_shared<writer>(scatter_file);
     writers[i]->set_output_dir(_output_dir);
     writers[i]->open();
@@ -138,8 +132,7 @@ void comparator::match(
     endpoint_writer.open();
     for (const auto &path : dbs[0]->paths) {
       if (!path_set.contains(path)) {
-        fmt::print(endpoint_writer.out_file, "endpoint {} is miss.\n",
-                   path->endpoint);
+        fmt::print(endpoint_writer.out_file, "{}\n", path->endpoint);
       }
     }
   }
@@ -157,9 +150,7 @@ void comparator::match(
       standardDeviation(slack_diffs, slack_diffs.size());
 
   std::vector<double> match_ratios(_match_percentages.size(), 0.0);
-  std::vector<std::size_t> analyse_paths = {
-      std::min(_match_paths, path_nums[0]),
-      std::min(_match_paths, path_nums[1])};
+  std::vector<std::size_t> analyse_paths = {path_nums[0], path_nums[1]};
   for (std::size_t i = 0; i < _match_percentages.size(); i++) {
     double percentage = _match_percentages[i];
     std::vector<absl::flat_hash_set<std::string>> percent_sets(2);
@@ -236,7 +227,6 @@ void comparator::gen_map(
       std::transform(path->path.begin(), std::prev(path->path.end(), 1),
                      full_path.begin(),
                      [](const std::shared_ptr<Pin> &pin) { return pin->name; });
-      // auto output = fmt::format("{}", fmt::join(full_path, "->"));
       auto last_ff = _mbff.get_ff_names(type, path->path.back()->name);
       std::vector<std::string> output_vec;
       for (const auto &ff : last_ff) {

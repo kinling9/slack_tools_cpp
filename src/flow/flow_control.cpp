@@ -129,6 +129,7 @@ void flow_control::parse_rpt(const YAML::Node& rpt, std::string key) {
   std::visit(
       [&](auto&& arg) {
         if (arg->parse_file(rpt_file)) {
+          // arg->print_paths();
           cur_db = std::make_shared<basedb>(arg->get_db());
           cur_db->type = rpt_type;
         } else {
@@ -148,7 +149,6 @@ void flow_control::parse_rpt(const YAML::Node& rpt, std::string key) {
 }
 
 void flow_control::run() {
-  // TODO: rewrite to handle the data sharing between classes
   parse_yml(_yml);
   _analyser->set_db(_dbs);
   _analyser->analyse();

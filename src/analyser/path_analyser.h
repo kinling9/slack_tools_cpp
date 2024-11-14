@@ -21,19 +21,22 @@ class path_analyser : public analyser {
   void gen_headers();
   nlohmann::json path_analyse(const std::vector<std::shared_ptr<Path>> &paths);
   void match(
-      const std::string &cmp_name, const std::string &design,
+      const std::string &cmp_name,
       const std::vector<absl::flat_hash_map<std::string, std::shared_ptr<Path>>>
-          &path_maps);
+          &path_maps,
+      const std::vector<std::shared_ptr<basedb>> &dbs);
   void gen_endpoints_map(
       const std::string &type, std::ranges::input_range auto &&paths,
       absl::flat_hash_map<std::string, std::shared_ptr<Path>> &path_map);
 
  private:
   bool _enable_mbff;
-  std::unordered_map<std::string, std::shared_ptr<writer>> _arcs_writers;
-  std::unordered_map<std::string, std::shared_ptr<writer>> _paths_writers;
+  std::unordered_map<std::string,
+                     std::unordered_map<std::string, std::shared_ptr<writer>>>
+      _writers;
+  std::unordered_map<std::string, nlohmann::json> _cmps_buffer;
   std::unordered_map<std::string, nlohmann::json> _paths_buffer;
-  std::unordered_map<std::string, double> _paths_delay;
+  std::unordered_map<std::string, double> _cmps_delay;
   absl::flat_hash_map<std::pair<std::string, std::string>, nlohmann::json>
       _arcs_buffer;
   absl::flat_hash_map<std::pair<std::string, std::string>, std::string>
@@ -41,5 +44,5 @@ class path_analyser : public analyser {
   std::unordered_set<std::string> _path_keys;
   std::vector<std::unique_ptr<analyse_filter>> _filters;
   mbff_pattern _mbff;
-  std::unique_ptr<csv_writer> _writer;
+  std::unique_ptr<csv_writer> _csv_writer;
 };
