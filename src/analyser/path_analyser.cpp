@@ -322,7 +322,8 @@ nlohmann::json path_analyser::path_analyse(
     for (const auto &[from, to, delta_delay] : filter_arcs) {
       total_delta += delta_delay;
     }
-    double delta_pct = total_delta / delta_slack * 100;
+    double delta_pct =
+        std::abs(delta_slack) < 1e-8 ? 0 : total_delta / delta_slack * 100;
     filter["total_delta"] = total_delta;
     filter["delta_percent"] = fmt::format("{:.2f}%", delta_pct);
 
