@@ -68,16 +68,19 @@ void path_analyser::analyse() {
           gen_endpoints_map(_dbs[rpt]->type, _dbs[rpt]->paths, path_map);
           return path_map;
         });
-    match(fmt::format("{}", fmt::join(rpt_pair, "-")),
-          _dbs[rpt_pair[0]]->design, path_maps);
+    std::vector<std::shared_ptr<basedb>> dbs;
+    std::ranges::transform(rpt_pair, std::back_inserter(dbs),
+                           [&](const auto &rpt) { return _dbs[rpt]; });
+    match(fmt::format("{}", fmt::join(rpt_pair, "-")), path_maps, dbs);
   }
   _writer->write();
 }
 
 void path_analyser::match(
-    const std::string &cmp_name, const std::string &design,
+    const std::string &cmp_name,
     const std::vector<absl::flat_hash_map<std::string, std::shared_ptr<Path>>>
-        &path_maps) {
+        &path_maps,
+    const std::vector<std::shared_ptr<basedb>> &dbs) {
   absl::flat_hash_set<std::shared_ptr<Path>> path_set;
   _paths_buffer.clear();
   _paths_delay.clear();
@@ -130,7 +133,11 @@ void path_analyser::match(
 
   // write summary
   absl::flat_hash_map<std::string, std::string> row;
-  row["Design"] = design;
+  row["Design"] = dbs[0]->design;
+  for (int i = 0; i < 2; i++) {
+    row[fmt::format("Path num {}", i)] = std::to_string(dbs[i]->paths.size());
+  }
+  row["Not found"] = std::to_string(dbs[0]->paths.size() - path_set.size());
   row["Cmp name"] = cmp_name;
   for (const auto &filter : _filters) {
     row[fmt::format("{}_domin", filter->_name)] =
@@ -279,10 +286,12 @@ nlohmann::json path_analyser::path_analyse(
   }
   nlohmann::json result;
   result["endpoint"] = key_path->endpoint;
-  // result["slack"] = key_path->slack;
+  result["key_slack"] = key_path->slack;
+  result["value_slack"] = value_path->slack;
+  result["delta_slack"] = delta_slack;
   result["filters"] = nlohmann::json::array();
   result["domin"] = "";
-  double max_delta = 0.;
+  double max_pct = 0.;
   for (const auto &filter_name : filter_path_set) {
     result["filters"].push_back({{"name", filter_name}});
   }
@@ -294,12 +303,13 @@ nlohmann::json path_analyser::path_analyse(
     for (const auto &[from, to, delta_delay] : filter_arcs) {
       total_delta += delta_delay;
     }
-    double delta_percent =
-        std::abs(delta_slack) < 1e-9 ? 0 : total_delta / delta_slack * 100;
+    double delta_pct = total_delta / delta_slack * 100;
     filter["total_delta"] = total_delta;
-    filter["delta_percent"] = delta_percent;
-    if (total_delta >= max_delta) {
-      max_delta = total_delta;
+    filter["delta_percent"] = fmt::format("{:.2f}%", delta_pct);
+
+    // NOTE: domin is valid only when delta_pct larger than 0
+    if (delta_pct >= max_pct) {
+      max_pct = delta_pct;
       result["domin"] = filter_name;
     }
     result["filters"].push_back(filter);
@@ -309,7 +319,8 @@ nlohmann::json path_analyser::path_analyse(
 
 void path_analyser::gen_headers() {
   // output headers
-  std::vector<std::string> headers = {"Design", "Cmp name"};
+  std::vector<std::string> headers = {"Design", "Cmp name", "Path num 0",
+                                      "Path num 1", "Not found"};
   for (const auto &filter : _filters) {
     headers.push_back(fmt::format("{}_domin", filter->_name));
     headers.push_back(fmt::format("{}_occur", filter->_name));

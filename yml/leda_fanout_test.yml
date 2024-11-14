@@ -1,7 +1,7 @@
 mode: fanout analyse
 rpts:
   leda0:
-    path: rpt/leda_rpts/B005_allpath.rpt.gz
+    path: rpt/leda_rpts/z80_core_top_N7_LEC_allpath.rpt.gz
     type: leda
 configs:
   output_dir: output

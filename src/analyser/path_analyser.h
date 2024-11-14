@@ -21,9 +21,10 @@ class path_analyser : public analyser {
   void gen_headers();
   nlohmann::json path_analyse(const std::vector<std::shared_ptr<Path>> &paths);
   void match(
-      const std::string &cmp_name, const std::string &design,
+      const std::string &cmp_name,
       const std::vector<absl::flat_hash_map<std::string, std::shared_ptr<Path>>>
-          &path_maps);
+          &path_maps,
+      const std::vector<std::shared_ptr<basedb>> &dbs);
   void gen_endpoints_map(
       const std::string &type, std::ranges::input_range auto &&paths,
       absl::flat_hash_map<std::string, std::shared_ptr<Path>> &path_map);
