@@ -41,12 +41,6 @@ class Net {
   nlohmann::json to_json();
 };
 
-static std::unordered_map<std::string, bool> path_param_is_data = {
-    {"data_latency", true},           {"clock_latency", false},
-    {"clock_uncertainty", false},     {"input_external_delay", true},
-    {"output_external_delay", false},
-};
-
 class Path {
  public:
   std::string startpoint;
@@ -88,3 +82,11 @@ class basedb {
   std::string design;
   absl::flat_hash_map<std::string, std::string> type_map;
 };
+
+namespace dm {
+static std::unordered_map<std::string, bool> path_param_is_data = {
+    {"data_latency", true},           {"clock_latency", false},
+    {"clock_uncertainty", false},     {"input_external_delay", true},
+    {"output_external_delay", false},
+};
+}

@@ -49,3 +49,18 @@ void get_net_name(const std::vector<std::string_view> &tokens,
     net->name = std::string(net_name[0]);
   }
 }
+
+void get_params_from_line(const std::vector<std::string_view> &tokens,
+                          const std::vector<std::string_view> &keys,
+                          std::shared_ptr<Path> &path) {
+  for (const auto &param : keys) {
+    if (absl::StrContains(tokens[0], param)) {
+      auto value =
+          boost::convert<double>(tokens[1], boost::cnv::strtol()).value();
+      if (std::abs(value) > 1e-10) {
+        path->path_params[std::string(param)] = value;
+      }
+      break;
+    }
+  }
+}

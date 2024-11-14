@@ -84,6 +84,7 @@ void path_analyser::match(
   absl::flat_hash_set<std::shared_ptr<Path>> path_set;
   _paths_buffer.clear();
   _paths_delay.clear();
+  _arcs_buffer.clear();
   // analyse and sort path
   for (const auto &[key, path] : path_maps[0]) {
     if (path_maps[1].contains(key) && !path_set.contains(path)) {
@@ -158,10 +159,18 @@ nlohmann::json path_analyser::path_analyse(
   std::unordered_set<std::string> filter_path_set;
   std::vector<std::unordered_map<std::string, double>> attributes;
   for (auto &path : paths) {
-    attributes.push_back({{"length", path->get_length()},
-                          {"detour", path->get_detour()},
-                          {"cell_delay_pct", path->get_cell_delay_pct()},
-                          {"net_delay_pct", path->get_net_delay_pct()}});
+    std::unordered_map<std::string, double> path_attributes = {
+        {"length", path->get_length()},
+        {"detour", path->get_detour()},
+        {"cell_delay_pct", path->get_cell_delay_pct()},
+        {"net_delay_pct", path->get_net_delay_pct()}};
+    // add latency attributs for analyse
+    for (const auto &[key, value] : path->path_params) {
+      if (dm::path_param_is_data.contains(key)) {
+        path_attributes[key] = dm::path_param_is_data[key] ? value : -value;
+      }
+    }
+    attributes.push_back(path_attributes);
   }
   for (const auto &filter : _filters) {
     if (filter->_target == "path") {

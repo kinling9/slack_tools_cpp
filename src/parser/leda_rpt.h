@@ -42,6 +42,10 @@ void get_net_name(const std::vector<std::string_view> &tokens,
                   const std::unordered_map<std::string, std::size_t> &row,
                   std::shared_ptr<Net> &net);
 
+void get_params_from_line(const std::vector<std::string_view> &tokens,
+                          const std::vector<std::string_view> &keys,
+                          std::shared_ptr<Path> &path);
+
 template <typename T>
 class leda_rpt_parser : public rpt_parser<T> {
  public:
@@ -224,15 +228,9 @@ void leda_rpt_parser<T>::parse_line(T line,
           }
           path_block->is_input = true;
         } else if (tokens.size() == 3) {
-          for (const auto &param :
-               {"input external delay", "clock offset latency"}) {
-            if (absl::StrContains(tokens[0], param)) {
-              path_block->path_obj->path_params[param] =
-                  boost::convert<double>(tokens[1], boost::cnv::strtol())
-                      .value();
-              break;
-            }
-          }
+          get_params_from_line(tokens,
+                               {"input external delay", "clock offset latency"},
+                               path_block->path_obj);
         }
       }
       break;
@@ -248,25 +246,10 @@ void leda_rpt_parser<T>::parse_line(T line,
       std::ranges::transform(splits, std::back_inserter(tokens),
                              [](const auto &pair) { return pair.second; });
       if (tokens.size() == 3) {
-        for (const auto &param : {"clock uncertainty", "output external delay",
-                                  "clock offset latency"}) {
-          if (absl::StrContains(tokens[0], param)) {
-            path_block->path_obj->path_params[param] =
-                boost::convert<double>(tokens[1], boost::cnv::strtol()).value();
-            break;
-          }
-        }
-
-        // if (absl::StrContains(tokens[0], "clock uncertainty")) {
-        //   path_block->path_obj->clock_uncertainty =
-        //       boost::convert<double>(tokens[1], boost::cnv::strtol()).value();
-        // } else if (absl::StrContains(tokens[0], "output external delay")) {
-        //   path_block->path_obj->output_external_delay =
-        //       boost::convert<double>(tokens[1], boost::cnv::strtol()).value();
-        // } else if (absl::StrContains(tokens[0], "clock offset latency")) {
-        //   path_block->path_obj->clock_latency =
-        //       boost::convert<double>(tokens[1], boost::cnv::strtol()).value();
-        // }
+        get_params_from_line(tokens,
+                             {"clock uncertainty", "output external delay",
+                              "clock offset latency"},
+                             path_block->path_obj);
       }
       break;
     }
