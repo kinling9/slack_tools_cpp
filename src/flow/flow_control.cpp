@@ -149,7 +149,6 @@ void flow_control::parse_rpt(const YAML::Node& rpt, std::string key) {
 }
 
 void flow_control::run() {
-  // TODO: rewrite to handle the data sharing between classes
   parse_yml(_yml);
   _analyser->set_db(_dbs);
   _analyser->analyse();

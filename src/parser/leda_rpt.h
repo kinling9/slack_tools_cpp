@@ -187,8 +187,7 @@ void leda_rpt_parser<T>::parse_line(T line,
           tokens.emplace(tokens.begin(), pre_token);
           path_block->headers.clear();
         }
-        fmt::print("token {}, index_size {}\n", tokens.size(),
-                   std::get<0>(path_block->index_size));
+        // conditions when token size of net & cell are the same
         if (tokens.size() == std::get<0>(path_block->index_size) &&
             !absl::StrContains(tokens[0], "(net)")) {
           Pin pin;
@@ -198,38 +197,6 @@ void leda_rpt_parser<T>::parse_line(T line,
           get_param(tokens, "Incr", path_block->row, pin.incr_delay);
           get_path_dly(tokens, path_block->row, pin);
           get_location(tokens, path_block->row, pin);
-          // auto name_cell =
-          //     split_string_by_spaces(tokens[path_block->row["Point"]], 2);
-          // pin.name = std::string(name_cell[0]);
-          // pin.cell =
-          //     std::string(name_cell[1].substr(1, name_cell[1].size() - 2));
-          // pin.trans = boost::convert<double>(tokens[path_block->row["Trans"]],
-          //                                    boost::cnv::strtol())
-          //                 .value();
-          // pin.incr_delay =
-          //     boost::convert<double>(tokens[path_block->row["Incr"]],
-          //                            boost::cnv::strtol())
-          //         .value();
-          // auto delay_rf =
-          //     split_string_by_spaces(tokens[path_block->row["Path"]], 2);
-          // pin.path_delay =
-          //     boost::convert<double>(delay_rf[0], boost::cnv::strtol()).value();
-          // pin.rise_fall = delay_rf[1] == "r";
-          // auto loc_index = path_block->row["Location"];
-          // auto space_index = tokens[loc_index].find(" ");
-          // if (space_index != std::string::npos) {
-          //   pin.location = std::make_pair(
-          //       boost::convert<double>(
-          //           tokens[loc_index].substr(1, space_index - 2),
-          //           boost::cnv::strtol())
-          //           .value(),
-          //       boost::convert<double>(
-          //           tokens[loc_index].substr(
-          //               space_index + 1,
-          //               tokens[loc_index].size() - space_index - 2),
-          //           boost::cnv::strtol())
-          //           .value());
-          // }
           path_block->pin_obj = std::make_shared<Pin>(pin);
           if (path_block->net_obj->pins.second == nullptr) {
             path_block->net_obj->pins.second = path_block->pin_obj;
@@ -246,19 +213,9 @@ void leda_rpt_parser<T>::parse_line(T line,
             path_block->net_obj = std::make_shared<Net>();
           }
           auto &net = path_block->net_obj;
-
-          // auto net_name =
-          //     split_string_by_spaces(tokens[path_block->row["Point"]], 2);
-          // net->name = std::string(net_name[0]);
           get_net_name(tokens, path_block->row, net);
           get_param(tokens, "Fanout", path_block->row, net->fanout);
           get_param(tokens, "Cap", path_block->row, net->cap);
-          // net->fanout = boost::convert<int>(tokens[-path_block->row["Fanout"]],
-          //                                   boost::cnv::strtol())
-          //                   .value();
-          // net->cap = boost::convert<double>(tokens[-path_block->row["Cap"]],
-          //                                   boost::cnv::strtol())
-          //                .value();
           path_block->pin_obj->is_input = false;
           net->pins = std::make_pair(path_block->pin_obj, nullptr);
           path_block->pin_obj->net = net;
@@ -267,12 +224,14 @@ void leda_rpt_parser<T>::parse_line(T line,
           }
           path_block->is_input = true;
         } else if (tokens.size() == 3) {
-          if (absl::StrContains(tokens[0], "input external delay")) {
-            path_block->path_obj->input_external_delay =
-                boost::convert<double>(tokens[1], boost::cnv::strtol()).value();
-          } else if (absl::StrContains(tokens[0], "clock offset latency")) {
-            path_block->path_obj->data_latency =
-                boost::convert<double>(tokens[1], boost::cnv::strtol()).value();
+          for (const auto &param :
+               {"input external delay", "clock offset latency"}) {
+            if (absl::StrContains(tokens[0], param)) {
+              path_block->path_obj->path_params[param] =
+                  boost::convert<double>(tokens[1], boost::cnv::strtol())
+                      .value();
+              break;
+            }
           }
         }
       }
@@ -289,16 +248,25 @@ void leda_rpt_parser<T>::parse_line(T line,
       std::ranges::transform(splits, std::back_inserter(tokens),
                              [](const auto &pair) { return pair.second; });
       if (tokens.size() == 3) {
-        if (absl::StrContains(tokens[0], "clock uncertainty")) {
-          path_block->path_obj->clock_uncertainty =
-              boost::convert<double>(tokens[1], boost::cnv::strtol()).value();
-        } else if (absl::StrContains(tokens[0], "output external delay")) {
-          path_block->path_obj->output_external_delay =
-              boost::convert<double>(tokens[1], boost::cnv::strtol()).value();
-        } else if (absl::StrContains(tokens[0], "clock offset latency")) {
-          path_block->path_obj->clock_latency =
-              boost::convert<double>(tokens[1], boost::cnv::strtol()).value();
+        for (const auto &param : {"clock uncertainty", "output external delay",
+                                  "clock offset latency"}) {
+          if (absl::StrContains(tokens[0], param)) {
+            path_block->path_obj->path_params[param] =
+                boost::convert<double>(tokens[1], boost::cnv::strtol()).value();
+            break;
+          }
         }
+
+        // if (absl::StrContains(tokens[0], "clock uncertainty")) {
+        //   path_block->path_obj->clock_uncertainty =
+        //       boost::convert<double>(tokens[1], boost::cnv::strtol()).value();
+        // } else if (absl::StrContains(tokens[0], "output external delay")) {
+        //   path_block->path_obj->output_external_delay =
+        //       boost::convert<double>(tokens[1], boost::cnv::strtol()).value();
+        // } else if (absl::StrContains(tokens[0], "clock offset latency")) {
+        //   path_block->path_obj->clock_latency =
+        //       boost::convert<double>(tokens[1], boost::cnv::strtol()).value();
+        // }
       }
       break;
     }

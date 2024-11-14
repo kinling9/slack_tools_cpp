@@ -1,4 +1,6 @@
 #pragma once
+#include <fmt/ranges.h>
+
 #include <boost/iostreams/copy.hpp>
 #include <boost/iostreams/filter/gzip.hpp>
 #include <boost/iostreams/filtering_streambuf.hpp>
@@ -217,6 +219,8 @@ void rpt_parser<T>::print_paths() {
     fmt::print("Startpoint: {} Endpoint: {} Group: {} Clock: {} Slack: {}\n",
                path->startpoint, path->endpoint, path->group, path->clock,
                path->slack);
+    // print latency params
+    fmt::print("{}\n", fmt::join(path->path_params, ""));
     for (const auto &p : path->path) {
       fmt::print("Pin: {}\n", p->to_json().dump());
       fmt::print("Net {}\n", p->net->to_json().dump());
