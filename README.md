@@ -20,15 +20,11 @@ this:
 ```yml
 mode: compare
 rpts:
-  leda0: {path: "rpt/leda_rpts/B005_allpath.rpt.gz", type: "leda"}
-  leda1: {path: "rpt/leda_rpts/B005_allpath2.rpt.gz", type: "leda"}
-  leda2: {path: "rpt/leda_rpts/SEED_allpath.rpt.gz", type: "leda"}
-  leda3: {path: "rpt/leda_rpts/SEED_allpath2.rpt.gz", type: "leda"}
+  leda0: {path: "rpt/leda_rpts/z80_core_top_N7_LEC_allpath.rpt.gz", type: "leda"}
 configs:
   compare_mode: endpoint # [endpoint, startpoint, start_end, full_path]
   analyse_tuples:
-    - ["leda0", "leda1"]
-    - ["leda2", "leda3"]
+    - ["leda0", "leda0"]
   slack_margins: [0.01, 0.03, 0.05, 0.1, 1]
   match_percentages: [0.01, 0.03, 0.1, 0.5, 1]
   output_dir: output
