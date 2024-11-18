@@ -102,6 +102,10 @@ void arc_analyser::match(
               {"from", pin_from->name},
               {"to", pin_to->name},
           };
+          if (!pin_from->is_input) {
+            node["net"] = pin_from->net->name;
+            node["fanout"] = pin_from->net->fanout;
+          }
           node["key"] = nlohmann::json::object();
           node["key"]["pins"] = nlohmann::json::array();
           node["key"]["pins"].push_back(pin_from->to_json());
