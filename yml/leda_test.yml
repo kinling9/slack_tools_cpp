@@ -6,6 +6,7 @@ rpts:
   leda1:
     path: rpt/leda_rpts/z80_core_top_N7_LEC_allpath.rpt.gz
     type: leda
+    max_paths: 1
 configs:
   compare_mode: full_path # [endpoint, startpoint, start_end, full_path]
   analyse_tuples:

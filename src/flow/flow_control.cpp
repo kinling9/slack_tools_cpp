@@ -93,6 +93,10 @@ void flow_control::parse_rpt(const YAML::Node& rpt, std::string key) {
   if (rpt["ignore_path"]) {
     ignore_path = rpt["ignore_path"].as<bool>();
   }
+  std::size_t max_paths = 0;
+  if (rpt["max_paths"]) {
+    max_paths = rpt["max_paths"].as<std::size_t>();
+  }
 
   std::shared_ptr<basedb> cur_db;
   fmt::print("Parsing {}\n", rpt_file);
@@ -128,6 +132,9 @@ void flow_control::parse_rpt(const YAML::Node& rpt, std::string key) {
   }
   std::visit(
       [&](auto&& arg) {
+        if (max_paths != 0) {
+          arg->set_max_paths(max_paths);
+        }
         if (arg->parse_file(rpt_file)) {
           // arg->print_paths();
           cur_db = std::make_shared<basedb>(arg->get_db());
