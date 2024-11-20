@@ -4,7 +4,7 @@
 
 #include "analyser.h"
 #include "dm/dm.h"
-#include "utils/ignore_pattern.h"
+#include "utils/super_arc.h"
 #include "utils/writer.h"
 
 class arc_analyser : public analyser {
@@ -27,12 +27,12 @@ class arc_analyser : public analyser {
   void open_writers();
 
  private:
-  bool _enable_ignore;
+  bool _enable_super_arc;
   absl::flat_hash_map<std::string, std::shared_ptr<writer>> _arcs_writers;
   absl::flat_hash_map<std::pair<std::string, std::string>, nlohmann::json>
       _arcs_buffer;
   absl::flat_hash_map<std::pair<std::string, std::string>, double> _arcs_delta;
   std::vector<double> _delay_filter_op_code;
   std::vector<double> _fanout_filter_op_code;
-  ignore_pattern _ignore;
+  super_arc::super_arc_pattern _super_arc;
 };

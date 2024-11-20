@@ -9,7 +9,6 @@
 #include "utils/design_cons.h"
 #include "utils/double_filter/double_filter.h"
 #include "utils/double_filter/filter_machine.h"
-#include "utils/super_arc.h"
 #include "utils/utils.h"
 #include "yaml-cpp/yaml.h"
 
@@ -20,7 +19,7 @@ bool arc_analyser::parse_configs() {
   compile_double_filter(delay_filter, _delay_filter_op_code);
   std::string fanout_filter;
   collect_from_node("fanout_filter", fanout_filter);
-  collect_from_node("enable_ignore", _enable_ignore);
+  collect_from_node("enable_super_arc", _enable_super_arc);
   compile_double_filter(fanout_filter, _fanout_filter_op_code);
   return valid;
 }
@@ -36,9 +35,9 @@ void arc_analyser::open_writers() {
 }
 
 void arc_analyser::analyse() {
-  if (_enable_ignore) {
+  if (_enable_super_arc) {
     fmt::print("Load ignore pattern\n");
-    _ignore.load_pattern("yml/ignore_pattern.yml");
+    _super_arc.load_pattern("yml/super_arc_pattern.yml");
   }
   open_writers();
   gen_value_map();
@@ -95,7 +94,7 @@ void arc_analyser::match(
   for (const auto &key_path : dbs[0]->paths) {
     for (const auto &pin_tuple :
          key_path->path | std::views::filter([&](const auto &pin) {
-           return !_ignore.check_ignore(pin->type, pin->name);
+           return !_super_arc.check_super_arc(pin->type, pin->name);
          }) | std::views::adjacent<2> |
              std::views::filter(delay_filter) |
              std::views::filter(fanout_filter)) {

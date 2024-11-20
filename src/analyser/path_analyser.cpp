@@ -5,13 +5,12 @@
 
 #include <ranges>
 
-#include "utils/super_arc.h"
 #include "utils/utils.h"
 
 bool path_analyser::parse_configs() {
   bool valid = analyser::parse_configs();
   collect_from_node("enable_mbff", _enable_mbff);
-  collect_from_node("enable_ignore", _enable_ignore);
+  collect_from_node("enable_super_arc", _enable_super_arc);
   auto patterns = _configs["analyse_patterns"];
   for (const auto &pattern : patterns) {
     std::string name = pattern["name"].as<std::string>();
@@ -57,9 +56,9 @@ void path_analyser::analyse() {
     fmt::print("Load MBFF pattern\n");
     _mbff.load_pattern("yml/mbff_pattern.yml");
   }
-  if (_enable_ignore) {
+  if (_enable_super_arc) {
     fmt::print("Load ignore pattern\n");
-    _ignore.load_pattern("yml/ignore_pattern.yml");
+    _super_arc.load_pattern("yml/super_arc_pattern.yml");
   }
   open_writers();
   gen_headers();
@@ -207,7 +206,7 @@ nlohmann::json path_analyser::path_analyse(
       [](const std::shared_ptr<Pin> &pin) { return pin->name; });
   for (const auto &pin_tuple :
        key_path->path | std::views::filter([&](const auto &pin) {
-         return !_ignore.check_ignore(pin->type, pin->name);
+         return !_super_arc.check_super_arc(pin->type, pin->name);
        }) | std::views::adjacent<2> |
            std::views::filter([&](const auto &pin_tuple) {
              const auto &[pin_from, pin_to] = pin_tuple;
