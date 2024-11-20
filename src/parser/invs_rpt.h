@@ -138,6 +138,7 @@ void invs_rpt_parser<T>::parse_line(T line,
         std::ranges::transform(splits, std::back_inserter(tokens),
                                [](const auto &pair) { return pair.second; });
         Pin pin;
+        pin.type = "invs";
         pin.name = std::string(tokens[path_block->row["Pin"]]);
         pin.trans = boost::convert<double>(tokens[path_block->row["Slew"]],
                                            boost::cnv::strtol())

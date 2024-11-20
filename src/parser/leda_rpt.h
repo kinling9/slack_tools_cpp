@@ -196,6 +196,7 @@ void leda_rpt_parser<T>::parse_line(T line,
         if (tokens.size() == std::get<0>(path_block->index_size) &&
             !absl::StrContains(tokens[0], "(net)")) {
           Pin pin;
+          pin.type = "leda";
           pin.is_input = path_block->is_input;
           get_name(tokens, path_block->row, pin);
           get_param(tokens, "Trans", path_block->row, pin.trans);

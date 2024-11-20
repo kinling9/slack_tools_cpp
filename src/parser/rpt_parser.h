@@ -69,6 +69,7 @@ class rpt_parser {
   void set_ignore_blocks(absl::flat_hash_set<block> ignore_blocks) {
     _ignore_blocks = ignore_blocks;
   }
+  void set_max_paths(std::size_t max_paths) { _max_paths = max_paths; }
   const basedb &get_db() const { return _db; }
 
   virtual void parse_line(T line, std::shared_ptr<data_block> &path_block) = 0;
@@ -81,6 +82,7 @@ class rpt_parser {
   bool _done = false;  // 标志是否完成数据准备
   basedb _db;
   int _num_consumers = 4;
+  std::size_t _max_paths = std::numeric_limits<std::size_t>::max();
   std::string _start_pattern;
   absl::flat_hash_set<block> _ignore_blocks;
   block _start_block;
@@ -121,6 +123,7 @@ void rpt_parser<T>::single_thread_parse(std::istream &instream) {
   std::shared_ptr<data_block> path_block =
       std::make_shared<data_block>(_start_block);
   path_block->iter = End;
+  std::size_t path_count = 0;
   while (std::getline(instream, line)) {
     if (path_block->iter == End && RE2::PartialMatch(line, start_pattern)) {
       if (start_flag) {
@@ -128,6 +131,10 @@ void rpt_parser<T>::single_thread_parse(std::istream &instream) {
       }
       path_block = std::make_shared<data_block>(_start_block);
       start_flag = true;
+      ++path_count;
+      if (path_count > _max_paths) {
+        return;
+      }
     }
     if (start_flag) {
       parse_line(line, path_block);
@@ -143,6 +150,7 @@ void rpt_parser<T>::data_preparation(std::istream &instream) {
   const RE2 start_pattern(_start_pattern);
   std::vector<T> path;
   bool start_flag = false;
+  std::size_t path_count = 0;
   while (std::getline(instream, line)) {
     if (RE2::PartialMatch(line, start_pattern)) {
       if (start_flag) {
@@ -154,6 +162,12 @@ void rpt_parser<T>::data_preparation(std::istream &instream) {
         path.clear();
       }
       start_flag = true;
+      ++path_count;
+      if (path_count > _max_paths) {
+        _done = true;
+        _data_cond_var.notify_all();  // 通知可能在等待的处理线程
+        return;
+      }
     }
     path.emplace_back(line);
   }
