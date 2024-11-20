@@ -18,5 +18,5 @@ class ignore_pattern {
  private:
   bool _enable_ignore = false;
   std::string _pattern_yml;
-  std::unordered_map<std::string, std::unique_ptr<RE2>> _patterns;
+  std::unordered_map<std::string, std::vector<std::unique_ptr<RE2>>> _patterns;
 };

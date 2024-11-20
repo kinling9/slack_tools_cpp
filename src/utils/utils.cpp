@@ -85,6 +85,7 @@ bool isgz(const std::string &filename) {
 
   return false;
 }
+
 double variance(const std::vector<double> &arr, std::size_t n) {
   // Compute mean (average of elements)
   double sum = 0;

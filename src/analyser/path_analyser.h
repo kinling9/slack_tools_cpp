@@ -5,6 +5,7 @@
 #include "analyser.h"
 #include "dm/dm.h"
 #include "utils/analyse_filter.h"
+#include "utils/ignore_pattern.h"
 #include "utils/mbff_pattern.h"
 #include "utils/writer.h"
 
@@ -31,6 +32,7 @@ class path_analyser : public analyser {
 
  private:
   bool _enable_mbff;
+  bool _enable_ignore;
   std::unordered_map<std::string,
                      std::unordered_map<std::string, std::shared_ptr<writer>>>
       _writers;
@@ -44,5 +46,6 @@ class path_analyser : public analyser {
   std::unordered_set<std::string> _path_keys;
   std::vector<std::unique_ptr<analyse_filter>> _filters;
   mbff_pattern _mbff;
+  ignore_pattern _ignore;
   std::unique_ptr<csv_writer> _csv_writer;
 };

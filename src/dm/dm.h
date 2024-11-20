@@ -25,6 +25,9 @@ class Pin {
   std::pair<double, double> location;
   std::shared_ptr<Net> net;
 
+  // TODO: remove type, using db pointer instead
+  std::string type;
+
  public:
   YAML::Node to_yaml();
   nlohmann::json to_json();

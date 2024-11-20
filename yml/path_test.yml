@@ -9,6 +9,7 @@ rpts:
     type: leda
 configs:
   output_dir: output
+  enable_ignore: True
   analyse_tuples:
     - - invs0
       - invs0

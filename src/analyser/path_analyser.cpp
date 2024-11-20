@@ -5,11 +5,13 @@
 
 #include <ranges>
 
+#include "utils/super_arc.h"
 #include "utils/utils.h"
 
 bool path_analyser::parse_configs() {
   bool valid = analyser::parse_configs();
   collect_from_node("enable_mbff", _enable_mbff);
+  collect_from_node("enable_ignore", _enable_ignore);
   auto patterns = _configs["analyse_patterns"];
   for (const auto &pattern : patterns) {
     std::string name = pattern["name"].as<std::string>();
@@ -54,6 +56,10 @@ void path_analyser::analyse() {
   if (_enable_mbff) {
     fmt::print("Load MBFF pattern\n");
     _mbff.load_pattern("yml/mbff_pattern.yml");
+  }
+  if (_enable_ignore) {
+    fmt::print("Load ignore pattern\n");
+    _ignore.load_pattern("yml/ignore_pattern.yml");
   }
   open_writers();
   gen_headers();
@@ -200,7 +206,9 @@ nlohmann::json path_analyser::path_analyse(
       value_path->path, std::inserter(pin_set, pin_set.end()),
       [](const std::shared_ptr<Pin> &pin) { return pin->name; });
   for (const auto &pin_tuple :
-       key_path->path | std::views::adjacent<2> |
+       key_path->path | std::views::filter([&](const auto &pin) {
+         return !_ignore.check_ignore(pin->type, pin->name);
+       }) | std::views::adjacent<2> |
            std::views::filter([&](const auto &pin_tuple) {
              const auto &[pin_from, pin_to] = pin_tuple;
              return pin_set.contains(pin_from->name) &&
@@ -210,64 +218,28 @@ nlohmann::json path_analyser::path_analyse(
       const auto &[pin_from, pin_to] = pin_tuple;
       if (!_arcs_buffer.contains({pin_from->name, pin_to->name})) {
         // general attributes
+        std::string from = pin_from->name;
+        std::string to = pin_to->name;
         nlohmann::json node = {
             {"type", pin_from->is_input ? "cell arc" : "net arc"},
-            {"from", pin_from->name},
-            {"to", pin_to->name},
+            {"from", from},
+            {"to", to},
             {"count", 1},
         };
         if (!pin_from->is_input) {
           node["net"] = pin_from->net->name;
           node["fanout"] = pin_from->net->fanout;
         }
-
-        // key attributes
-        std::vector<std::pair<float, float>> key_locs = {pin_from->location,
-                                                         pin_to->location};
-        node["key"] = nlohmann::json::object();
-        node["key"]["pins"] = nlohmann::json::array();
-        node["key"]["pins"].push_back(pin_from->to_json());
-        node["key"]["pins"].push_back(pin_to->to_json());
-        double key_delay = pin_to->incr_delay;
-        node["key"]["delay"] = key_delay;
-        float key_len = manhattan_distance(key_locs);
-        node["key"]["length"] = key_len;
-
-        // value attributes
-        node["value"] = nlohmann::json::object();
-        std::vector<std::pair<float, float>> value_locs;
-        double value_delay = 0;
-
-        // using bool to take while + 1
-        bool match = true;
-        for (const auto &value_pin :
-             value_path->path |
-                 std::views::drop_while(
-                     [&](const std::shared_ptr<Pin> from_pin) {
-                       return from_pin->name != pin_from->name;
-                     }) |
-                 std::views::take_while([&](const std::shared_ptr<Pin> to_pin) {
-                   if (to_pin->name == pin_to->name) {
-                     match = false;
-                     return true;
-                   }
-                   return match || to_pin->name == pin_to->name;
-                 })) {
-          node["value"]["pins"].push_back(value_pin->to_json());
-          value_locs.push_back(value_pin->location);
-          if (value_pin->name != pin_from->name) {
-            value_delay += value_pin->incr_delay;
-          }
-        }
-        node["value"]["delay"] = value_delay;
-        float value_len = manhattan_distance(value_locs);
-        node["value"]["length"] = value_len;
+        node["key"] = super_arc::to_json(key_path, {from, to});
+        node["value"] = super_arc::to_json(value_path, {from, to});
 
         // delta attributes
-        double delta_delay = key_delay - value_delay;
+        double delta_delay = node["key"]["delay"].get<double>() -
+                             node["value"]["delay"].get<double>();
         node["delta_delay"] = delta_delay;
-        node["delta_length"] = key_len - value_len;
-        _arcs_buffer[std::make_pair(pin_from->name, pin_to->name)] = node;
+        node["delta_length"] = node["key"]["length"].get<double>() -
+                               node["value"]["length"].get<double>();
+        _arcs_buffer[std::make_pair(from, to)] = node;
 
         std::vector<std::unordered_map<std::string, double>> attributes;
         for (const auto &iter : {"key", "value"}) {
