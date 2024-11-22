@@ -40,7 +40,9 @@ double Path::get_length() {
     return length.value();
   }
   std::vector<std::pair<float, float>> locs;
-  for (const auto &pin : path) {
+  for (const auto &pin : path | std::views::filter([](const auto &pin) {
+                           return pin->location != std::make_pair(0., 0.);
+                         })) {
     locs.push_back(pin->location);
   }
   double len = manhattan_distance(locs);
@@ -52,8 +54,14 @@ double Path::get_detour() {
   if (detour.has_value()) {
     return detour.value();
   }
-  std::vector<std::pair<float, float>> locs = {path.front()->location,
-                                               path.back()->location};
+  std::vector<std::pair<float, float>> all_locs;
+  for (const auto &pin : path | std::views::filter([](const auto &pin) {
+                           return pin->location != std::make_pair(0., 0.);
+                         })) {
+    all_locs.push_back(pin->location);
+  }
+  std::vector<std::pair<float, float>> locs = {all_locs.front(),
+                                               all_locs.back()};
   double len = manhattan_distance(locs);
   double det = get_length() / len;
   detour = det;

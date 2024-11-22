@@ -140,6 +140,13 @@ void invs_rpt_parser<T>::parse_line(T line,
         Pin pin;
         pin.type = "invs";
         pin.name = std::string(tokens[path_block->row["Pin"]]);
+        pin.instance = std::string(tokens[path_block->row["Instance"]]);
+        if (!path_block->start &&
+            pin.name != path_block->path_obj->startpoint) {
+          path_block->pin_obj = std::make_shared<Pin>(pin);
+          return;
+        }
+        path_block->start = true;
         pin.trans = boost::convert<double>(tokens[path_block->row["Slew"]],
                                            boost::cnv::strtol())
                         .value_or(0);
@@ -147,10 +154,16 @@ void invs_rpt_parser<T>::parse_line(T line,
             boost::convert<double>(tokens[path_block->row["Arrival Time"]],
                                    boost::cnv::strtol())
                 .value_or(0);
+        if (path_block->pin_obj != nullptr) {
+          if (pin.instance == path_block->pin_obj->instance) {
+            pin.is_input = false;
+          } else {
+            pin.is_input = true;
+          }
+        } else {
+          pin.is_input = false;
+        }
         if (tokens[path_block->row["Instance Location"]] == "-") {
-          path_block->is_input = false;
-          pin.is_input = path_block->is_input;
-          path_block->is_input = !path_block->is_input;
           path_block->pin_obj = std::make_shared<Pin>(pin);
           Net net;
           if (path_block->row.contains("Net")) {
@@ -162,8 +175,6 @@ void invs_rpt_parser<T>::parse_line(T line,
           path_block->path_obj->path.push_back(path_block->pin_obj);
           return;
         }
-        pin.is_input = path_block->is_input;
-        path_block->is_input = !path_block->is_input;
         pin.rise_fall = tokens[path_block->row["Edge"]] == "^";
         pin.cell = std::string(tokens[path_block->row["Cell"]]);
         pin.incr_delay =

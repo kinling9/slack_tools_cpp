@@ -17,6 +17,7 @@ class Pin {
  public:
   std::string name;
   std::string cell;
+  std::string instance;  // invs only
   double trans;
   double incr_delay;
   double path_delay;

@@ -13,8 +13,8 @@ configs:
   analyse_tuples:
     - - invs0
       - invs0
-    - - leda
-      - leda
+    # - - leda
+    #   - leda
   analyse_patterns:
     - name: fanout
       target: net arc

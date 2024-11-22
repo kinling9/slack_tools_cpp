@@ -46,6 +46,9 @@ struct data_block {
   // leda index_size
   std::tuple<std::size_t, std::size_t> index_size;
 
+  // invs start flag
+  bool start = false;
+
   data_block(block start_iter = Beginpoint) : iter(start_iter) {}
 };
 
