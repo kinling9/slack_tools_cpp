@@ -174,8 +174,8 @@ nlohmann::json path_analyser::path_analyse(
         {"net_delay_pct", path->get_net_delay_pct()}};
     // add latency attributs for analyse
     for (const auto &[key, value] : path->path_params) {
-      if (dm::path_param_is_data.contains(key)) {
-        path_attributes[key] = dm::path_param_is_data[key] ? value : -value;
+      if (dm::path_param.contains(key)) {
+        path_attributes[key] = value;
       }
     }
     attributes.push_back(path_attributes);

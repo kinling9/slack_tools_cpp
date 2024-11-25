@@ -11,10 +11,10 @@ configs:
   output_dir: output
   enable_super_arc: True
   analyse_tuples:
-    - - invs0
-      - invs0
-    # - - leda
-    #   - leda
+    # - - invs0
+    #   - invs0
+    - - leda
+      - leda
   analyse_patterns:
     - name: fanout
       target: net arc

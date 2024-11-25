@@ -86,9 +86,18 @@ class basedb {
 };
 
 namespace dm {
-static std::unordered_map<std::string, bool> path_param_is_data = {
+static const std::unordered_set<std::string> path_param = {
+    "data_latency",         "clock_latency",         "clock_uncertainty",
+    "input_external_delay", "output_external_delay", "library_setup_time",
+};
+static const std::unordered_map<std::string, bool> path_param_leda = {
     {"data_latency", true},           {"clock_latency", false},
     {"clock_uncertainty", false},     {"input_external_delay", true},
-    {"output_external_delay", false},
+    {"output_external_delay", false}, {"library_setup_time", false},
 };
-}
+static const std::unordered_map<std::string, std::string> path_param_invs = {
+    {"Other End Arrival Time", "data_latency"},
+    {"Clock Uncertainty", "clock_uncertainty"},
+    {"Setup", "library_setup_time"},
+};
+}  // namespace dm

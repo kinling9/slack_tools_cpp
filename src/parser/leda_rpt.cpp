@@ -52,14 +52,15 @@ void get_net_name(const std::vector<std::string_view> &tokens,
 
 void get_params_from_line(
     const std::vector<std::string_view> &tokens,
-    const std::unordered_map<std::string, std::string_view> &keys,
+    const std::unordered_map<std::string, std::string> &keys,
     std::shared_ptr<Path> &path) {
   for (const auto &[key, param] : keys) {
-    if (absl::StrContains(tokens[0], param)) {
+    if (absl::StrContains(tokens[0], key)) {
       auto value =
           boost::convert<double>(tokens[1], boost::cnv::strtol()).value();
       if (std::abs(value) > 1e-10) {
-        path->path_params[key] = value;
+        path->path_params[param] =
+            dm::path_param_leda.at(param) ? value : -value;
       }
       break;
     }

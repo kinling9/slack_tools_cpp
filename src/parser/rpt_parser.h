@@ -26,6 +26,7 @@ enum block {
   Beginpoint,
   PathGroup,
   PathType,
+  Params,
   Slack,
   Paths,
   Clock,

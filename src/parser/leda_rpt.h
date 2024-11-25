@@ -44,7 +44,7 @@ void get_net_name(const std::vector<std::string_view> &tokens,
 
 void get_params_from_line(
     const std::vector<std::string_view> &tokens,
-    const std::unordered_map<std::string, std::string_view> &keys,
+    const std::unordered_map<std::string, std::string> &keys,
     std::shared_ptr<Path> &path);
 
 template <typename T>
@@ -232,8 +232,8 @@ void leda_rpt_parser<T>::parse_line(T line,
         } else if (tokens.size() == 3) {
           get_params_from_line(
               tokens,
-              {{"input_external_delay", "input external delay"},
-               {"data_latency", "clock offset latency"}},
+              {{"input external delay", "input_external_delay"},
+               {"clock offset latency", "data_latency"}},
               path_block->path_obj);
         }
       }
@@ -252,9 +252,13 @@ void leda_rpt_parser<T>::parse_line(T line,
       if (tokens.size() == 3) {
         get_params_from_line(
             tokens,
-            {{"clock_uncertainty", "clock uncertainty"},
-             {"output_external_delay", "output external delay"},
-             {"clock_latency", "clock offset latency"}},
+            {
+                {"clock uncertainty", "clock_uncertainty"},
+                {"output external delay", "output_external_delay"},
+                {"clock offset latency", "clock_latency"},
+                {"library recovery time", "library_setup_time"},
+                {"library setup time", "library_setup_time"},
+            },
             path_block->path_obj);
       }
       break;

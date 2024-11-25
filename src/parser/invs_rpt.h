@@ -3,6 +3,7 @@
 #include <fmt/ranges.h>
 #include <re2/re2.h>
 
+#include <boost/algorithm/string.hpp>
 #include <boost/convert.hpp>
 #include <boost/convert/strtol.hpp>
 #include <boost/iostreams/copy.hpp>
@@ -31,7 +32,7 @@ class invs_rpt_parser : public rpt_parser<T> {
   const RE2 _end_pattern{"^Endpoint:   (\\S*)"};
   const RE2 _group_pattern{"^Path Groups: {(\\S*)}"};
   const RE2 _clock_pattern{"triggered by\\s+leading edge of '(\\S*)'$"};
-  const RE2 _slack_pattern{"^= Slack Time\\s+([0-9\\.-]*)"};
+  const RE2 _param_pattern{"^[-+=]?\\s*([A-Za-z ]+)\\s+([0-9\\.-]+)"};
   absl::flat_hash_map<std::size_t, std::unordered_map<std::string, std::size_t>>
       _row_cache;
   std::mutex _row_cache_mutex;
@@ -47,9 +48,9 @@ void invs_rpt_parser<T>::update_iter(block &iter) {
       iter = PathGroup;
       break;
     case PathGroup:
-      iter = Slack;
+      iter = Params;
       break;
-    case Slack:
+    case Params:
       iter = Paths;
       break;
     case Paths:
@@ -88,13 +89,22 @@ void invs_rpt_parser<T>::parse_line(T line,
         update_iter(path_block->iter);
       }
       break;
-    case Slack: {
-      T path_slack;
-      if (RE2::PartialMatch(line, _slack_pattern, &path_slack)) {
-        path_block->path_obj->slack =
-            boost::convert<double>(path_slack, boost::cnv::strtol())
-                .value_or(0);
-        update_iter(path_block->iter);
+    case Params: {
+      T key, value;
+      if (RE2::PartialMatch(line, _param_pattern, &key, &value)) {
+        std::string trim_key = std::string(key);
+        boost::trim(trim_key);
+        double data =
+            boost::convert<double>(value, boost::cnv::strtol()).value_or(0);
+        if (trim_key == "Slack Time") {
+          path_block->path_obj->slack = data;
+          update_iter(path_block->iter);
+        } else if (dm::path_param_invs.contains(trim_key)) {
+          auto redirect_key = dm::path_param_invs.at(trim_key);
+          path_block->path_obj->path_params[redirect_key] = data;
+        } else {
+          path_block->path_obj->path_params[trim_key] = data;
+        }
       }
       break;
     }
