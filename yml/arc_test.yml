@@ -3,12 +3,13 @@ rpts:
   invs0:
     path: rpt/invs_rpts/axi4lscope.simple.gz
     type: invs
-  invs1:
-    path: rpt/invs_rpts/axi4lscope.simple.gz
-    type: invs
+  leda:
+    path: rpt/leda_rpts/z80_core_top_N7_LEC_allpath.rpt.gz
+    type: leda
 configs:
   output_dir: output
   analyse_tuples:
-    - ["invs0", "invs1"]
-  fanout_filter: x >= 1
+    # - ["invs0", "invs0"]
+    - ["leda", "leda"]
+  # fanout_filter: x >= 1
   delay_filter: x >= 0
