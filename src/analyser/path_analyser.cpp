@@ -137,7 +137,13 @@ void path_analyser::match(
   fmt::print(_writers["arc"][cmp_name]->out_file, "{}", arc_node.dump(2));
 
   // write all paths
-  nlohmann::json path_node = _paths_buffer;
+  std::vector<std::pair<std::string, nlohmann::json>> sorted_paths(
+      _paths_buffer.begin(), _paths_buffer.end());
+  std::sort(sorted_paths.begin(), sorted_paths.end(),
+            [&](const auto &lhs, const auto &rhs) {
+              return lhs.second["slack"][0] < rhs.second["slack"][0];
+            });
+  nlohmann::json path_node = sorted_paths;
   fmt::print(_writers["path"][cmp_name]->out_file, "{}", path_node.dump(2));
 
   // write summary
@@ -191,7 +197,9 @@ nlohmann::json path_analyser::path_analyse(
   attributes[1]["slack"] = value_path->slack;
   std::unordered_map<std::string, std::vector<double>> path_attributes;
   for (const auto &[key, _] : attributes[0]) {
-    path_attributes[key] = {attributes[0][key], attributes[1][key]};
+    if (attributes[1].contains(key)) {
+      path_attributes[key] = {attributes[0][key], attributes[1][key]};
+    }
   }
   _paths_buffer[key_path->endpoint] = path_attributes;
 
@@ -238,7 +246,6 @@ nlohmann::json path_analyser::path_analyse(
         node["delta_delay"] = delta_delay;
         node["delta_length"] = node["key"]["length"].get<double>() -
                                node["value"]["length"].get<double>();
-        _arcs_buffer[std::make_pair(from, to)] = node;
 
         std::vector<std::unordered_map<std::string, double>> attributes;
         for (const auto &iter : {"key", "value"}) {
@@ -253,12 +260,14 @@ nlohmann::json path_analyser::path_analyse(
                   {pin_from->name, pin_to->name, delta_delay});
               _filter_cache[std::make_pair(pin_from->name, pin_to->name)] =
                   filter->_name;
+              node["filter"] = filter->_name;
               // NOTE: each arc corresponds to only one filter
               // TODO: maybe multi filter for one arc
               break;
             }
           }
         }
+        _arcs_buffer[std::make_pair(from, to)] = node;
       } else {
         auto name_pair = std::make_pair(pin_from->name, pin_to->name);
         std::size_t count = _arcs_buffer[name_pair]["count"].get<std::size_t>();
@@ -294,7 +303,7 @@ nlohmann::json path_analyser::path_analyse(
       total_delta += delta_delay;
     }
     double delta_pct =
-        std::abs(delta_slack) < 1e-8 ? 0 : total_delta / delta_slack * 100;
+        std::abs(delta_slack) < 1e-8 ? 0 : -total_delta / delta_slack * 100;
     filter["total_delta"] = total_delta;
     filter["delta_percent"] = fmt::format("{:.2f}%", delta_pct);
 

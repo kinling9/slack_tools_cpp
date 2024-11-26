@@ -97,7 +97,10 @@ static const std::unordered_map<std::string, bool> path_param_leda = {
 };
 static const std::unordered_map<std::string, std::string> path_param_invs = {
     {"Other End Arrival Time", "data_latency"},
-    {"Clock Uncertainty", "clock_uncertainty"},
+    {"Uncertainty", "clock_uncertainty"},
     {"Setup", "library_setup_time"},
 };
+
+static const std::unordered_set<std::string> path_param_invs_reverse = {
+    "library_setup_time"};
 }  // namespace dm

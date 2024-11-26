@@ -23,6 +23,7 @@ nlohmann::json Pin::to_json() {
   node["location"] = nlohmann::json::array({location.first, location.second});
   node["is_input"] = is_input;
   node["trans"] = trans;
+  node["cell"] = cell;
   return node;
 }
 

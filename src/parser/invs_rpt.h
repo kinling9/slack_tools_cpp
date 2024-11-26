@@ -101,7 +101,11 @@ void invs_rpt_parser<T>::parse_line(T line,
           update_iter(path_block->iter);
         } else if (dm::path_param_invs.contains(trim_key)) {
           auto redirect_key = dm::path_param_invs.at(trim_key);
-          path_block->path_obj->path_params[redirect_key] = data;
+          if (dm::path_param_invs_reverse.contains(redirect_key)) {
+            path_block->path_obj->path_params[redirect_key] = -data;
+          } else {
+            path_block->path_obj->path_params[redirect_key] = data;
+          }
         } else {
           path_block->path_obj->path_params[trim_key] = data;
         }
@@ -207,7 +211,7 @@ void invs_rpt_parser<T>::parse_line(T line,
                                  .value_or(0));
         }
         path_block->pin_obj = std::make_shared<Pin>(pin);
-        if (path_block->net_obj->pins.second == nullptr) {
+        if (pin.is_input) {
           path_block->net_obj->pins.second = path_block->pin_obj;
           path_block->net_obj->fanout =
               boost::convert<int>(tokens[path_block->row["Fanout"]],
