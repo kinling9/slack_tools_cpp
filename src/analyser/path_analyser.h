@@ -49,3 +49,10 @@ class path_analyser : public analyser {
   super_arc::super_arc_pattern _super_arc;
   std::unique_ptr<csv_writer> _csv_writer;
 };
+
+namespace path_analyse {
+static const std::unordered_set<std::string> path_param_contribute = {
+    "data_latency",         "clock_latency",         "clock_uncertainty",
+    "input_external_delay", "output_external_delay", "library_setup_time",
+};
+}

@@ -94,14 +94,14 @@ void path_analyser::match(
     if (path_maps[1].contains(key) && !path_set.contains(path)) {
       path_set.emplace(path);
       _cmps_buffer[key] = path_analyse({path, path_maps[1].at(key)});
-      _cmps_delay[key] = path->slack - path_maps[1].at(key)->slack;
+      _cmps_delay[key] = path->slack;
     }
   }
   std::vector<std::pair<std::string, nlohmann::json>> sorted_cmps(
       _cmps_buffer.begin(), _cmps_buffer.end());
   std::sort(sorted_cmps.begin(), sorted_cmps.end(),
             [&](const auto &lhs, const auto &rhs) {
-              return _cmps_delay[lhs.first] > _cmps_delay[rhs.first];
+              return _cmps_delay[lhs.first] < _cmps_delay[rhs.first];
             });
 
   nlohmann::json cmp_node;
@@ -141,7 +141,7 @@ void path_analyser::match(
       _paths_buffer.begin(), _paths_buffer.end());
   std::sort(sorted_paths.begin(), sorted_paths.end(),
             [&](const auto &lhs, const auto &rhs) {
-              return lhs.second["slack"][0] < rhs.second["slack"][0];
+              return _cmps_delay[lhs.first] < _cmps_delay[rhs.first];
             });
   nlohmann::json path_node = sorted_paths;
   fmt::print(_writers["path"][cmp_name]->out_file, "{}", path_node.dump(2));
@@ -285,9 +285,9 @@ nlohmann::json path_analyser::path_analyse(
   }
   nlohmann::json result;
   result["endpoint"] = key_path->endpoint;
-  result["key_slack"] = key_path->slack;
-  result["value_slack"] = value_path->slack;
-  result["delta_slack"] = delta_slack;
+  result["slack_key"] = key_path->slack;
+  result["slack_value"] = value_path->slack;
+  result["slack_delta"] = delta_slack;
   result["filters"] = nlohmann::json::array();
   result["domin"] = "";
   double max_pct = 0.;
@@ -313,6 +313,13 @@ nlohmann::json path_analyser::path_analyse(
       result["domin"] = filter_name;
     }
     result["filters"].push_back(filter);
+  }
+  result["path_contribute"] = nlohmann::json::array();
+  for (const auto &[k, v] : path_attributes) {
+    if (path_analyse::path_param_contribute.contains(k) &&
+        std::abs(v[0] - v[1]) > 1e-8) {
+      result["path_contribute"].push_back({k, v[0] - v[1]});
+    }
   }
   return result;
 }
