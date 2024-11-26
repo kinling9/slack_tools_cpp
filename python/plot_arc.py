@@ -43,7 +43,8 @@ def plot_one(name, data):
 def plot_data(name, datas):
     dly_array, length_array = gen_data(name, datas)
     plot_one("delay", dly_array)
-    plot_one("length", length_array)
+    if name == "net":
+        plot_one("length", length_array)
 
 
 if __name__ == "__main__":
