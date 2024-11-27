@@ -58,6 +58,7 @@ class leda_rpt_parser : public rpt_parser<T> {
 
  protected:
   using rpt_parser<T>::_ignore_blocks;
+  using rpt_parser<T>::_period;
   const RE2 _split_pattern{"^-"};
   const RE2 _at_pattern{"^data arrival time"};
   const RE2 _rat_pattern{"^data required time"};
@@ -199,9 +200,18 @@ void leda_rpt_parser<T>::parse_line(T line,
           pin.type = "leda";
           pin.is_input = path_block->is_input;
           get_name(tokens, path_block->row, pin);
+          if (!path_block->start &&
+              pin.name != path_block->path_obj->startpoint) {
+            path_block->pin_obj = std::make_shared<Pin>(pin);
+            return;
+          }
+          path_block->start = true;
           get_param(tokens, "Trans", path_block->row, pin.trans);
           get_param(tokens, "Incr", path_block->row, pin.incr_delay);
           get_path_dly(tokens, path_block->row, pin);
+          if (pin.name == path_block->path_obj->startpoint) {
+            path_block->path_obj->path_params["data_latency"] = pin.path_delay;
+          }
           get_location(tokens, path_block->row, pin);
           path_block->pin_obj = std::make_shared<Pin>(pin);
           if (path_block->net_obj->pins.second == nullptr) {
@@ -260,6 +270,17 @@ void leda_rpt_parser<T>::parse_line(T line,
                 {"library setup time", "library_setup_time"},
             },
             path_block->path_obj);
+        if (absl::StrContains(tokens[0], "clock reconvergence pessimism")) {
+          auto pessimism =
+              boost::convert<double>(tokens[1], boost::cnv::strtol()).value();
+          auto rat =
+              boost::convert<double>(tokens[2], boost::cnv::strtol()).value();
+          auto value = _period - rat - pessimism;
+          if (std::abs(value) > 1e-10) {
+            path_block->path_obj->path_params["clock_latency"] = value;
+          }
+          break;
+        }
       }
       break;
     }

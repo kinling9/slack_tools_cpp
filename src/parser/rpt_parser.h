@@ -90,10 +90,15 @@ class rpt_parser {
   std::string _start_pattern;
   absl::flat_hash_set<block> _ignore_blocks;
   block _start_block;
+  double _period;
 };
 
 template <typename T>
 bool rpt_parser<T>::parse_file(const std::string &filename) {
+  auto &cons = design_cons::get_instance();
+  std::string design = cons.get_name(filename);
+  _db.design = design;
+  _period = cons.get_period(design);
   std::ifstream file(filename, std::ios_base::in | std::ios_base::binary);
   if (!isgz(filename)) {
     file.close();
@@ -113,9 +118,6 @@ bool rpt_parser<T>::parse_file(const std::string &filename) {
     parse(instream);
     file.close();
   }
-  auto &cons = design_cons::get_instance();
-  std::string design = cons.get_name(filename);
-  _db.design = design;
   return true;
 }
 
