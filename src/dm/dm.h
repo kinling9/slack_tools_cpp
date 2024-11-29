@@ -101,5 +101,6 @@ static const std::unordered_map<std::string, std::string> path_param_invs = {
     {"Setup", "library_setup_time"},
 };
 
-static const std::unordered_set<std::string> path_param_invs_reverse = {};
+static const std::unordered_set<std::string> path_param_invs_reverse = {
+    "data_latency"};
 }  // namespace dm

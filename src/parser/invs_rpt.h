@@ -107,6 +107,9 @@ void invs_rpt_parser<T>::parse_line(T line,
             path_block->path_obj->path_params[redirect_key] = data;
           }
         } else {
+          if (trim_key == "Phase Shift" && std::abs(data) < 1e-5) {
+            path_block->path_obj->path_params["data_latency"] = 0.;
+          }
           path_block->path_obj->path_params[trim_key] = data;
         }
       }

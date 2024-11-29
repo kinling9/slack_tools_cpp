@@ -272,6 +272,14 @@ nlohmann::json path_analyser::path_analyse(
         auto name_pair = std::make_pair(pin_from->name, pin_to->name);
         std::size_t count = _arcs_buffer[name_pair]["count"].get<std::size_t>();
         _arcs_buffer[name_pair]["count"] = count + 1;
+        double key_slack =
+            _arcs_buffer[name_pair]["key"]["slack"].get<double>();
+        double value_slack =
+            _arcs_buffer[name_pair]["value"]["slack"].get<double>();
+        _arcs_buffer[name_pair]["key"]["slack"] =
+            std::min(key_slack, key_path->slack);
+        _arcs_buffer[name_pair]["value"]["slack"] =
+            std::min(value_slack, value_path->slack);
         if (_filter_cache.contains(name_pair)) {
           filter_arcs_map[_filter_cache[name_pair]].push_back(
               {name_pair.first, name_pair.second,

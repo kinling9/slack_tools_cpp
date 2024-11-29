@@ -61,6 +61,9 @@ double Path::get_detour() {
                          })) {
     all_locs.push_back(pin->location);
   }
+  if (all_locs.size() < 2) {
+    return 0;
+  }
   std::vector<std::pair<float, float>> locs = {all_locs.front(),
                                                all_locs.back()};
   double len = manhattan_distance(locs);

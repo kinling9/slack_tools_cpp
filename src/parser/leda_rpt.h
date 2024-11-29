@@ -209,7 +209,9 @@ void leda_rpt_parser<T>::parse_line(T line,
           get_param(tokens, "Trans", path_block->row, pin.trans);
           get_param(tokens, "Incr", path_block->row, pin.incr_delay);
           get_path_dly(tokens, path_block->row, pin);
-          if (pin.name == path_block->path_obj->startpoint) {
+          if (pin.name == path_block->path_obj->startpoint &&
+              !path_block->path_obj->path_params.contains(
+                  "input_external_delay")) {
             path_block->path_obj->path_params["data_latency"] = pin.path_delay;
           }
           get_location(tokens, path_block->row, pin);
@@ -221,6 +223,9 @@ void leda_rpt_parser<T>::parse_line(T line,
           }
         } else if (tokens.size() == std::get<1>(path_block->index_size) &&
                    absl::StrContains(tokens[0], "(net)")) {
+          if (!path_block->start) {
+            return;
+          }
           bool push = true;
           if (path_block->net_obj->pins.first == nullptr &&
               path_block->net_obj->pins.second == path_block->pin_obj) {
@@ -275,7 +280,7 @@ void leda_rpt_parser<T>::parse_line(T line,
               boost::convert<double>(tokens[1], boost::cnv::strtol()).value();
           auto rat =
               boost::convert<double>(tokens[2], boost::cnv::strtol()).value();
-          auto value = _period - rat - pessimism;
+          auto value = _period - rat + pessimism;
           if (std::abs(value) > 1e-10) {
             path_block->path_obj->path_params["clock_latency"] = value;
           }
