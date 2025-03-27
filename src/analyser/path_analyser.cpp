@@ -11,6 +11,7 @@ bool path_analyser::parse_configs() {
   bool valid = analyser::parse_configs();
   collect_from_node("enable_mbff", _enable_mbff);
   collect_from_node("enable_super_arc", _enable_super_arc);
+  collect_from_node("enable_ignore_filter", _enable_ignore_filter);
   auto patterns = _configs["analyse_patterns"];
   for (const auto &pattern : patterns) {
     std::string name = pattern["name"].as<std::string>();
@@ -44,6 +45,13 @@ void path_analyser::gen_endpoints_map(
     return _mbff.get_ff_names(type, path->endpoint);
   };
   std::ranges::for_each(paths, [&](const std::shared_ptr<Path> &path) {
+    if (_enable_ignore_filter) {
+      for (const auto &pin : path->path) {
+        if (_ignore_filter.check_ignore_filter(pin->name)) {
+          return;
+        }
+      }
+    }
     auto keys = key_generator(path);
     for (const auto &key : keys) {
       path_map[key] = path;
@@ -57,8 +65,12 @@ void path_analyser::analyse() {
     _mbff.load_pattern("yml/mbff_pattern.yml");
   }
   if (_enable_super_arc) {
-    fmt::print("Load ignore pattern\n");
+    fmt::print("Load super arc pattern\n");
     _super_arc.load_pattern("yml/super_arc_pattern.yml");
+  }
+  if (_enable_ignore_filter) {
+    fmt::print("Load ignore pattern\n");
+    _ignore_filter.load_pattern("yml/ignore_filter_pattern.yml");
   }
   open_writers();
   gen_headers();

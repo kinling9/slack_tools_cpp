@@ -5,6 +5,7 @@
 #include "analyser.h"
 #include "dm/dm.h"
 #include "utils/analyse_filter.h"
+#include "utils/ignore_filter.h"
 #include "utils/mbff_pattern.h"
 #include "utils/super_arc.h"
 #include "utils/writer.h"
@@ -33,6 +34,7 @@ class path_analyser : public analyser {
  private:
   bool _enable_mbff;
   bool _enable_super_arc;
+  bool _enable_ignore_filter;
   std::unordered_map<std::string,
                      std::unordered_map<std::string, std::shared_ptr<writer>>>
       _writers;
@@ -47,6 +49,7 @@ class path_analyser : public analyser {
   std::vector<std::unique_ptr<analyse_filter>> _filters;
   mbff_pattern _mbff;
   super_arc::super_arc_pattern _super_arc;
+  ignore_filter::ignore_filter_pattern _ignore_filter;
   std::unique_ptr<csv_writer> _csv_writer;
 };
 

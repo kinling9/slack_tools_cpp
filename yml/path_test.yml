@@ -10,43 +10,40 @@ rpts:
 configs:
   output_dir: output
   enable_super_arc: True
+  enable_ignore_filter: True
   analyse_tuples:
-    # - - invs0
-    #   - invs0
     - - leda
       - leda
-  analyse_patterns:
-    - name: fanout
-      target: net arc
-      filters:
-        - attribute: fanout
-          filter: x > 3
-          type:
-        - attribute: delay
-          filter: x >= 0
-          type:
-            # - delta
-            - abs
-    - name: length
-      target: net arc
-      filters:
-        - attribute: length
-          filter: x >= 10
-          type:
-            # - percent
-            # - delta
-            - abs
-        - attribute: delay
-          filter: x >= 0
-          type:
-            # - delta
-            - abs
-    - name: total length
-      target: path
-      filters:
-        - attribute: length
-          filter: x >= 10
-          type:
-            # - percent
-            # - delta
-            - abs
+  # analyse_patterns:
+  #   - name: fanout
+  #     target: net arc
+  #     filters:
+  #       - attribute: fanout
+  #         filter: x > 3
+  #         type:
+  #       - attribute: delay
+  #         filter: x >= 0
+  #         type:
+  #           # - delta
+  #           - abs
+  #   - name: length
+  #     target: net arc
+  #     filters:
+  #       - attribute: length
+  #         filter: x >= 10
+  #         type:
+  #           # - percent
+  #           # - delta
+  #           - abs
+  #       - attribute: delay
+  #         filter: x >= 0
+  #         type:
+  #           # - delta
+  #           - abs
+  #   - name: total length
+  #     target: path
+  #     filters:
+  #       - attribute: length
+  #         filter: x >= 10
+  #         type:
+  #           - abs

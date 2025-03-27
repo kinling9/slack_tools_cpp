@@ -24,6 +24,7 @@ nlohmann::json Pin::to_json() {
   node["is_input"] = is_input;
   node["trans"] = trans;
   node["cell"] = cell;
+  node["rf"] = rise_fall;
   return node;
 }
 

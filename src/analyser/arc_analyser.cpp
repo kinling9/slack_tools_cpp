@@ -46,7 +46,9 @@ void arc_analyser::analyse() {
 void arc_analyser::gen_value_map() {
   for (const auto &rpt_pair : _analyse_tuples) {
     std::string cmp_name = fmt::format("{}", fmt::join(rpt_pair, "-"));
-    absl::flat_hash_map<std::string_view, std::shared_ptr<Path>> pin_map;
+    absl::flat_hash_map<std::pair<std::string_view, bool>,
+                        std::shared_ptr<Path>>
+        pin_map;
     gen_pin2path_map(_dbs.at(rpt_pair[1]), pin_map);
     match(cmp_name, pin_map, {_dbs.at(rpt_pair[0]), _dbs.at(rpt_pair[1])});
   }
@@ -54,22 +56,22 @@ void arc_analyser::gen_value_map() {
 
 void arc_analyser::gen_pin2path_map(
     const std::shared_ptr<basedb> &db,
-    absl::flat_hash_map<std::string_view, std::shared_ptr<Path>>
-        &pin2path_map) {
+    absl::flat_hash_map<std::pair<std::string_view, bool>,
+                        std::shared_ptr<Path>> &pin2path_map) {
   for (const auto &path : db->paths) {
     for (const auto &pin : path->path) {
       // TODO: maybe set needed
-      if (!pin2path_map.contains(pin->name)) {
-        pin2path_map[pin->name] = path;
+      if (!pin2path_map.contains({pin->name, pin->rise_fall})) {
+        pin2path_map[{pin->name, pin->rise_fall}] = path;
       }
     }
   }
 }
 
-void arc_analyser::match(
-    const std::string &cmp_name,
-    const absl::flat_hash_map<std::string_view, std::shared_ptr<Path>> &pin_map,
-    const std::vector<std::shared_ptr<basedb>> &dbs) {
+void arc_analyser::match(const std::string &cmp_name,
+                         absl::flat_hash_map<std::pair<std::string_view, bool>,
+                                             std::shared_ptr<Path>> &pin_map,
+                         const std::vector<std::shared_ptr<basedb>> &dbs) {
   _arcs_buffer.clear();
   _arcs_delta.clear();
   auto fanout_filter =
@@ -99,11 +101,13 @@ void arc_analyser::match(
              std::views::filter(delay_filter) |
              std::views::filter(fanout_filter)) {
       const auto &[pin_from, pin_to] = pin_tuple;
-      if (pin_map.contains(pin_from->name) && pin_map.contains(pin_to->name)) {
-        if (pin_map.at(pin_from->name) == pin_map.at(pin_to->name) &&
+      if (pin_map.contains({pin_from->name, pin_from->rise_fall}) &&
+          pin_map.contains({pin_to->name, pin_to->rise_fall})) {
+        if (pin_map.at({pin_from->name, pin_from->rise_fall}) ==
+                pin_map.at({pin_to->name, pin_to->rise_fall}) &&
             !_arcs_buffer.contains({pin_from->name, pin_to->name})) {
-          std::string from = pin_from->name;
-          std::string to = pin_to->name;
+          auto from = std::make_pair(pin_from->name, pin_from->rise_fall);
+          auto to = std::make_pair(pin_to->name, pin_to->rise_fall);
           auto &value_path = pin_map.at(from);
           nlohmann::json node = {
               {"type", pin_from->is_input ? "cell arc" : "net arc"},
@@ -114,8 +118,9 @@ void arc_analyser::match(
             node["net"] = pin_from->net->name;
             node["fanout"] = pin_from->net->fanout;
           }
-          node["key"] = super_arc::to_json(key_path, {from, to});
-          node["value"] = super_arc::to_json(value_path, {from, to});
+          node["key"] = super_arc::to_json(key_path, {from.first, to.first});
+          node["value"] =
+              super_arc::to_json(value_path, {from.first, to.first});
 
           double delta_delay = node["key"]["delay"].get<double>() -
                                node["value"]["delay"].get<double>();
