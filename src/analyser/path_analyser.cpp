@@ -240,14 +240,13 @@ nlohmann::json path_analyser::path_analyse(
            })) {
     {
       const auto &[pin_from, pin_to] = pin_tuple;
+      std::tuple<std::string, bool, std::string, bool> arc_tuple = {
+          pin_from->name, pin_from->rise_fall, pin_to->name, pin_to->rise_fall};
       if (!_arcs_buffer.contains({pin_from->name, pin_from->rise_fall,
                                   pin_to->name, pin_to->rise_fall})) {
         // general attributes
         auto from = std::make_pair(pin_from->name, pin_from->rise_fall);
         auto to = std::make_pair(pin_to->name, pin_to->rise_fall);
-        std::tuple<std::string, bool, std::string, bool> arc_tuple = {
-            pin_from->name, pin_from->rise_fall, pin_to->name,
-            pin_to->rise_fall};
         nlohmann::json node = {
             {"type", pin_from->is_input ? "cell arc" : "net arc"},
             {"from", fmt::format("{} {}", from.first,
@@ -291,9 +290,6 @@ nlohmann::json path_analyser::path_analyse(
         }
         _arcs_buffer[arc_tuple] = node;
       } else {
-        std::tuple<std::string, bool, std::string, bool> arc_tuple = {
-            pin_from->name, pin_from->rise_fall, pin_to->name,
-            pin_to->rise_fall};
         std::size_t count = _arcs_buffer[arc_tuple]["count"].get<std::size_t>();
         _arcs_buffer[arc_tuple]["count"] = count + 1;
         double key_slack =
