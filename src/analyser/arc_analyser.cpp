@@ -108,9 +108,8 @@ void arc_analyser::match(const std::string &cmp_name,
                                     pin_to->name, pin_to->rise_fall})) {
           auto from = std::make_pair(pin_from->name, pin_from->rise_fall);
           auto to = std::make_pair(pin_to->name, pin_to->rise_fall);
-          std::tuple<std::string, bool, std::string, bool> arc_tuple = {
-              pin_from->name, pin_from->rise_fall, pin_to->name,
-              pin_to->rise_fall};
+          auto arc_tuple = std::make_tuple(pin_from->name, pin_from->rise_fall,
+                                           pin_to->name, pin_to->rise_fall);
           auto &value_path = pin_map.at(from);
           nlohmann::json node = {
               {"type", pin_from->is_input ? "cell arc" : "net arc"},
