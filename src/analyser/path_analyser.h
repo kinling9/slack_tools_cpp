@@ -41,9 +41,11 @@ class path_analyser : public analyser {
   std::unordered_map<std::string, nlohmann::json> _cmps_buffer;
   std::unordered_map<std::string, nlohmann::json> _paths_buffer;
   std::unordered_map<std::string, double> _cmps_delay;
-  absl::flat_hash_map<std::pair<std::string, std::string>, nlohmann::json>
+  absl::flat_hash_map<std::tuple<std::string, bool, std::string, bool>,
+                      nlohmann::json>
       _arcs_buffer;
-  absl::flat_hash_map<std::pair<std::string, std::string>, std::string>
+  absl::flat_hash_map<std::tuple<std::string, bool, std::string, bool>,
+                      std::string>
       _filter_cache;
   std::unordered_set<std::string> _path_keys;
   std::vector<std::unique_ptr<analyse_filter>> _filters;
