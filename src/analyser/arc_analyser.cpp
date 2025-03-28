@@ -73,7 +73,6 @@ void arc_analyser::match(const std::string &cmp_name,
                                              std::shared_ptr<Path>> &pin_map,
                          const std::vector<std::shared_ptr<basedb>> &dbs) {
   _arcs_buffer.clear();
-  _arcs_delta.clear();
   auto fanout_filter =
       [&](const std::tuple<std::shared_ptr<Pin>, std::shared_ptr<Pin>>
               pin_ptr_tuple) {
@@ -131,21 +130,14 @@ void arc_analyser::match(const std::string &cmp_name,
               node["value"]["endpoint"].get<std::string>()) {
             node["delta_slack"] = key_path->slack - value_path->slack;
           }
-          _arcs_delta[std::make_pair(pin_from->name, pin_to->name)] =
-              delta_delay;
           _arcs_buffer[std::make_pair(pin_from->name, pin_to->name)] = node;
         }
       }
     }
   }
-  std::vector<std::pair<std::pair<std::string, std::string>, double>>
-      sorted_arcs(_arcs_delta.begin(), _arcs_delta.end());
-  std::sort(
-      sorted_arcs.begin(), sorted_arcs.end(),
-      [](const auto &lhs, const auto &rhs) { return lhs.second > rhs.second; });
   nlohmann::json arc_node;
-  for (const auto &[arc, _] : sorted_arcs) {
-    arc_node.push_back(_arcs_buffer[arc]);
+  for (const auto &[arc, _] : _arcs_buffer) {
+    arc_node[fmt::format("{}-{}", arc.first, arc.second)] = _arcs_buffer[arc];
   }
   fmt::print(_arcs_writers[cmp_name]->out_file, "{}", arc_node.dump(2));
 }
