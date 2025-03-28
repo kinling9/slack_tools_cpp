@@ -11,7 +11,8 @@ void ignore_filter_pattern::load_pattern(const std::string &pattern_yml) {
     std::exit(1);
   }
   for (const auto &pattern : ignore_filter_pattern) {
-    _pattern = std::make_unique<RE2>(pattern.as<std::string>());
+    auto p = std::make_unique<RE2>(pattern.as<std::string>());
+    _patterns.push_back(std::move(p));
   }
   fmt::print(
       "ignore_filter match enabled, finsh loading ignore_filter pattern from "
@@ -24,8 +25,11 @@ bool ignore_filter_pattern::check_ignore_filter(const std::string &line) const {
   if (!_enable_ignore_filter) {
     return false;
   }
-  if (RE2::PartialMatch(line, *_pattern)) {
-    return true;
+  for (const auto &pattern : _patterns) {
+    // Check if the line matches any of the patterns
+    if (RE2::PartialMatch(line, *pattern)) {
+      return true;  // If any pattern matches, return true
+    }
   }
   return false;
 }

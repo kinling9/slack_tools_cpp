@@ -20,7 +20,7 @@ class ignore_filter_pattern {
  private:
   bool _enable_ignore_filter = false;
   std::string _pattern_yml;
-  std::unique_ptr<RE2> _pattern;
+  std::vector<std::unique_ptr<RE2>> _patterns;
 };
 
 }  // namespace ignore_filter
