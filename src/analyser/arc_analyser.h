@@ -31,7 +31,6 @@ class arc_analyser : public analyser {
   absl::flat_hash_map<std::string, std::shared_ptr<writer>> _arcs_writers;
   absl::flat_hash_map<std::pair<std::string, std::string>, nlohmann::json>
       _arcs_buffer;
-  absl::flat_hash_map<std::pair<std::string, std::string>, double> _arcs_delta;
   std::vector<double> _delay_filter_op_code;
   std::vector<double> _fanout_filter_op_code;
   super_arc::super_arc_pattern _super_arc;
