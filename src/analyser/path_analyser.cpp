@@ -242,8 +242,7 @@ nlohmann::json path_analyser::path_analyse(
       const auto &[pin_from, pin_to] = pin_tuple;
       auto arc_tuple = std::make_tuple(pin_from->name, pin_from->rise_fall,
                                        pin_to->name, pin_to->rise_fall);
-      if (!_arcs_buffer.contains({pin_from->name, pin_from->rise_fall,
-                                  pin_to->name, pin_to->rise_fall})) {
+      if (!_arcs_buffer.contains(arc_tuple)) {
         // general attributes
         auto from = std::make_pair(pin_from->name, pin_from->rise_fall);
         auto to = std::make_pair(pin_to->name, pin_to->rise_fall);
