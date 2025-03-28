@@ -4,6 +4,7 @@
 #include <fmt/ranges.h>
 
 #include <ranges>
+#include <tuple>
 
 #include "utils/utils.h"
 
@@ -144,7 +145,10 @@ void path_analyser::match(
   // write all arcs
   nlohmann::json arc_node;
   for (const auto &[arc, _] : _arcs_buffer) {
-    arc_node[fmt::format("{}-{}", arc.first, arc.second)] = _arcs_buffer[arc];
+    arc_node[fmt::format(
+        "{} {}-{} {}", std::get<0>(arc), std::get<1>(arc) ? "(rise)" : "(fall)",
+        std::get<2>(arc), std::get<3>(arc) ? "(rise)" : "(fall)")] =
+        _arcs_buffer[arc];
   }
   fmt::print(_writers["arc"][cmp_name]->out_file, "{}", arc_node.dump(2));
 
@@ -217,40 +221,47 @@ nlohmann::json path_analyser::path_analyse(
 
   // analyse arc
   double delta_slack = key_path->slack - value_path->slack;
-  std::unordered_map<std::string,
-                     std::vector<std::tuple<std::string, std::string, double>>>
+  std::unordered_map<
+      std::string,
+      std::vector<std::tuple<std::string, bool, std::string, bool, double>>>
       filter_arcs_map;  // [from, to, delta_delay]
-  std::unordered_set<std::string> pin_set;
-  std::ranges::transform(
-      value_path->path, std::inserter(pin_set, pin_set.end()),
-      [](const std::shared_ptr<Pin> &pin) { return pin->name; });
+  absl::flat_hash_set<std::pair<std::string, bool>> pin_set;
+  for (const auto &pin : value_path->path) {
+    pin_set.insert({pin->name, pin->rise_fall});
+  }
   for (const auto &pin_tuple :
        key_path->path | std::views::filter([&](const auto &pin) {
          return !_super_arc.check_super_arc(pin->type, pin->name);
        }) | std::views::adjacent<2> |
            std::views::filter([&](const auto &pin_tuple) {
              const auto &[pin_from, pin_to] = pin_tuple;
-             return pin_set.contains(pin_from->name) &&
-                    pin_set.contains(pin_to->name);
+             return pin_set.contains({pin_from->name, pin_from->rise_fall}) &&
+                    pin_set.contains({pin_to->name, pin_to->rise_fall});
            })) {
     {
       const auto &[pin_from, pin_to] = pin_tuple;
-      if (!_arcs_buffer.contains({pin_from->name, pin_to->name})) {
+      if (!_arcs_buffer.contains({pin_from->name, pin_from->rise_fall,
+                                  pin_to->name, pin_to->rise_fall})) {
         // general attributes
-        std::string from = pin_from->name;
-        std::string to = pin_to->name;
+        auto from = std::make_pair(pin_from->name, pin_from->rise_fall);
+        auto to = std::make_pair(pin_to->name, pin_to->rise_fall);
+        std::tuple<std::string, bool, std::string, bool> arc_tuple = {
+            pin_from->name, pin_from->rise_fall, pin_to->name,
+            pin_to->rise_fall};
         nlohmann::json node = {
             {"type", pin_from->is_input ? "cell arc" : "net arc"},
-            {"from", from},
-            {"to", to},
+            {"from", fmt::format("{} {}", from.first,
+                                 from.second ? "(rise)" : "(fall)")},
+            {"to",
+             fmt::format("{} {}", to.first, to.second ? "(rise)" : "(fall)")},
             {"count", 1},
         };
         if (!pin_from->is_input) {
           node["net"] = pin_from->net->name;
           node["fanout"] = pin_from->net->fanout;
         }
-        node["key"] = super_arc::to_json(key_path, {from, to});
-        node["value"] = super_arc::to_json(value_path, {from, to});
+        node["key"] = super_arc::to_json(key_path, arc_tuple);
+        node["value"] = super_arc::to_json(value_path, arc_tuple);
 
         // delta attributes
         double delta_delay = node["key"]["delay"].get<double>() -
@@ -269,9 +280,8 @@ nlohmann::json path_analyser::path_analyse(
           if (node["type"] == filter->_target) {
             if (filter->check(attributes)) {
               filter_arcs_map[filter->_name].push_back(
-                  {pin_from->name, pin_to->name, delta_delay});
-              _filter_cache[std::make_pair(pin_from->name, pin_to->name)] =
-                  filter->_name;
+                  std::tuple_cat(arc_tuple, std::make_tuple(delta_delay)));
+              _filter_cache[arc_tuple] = filter->_name;
               node["filter"] = filter->_name;
               // NOTE: each arc corresponds to only one filter
               // TODO: maybe multi filter for one arc
@@ -279,23 +289,25 @@ nlohmann::json path_analyser::path_analyse(
             }
           }
         }
-        _arcs_buffer[std::make_pair(from, to)] = node;
+        _arcs_buffer[arc_tuple] = node;
       } else {
-        auto name_pair = std::make_pair(pin_from->name, pin_to->name);
-        std::size_t count = _arcs_buffer[name_pair]["count"].get<std::size_t>();
-        _arcs_buffer[name_pair]["count"] = count + 1;
+        std::tuple<std::string, bool, std::string, bool> arc_tuple = {
+            pin_from->name, pin_from->rise_fall, pin_to->name,
+            pin_to->rise_fall};
+        std::size_t count = _arcs_buffer[arc_tuple]["count"].get<std::size_t>();
+        _arcs_buffer[arc_tuple]["count"] = count + 1;
         double key_slack =
-            _arcs_buffer[name_pair]["key"]["slack"].get<double>();
+            _arcs_buffer[arc_tuple]["key"]["slack"].get<double>();
         double value_slack =
-            _arcs_buffer[name_pair]["value"]["slack"].get<double>();
-        _arcs_buffer[name_pair]["key"]["slack"] =
+            _arcs_buffer[arc_tuple]["value"]["slack"].get<double>();
+        _arcs_buffer[arc_tuple]["key"]["slack"] =
             std::min(key_slack, key_path->slack);
-        _arcs_buffer[name_pair]["value"]["slack"] =
+        _arcs_buffer[arc_tuple]["value"]["slack"] =
             std::min(value_slack, value_path->slack);
-        if (_filter_cache.contains(name_pair)) {
-          filter_arcs_map[_filter_cache[name_pair]].push_back(
-              {name_pair.first, name_pair.second,
-               _arcs_buffer[name_pair]["delta_delay"]});
+        if (_filter_cache.contains(arc_tuple)) {
+          filter_arcs_map[_filter_cache[arc_tuple]].push_back(std::tuple_cat(
+              arc_tuple,
+              std::make_tuple(_arcs_buffer[arc_tuple]["delta_delay"])));
         }
       }
     }
@@ -319,7 +331,7 @@ nlohmann::json path_analyser::path_analyse(
     filter["name"] = filter_name;
     filter["arcs"] = filter_arcs;
     double total_delta = 0;
-    for (const auto &[from, to, delta_delay] : filter_arcs) {
+    for (const auto &[_f, _frf, _t, _trf, delta_delay] : filter_arcs) {
       total_delta += delta_delay;
     }
     double delta_pct =

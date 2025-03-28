@@ -7,7 +7,7 @@
 namespace super_arc {
 
 nlohmann::json to_json(const std::shared_ptr<Path> path,
-                       std::pair<std::string, std::string> names);
+                       std::tuple<std::string, bool, std::string, bool> names);
 
 class super_arc_pattern {
  public:
