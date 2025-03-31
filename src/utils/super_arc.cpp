@@ -7,7 +7,8 @@
 namespace super_arc {
 
 nlohmann::json to_json(const std::shared_ptr<Path> path,
-                       std::tuple<std::string, bool, std::string, bool> names) {
+                       std::tuple<std::string, bool, std::string, bool> names,
+                       bool enable_rise_fall) {
   nlohmann::json node;
   bool match = true;
   double delay = 0;
@@ -17,16 +18,19 @@ nlohmann::json to_json(const std::shared_ptr<Path> path,
        path->path |
            std::views::drop_while([&](const std::shared_ptr<Pin> from_pin) {
              return from_pin->name != std::get<0>(names) ||
-                    from_pin->rise_fall != std::get<1>(names);
+                    (enable_rise_fall &&
+                     from_pin->rise_fall != std::get<1>(names));
            }) |
            std::views::take_while([&](const std::shared_ptr<Pin> to_pin) {
              if (to_pin->name == std::get<2>(names) &&
-                 to_pin->rise_fall == std::get<3>(names)) {
+                 (!enable_rise_fall ||
+                  to_pin->rise_fall == std::get<3>(names))) {
                match = false;
                return true;
              }
              return match || (to_pin->name == std::get<2>(names) &&
-                              to_pin->rise_fall == std::get<3>(names));
+                              (!enable_rise_fall ||
+                               to_pin->rise_fall == std::get<3>(names)));
            })) {
     node["pins"].push_back(value_pin->to_json());
     locs.push_back(value_pin->location);

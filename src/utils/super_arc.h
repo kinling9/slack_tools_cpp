@@ -7,7 +7,8 @@
 namespace super_arc {
 
 nlohmann::json to_json(const std::shared_ptr<Path> path,
-                       std::tuple<std::string, bool, std::string, bool> names);
+                       std::tuple<std::string, bool, std::string, bool> names,
+                       bool enable_rise_fall);
 
 class super_arc_pattern {
  public:

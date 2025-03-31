@@ -20,6 +20,7 @@ bool arc_analyser::parse_configs() {
   std::string fanout_filter;
   collect_from_node("fanout_filter", fanout_filter);
   collect_from_node("enable_super_arc", _enable_super_arc);
+  collect_from_node("enable_rise_fall", _enable_rise_fall);
   compile_double_filter(fanout_filter, _fanout_filter_op_code);
   return valid;
 }
@@ -38,6 +39,10 @@ void arc_analyser::analyse() {
   if (_enable_super_arc) {
     fmt::print("Load ignore pattern\n");
     _super_arc.load_pattern("yml/super_arc_pattern.yml");
+  }
+  if (_enable_rise_fall) {
+    fmt::print("Enable rise fall check\n");
+    _rf_checker.set_enable_rise_fall(true);
   }
   open_writers();
   gen_value_map();
@@ -61,8 +66,9 @@ void arc_analyser::gen_pin2path_map(
   for (const auto &path : db->paths) {
     for (const auto &pin : path->path) {
       // TODO: maybe set needed
-      if (!pin2path_map.contains({pin->name, pin->rise_fall})) {
-        pin2path_map[{pin->name, pin->rise_fall}] = path;
+      if (!pin2path_map.contains(
+              {pin->name, _rf_checker.check(pin->rise_fall)})) {
+        pin2path_map[{pin->name, _rf_checker.check(pin->rise_fall)}] = path;
       }
     }
   }
@@ -100,10 +106,13 @@ void arc_analyser::match(const std::string &cmp_name,
              std::views::filter(delay_filter) |
              std::views::filter(fanout_filter)) {
       const auto &[pin_from, pin_to] = pin_tuple;
-      auto arc_tuple = std::make_tuple(pin_from->name, pin_from->rise_fall,
-                                       pin_to->name, pin_to->rise_fall);
-      auto from = std::make_pair(pin_from->name, pin_from->rise_fall);
-      auto to = std::make_pair(pin_to->name, pin_to->rise_fall);
+      auto arc_tuple = std::make_tuple(
+          pin_from->name, _rf_checker.check(pin_from->rise_fall), pin_to->name,
+          _rf_checker.check(pin_to->rise_fall));
+      auto from = std::make_pair(pin_from->name,
+                                 _rf_checker.check(pin_from->rise_fall));
+      auto to =
+          std::make_pair(pin_to->name, _rf_checker.check(pin_to->rise_fall));
       if (pin_map.contains(from) && pin_map.contains(to)) {
         if (pin_map.at(from) == pin_map.at(to) &&
             !_arcs_buffer.contains(arc_tuple)) {
@@ -119,8 +128,10 @@ void arc_analyser::match(const std::string &cmp_name,
             node["net"] = pin_from->net->name;
             node["fanout"] = pin_from->net->fanout;
           }
-          node["key"] = super_arc::to_json(key_path, arc_tuple);
-          node["value"] = super_arc::to_json(value_path, arc_tuple);
+          node["key"] =
+              super_arc::to_json(key_path, arc_tuple, _enable_rise_fall);
+          node["value"] =
+              super_arc::to_json(value_path, arc_tuple, _enable_rise_fall);
 
           double delta_delay = node["key"]["delay"].get<double>() -
                                node["value"]["delay"].get<double>();

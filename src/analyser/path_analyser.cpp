@@ -13,6 +13,7 @@ bool path_analyser::parse_configs() {
   collect_from_node("enable_mbff", _enable_mbff);
   collect_from_node("enable_super_arc", _enable_super_arc);
   collect_from_node("enable_ignore_filter", _enable_ignore_filter);
+  collect_from_node("enable_rise_fall", _enable_rise_fall);
   auto patterns = _configs["analyse_patterns"];
   for (const auto &pattern : patterns) {
     std::string name = pattern["name"].as<std::string>();
@@ -72,6 +73,10 @@ void path_analyser::analyse() {
   if (_enable_ignore_filter) {
     fmt::print("Load ignore pattern\n");
     _ignore_filter.load_pattern("yml/ignore_filter_pattern.yml");
+  }
+  if (_enable_rise_fall) {
+    fmt::print("Enable rise fall check\n");
+    _rf_checker.set_enable_rise_fall(true);
   }
   open_writers();
   gen_headers();
@@ -227,7 +232,7 @@ nlohmann::json path_analyser::path_analyse(
       filter_arcs_map;  // [from, to, delta_delay]
   absl::flat_hash_set<std::pair<std::string, bool>> pin_set;
   for (const auto &pin : value_path->path) {
-    pin_set.insert({pin->name, pin->rise_fall});
+    pin_set.insert({pin->name, _rf_checker.check(pin->rise_fall)});
   }
   for (const auto &pin_tuple :
        key_path->path | std::views::filter([&](const auto &pin) {
@@ -235,17 +240,23 @@ nlohmann::json path_analyser::path_analyse(
        }) | std::views::adjacent<2> |
            std::views::filter([&](const auto &pin_tuple) {
              const auto &[pin_from, pin_to] = pin_tuple;
-             return pin_set.contains({pin_from->name, pin_from->rise_fall}) &&
-                    pin_set.contains({pin_to->name, pin_to->rise_fall});
+             return pin_set.contains(
+                        {pin_from->name,
+                         _rf_checker.check(pin_from->rise_fall)}) &&
+                    pin_set.contains(
+                        {pin_to->name, _rf_checker.check(pin_to->rise_fall)});
            })) {
     {
       const auto &[pin_from, pin_to] = pin_tuple;
-      auto arc_tuple = std::make_tuple(pin_from->name, pin_from->rise_fall,
-                                       pin_to->name, pin_to->rise_fall);
+      auto arc_tuple = std::make_tuple(
+          pin_from->name, _rf_checker.check(pin_from->rise_fall), pin_to->name,
+          _rf_checker.check(pin_to->rise_fall));
       if (!_arcs_buffer.contains(arc_tuple)) {
         // general attributes
-        auto from = std::make_pair(pin_from->name, pin_from->rise_fall);
-        auto to = std::make_pair(pin_to->name, pin_to->rise_fall);
+        auto from = std::make_pair(pin_from->name,
+                                   _rf_checker.check(pin_from->rise_fall));
+        auto to =
+            std::make_pair(pin_to->name, _rf_checker.check(pin_to->rise_fall));
         nlohmann::json node = {
             {"type", pin_from->is_input ? "cell arc" : "net arc"},
             {"from", fmt::format("{} {}", from.first,
@@ -258,8 +269,10 @@ nlohmann::json path_analyser::path_analyse(
           node["net"] = pin_from->net->name;
           node["fanout"] = pin_from->net->fanout;
         }
-        node["key"] = super_arc::to_json(key_path, arc_tuple);
-        node["value"] = super_arc::to_json(value_path, arc_tuple);
+        node["key"] =
+            super_arc::to_json(key_path, arc_tuple, _enable_rise_fall);
+        node["value"] =
+            super_arc::to_json(value_path, arc_tuple, _enable_rise_fall);
 
         // delta attributes
         double delta_delay = node["key"]["delay"].get<double>() -
