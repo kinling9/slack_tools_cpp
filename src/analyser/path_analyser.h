@@ -7,6 +7,7 @@
 #include "utils/analyse_filter.h"
 #include "utils/ignore_filter.h"
 #include "utils/mbff_pattern.h"
+#include "utils/rf_checker.h"
 #include "utils/super_arc.h"
 #include "utils/writer.h"
 
@@ -35,6 +36,7 @@ class path_analyser : public analyser {
   bool _enable_mbff;
   bool _enable_super_arc;
   bool _enable_ignore_filter;
+  bool _enable_rise_fall;
   std::unordered_map<std::string,
                      std::unordered_map<std::string, std::shared_ptr<writer>>>
       _writers;
@@ -52,6 +54,7 @@ class path_analyser : public analyser {
   mbff_pattern _mbff;
   super_arc::super_arc_pattern _super_arc;
   ignore_filter::ignore_filter_pattern _ignore_filter;
+  rf_checker::rf_checker _rf_checker;
   std::unique_ptr<csv_writer> _csv_writer;
 };
 

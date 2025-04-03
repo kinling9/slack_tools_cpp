@@ -4,6 +4,7 @@
 
 #include "analyser.h"
 #include "dm/dm.h"
+#include "utils/rf_checker.h"
 #include "utils/super_arc.h"
 #include "utils/writer.h"
 
@@ -28,6 +29,7 @@ class arc_analyser : public analyser {
 
  private:
   bool _enable_super_arc;
+  bool _enable_rise_fall;
   absl::flat_hash_map<std::string, std::shared_ptr<writer>> _arcs_writers;
   absl::flat_hash_map<std::tuple<std::string, bool, std::string, bool>,
                       nlohmann::json>
@@ -35,4 +37,5 @@ class arc_analyser : public analyser {
   std::vector<double> _delay_filter_op_code;
   std::vector<double> _fanout_filter_op_code;
   super_arc::super_arc_pattern _super_arc;
+  rf_checker::rf_checker _rf_checker;
 };
