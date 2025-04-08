@@ -43,3 +43,71 @@ configs:
   analyse_tuples:
     - [invs0]
 ```
+
+### arc analyse
+
+```yml
+mode: arc analyse
+rpts:
+  invs0:
+    path: rpt/invs_rpts/axi4lscope.simple.gz
+    type: invs
+  leda:
+    path: rpt/leda_rpts/z80_core_top_N7_LEC_allpath.rpt.gz
+    type: leda
+configs:
+  output_dir: output
+  analyse_tuples:
+    - ["leda", "leda"]
+  delay_filter: x >= 0 # filter for delay
+```
+
+### path analyse
+
+```yml
+mode: path analyse
+rpts:
+  invs0:
+    path: rpt/invs_rpts/axi4lscope.simple.gz
+    type: invs
+  leda:
+    path: rpt/leda_rpts/z80_core_top_N7_LEC_allpath.rpt.gz
+    type: leda
+configs:
+  output_dir: output
+  enable_super_arc: True
+  enable_ignore_filter: True
+  analyse_tuples:
+    - - leda
+      - leda
+```
+
+## explain of config
+### Common Attributes Across YAML Modes
+
+1. **Global Structure**:
+   - Each YAML file contains a `mode` key to define the type of analysis or comparison.
+   - A `rpts` section is used to specify report paths and their types.
+   - A `configs` section defines configuration parameters for the specified mode.
+
+2. **Shared Configurations**:
+   - **`output_dir`**: Specifies where the output will be stored. This attribute is present in all modes (`compare`, `cell in def`, `arc analyse`, `path analyse`).
+   - **`analyse_tuples`**: Defines pairs of reports to analyze. It appears in multiple modes but with varying structures (e.g., single-element lists for `cell in def`, or paired lists for other modes).
+
+3. **Report Definitions**:
+   - The `rpts` section consistently uses keys like `path` to specify file locations and `type` to indicate the report format (e.g., `"leda"`, `"invs"`, `"leda_endpoint"`). Additional keys such as `def` appear in specific contexts (like `cell in def` mode).
+
+4. **Mode-Specific Attributes**:
+   - **Compare Mode**: Includes unique attributes like `compare_mode`, `slack_margins`, and `match_percentages`.
+   - **Arc Analyse Mode**: Introduces a `delay_filter` expression.
+   - **Path Analyse Mode**: Features boolean flags like `enable_super_arc` and `enable_ignore_filter`.
+
+### Summary of Shared Attributes
+
+- **`mode`**: Always present to specify operation type.
+- **`rpts`**:
+  - **`path`**: File path to the report.
+  - **`type`**: Type of report (e.g., `"leda"`, `"invs"`).
+- **`configs`**:
+  - **`output_dir`**: Directory for storing outputs.
+  - **`analyse_tuples`**: Pairs or singles of reports to analyze.
