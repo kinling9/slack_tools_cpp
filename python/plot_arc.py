@@ -7,7 +7,7 @@ import argparse
 
 def gen_data(name, datas):
     name = f"{name} arc"
-    arc_list = [i for i in datas if i["type"] == name]
+    arc_list = [v for k, v in datas.items() if v["type"] == name]
     dly_array = np.array([[i["key"]["delay"], i["value"]["delay"]] for i in arc_list])
     length_array = np.array(
         [[i["key"]["length"], i["value"]["length"]] for i in arc_list]
