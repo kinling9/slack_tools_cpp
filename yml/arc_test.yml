@@ -13,3 +13,4 @@ configs:
     - ["leda", "leda"]
   # fanout_filter: x >= 1
   delay_filter: x >= 0
+  enable_rise_fall: True
