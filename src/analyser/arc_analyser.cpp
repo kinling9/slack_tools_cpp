@@ -5,6 +5,7 @@
 
 #include <nlohmann/json.hpp>
 #include <ranges>
+#include <thread>
 
 #include "utils/design_cons.h"
 #include "utils/double_filter/double_filter.h"
@@ -49,13 +50,21 @@ void arc_analyser::analyse() {
 }
 
 void arc_analyser::gen_value_map() {
+  std::vector<std::thread> threads;
   for (const auto &rpt_pair : _analyse_tuples) {
-    std::string cmp_name = fmt::format("{}", fmt::join(rpt_pair, "-"));
-    absl::flat_hash_map<std::pair<std::string_view, bool>,
-                        std::shared_ptr<Path>>
-        pin_map;
-    gen_pin2path_map(_dbs.at(rpt_pair[1]), pin_map);
-    match(cmp_name, pin_map, {_dbs.at(rpt_pair[0]), _dbs.at(rpt_pair[1])});
+    threads.emplace_back([this, rpt_pair]() {
+      std::string cmp_name = fmt::format("{}", fmt::join(rpt_pair, "-"));
+      absl::flat_hash_map<std::pair<std::string_view, bool>,
+                          std::shared_ptr<Path>>
+          pin_map;
+      gen_pin2path_map(_dbs.at(rpt_pair[1]), pin_map);
+      match(cmp_name, pin_map, {_dbs.at(rpt_pair[0]), _dbs.at(rpt_pair[1])});
+    });
+  }
+  for (auto &t : threads) {
+    if (t.joinable()) {
+      t.join();
+    }
   }
 }
 
@@ -74,11 +83,14 @@ void arc_analyser::gen_pin2path_map(
   }
 }
 
-void arc_analyser::match(const std::string &cmp_name,
-                         absl::flat_hash_map<std::pair<std::string_view, bool>,
-                                             std::shared_ptr<Path>> &pin_map,
-                         const std::vector<std::shared_ptr<basedb>> &dbs) {
-  _arcs_buffer.clear();
+void arc_analyser::match(
+    const std::string &cmp_name,
+    const absl::flat_hash_map<std::pair<std::string_view, bool>,
+                              std::shared_ptr<Path>> &pin_map,
+    const std::vector<std::shared_ptr<basedb>> &dbs) {
+  absl::flat_hash_map<std::tuple<std::string, bool, std::string, bool>,
+                      nlohmann::json>
+      arcs_buffer;
   auto fanout_filter =
       [&](const std::tuple<std::shared_ptr<Pin>, std::shared_ptr<Pin>>
               pin_ptr_tuple) {
@@ -115,7 +127,7 @@ void arc_analyser::match(const std::string &cmp_name,
           std::make_pair(pin_to->name, _rf_checker.check(pin_to->rise_fall));
       if (pin_map.contains(from) && pin_map.contains(to)) {
         if (pin_map.at(from) == pin_map.at(to) &&
-            !_arcs_buffer.contains(arc_tuple)) {
+            !arcs_buffer.contains(arc_tuple)) {
           auto &value_path = pin_map.at(from);
           nlohmann::json node = {
               {"type", pin_from->is_input ? "cell arc" : "net arc"},
@@ -142,17 +154,17 @@ void arc_analyser::match(const std::string &cmp_name,
               node["value"]["endpoint"].get<std::string>()) {
             node["delta_slack"] = key_path->slack - value_path->slack;
           }
-          _arcs_buffer[arc_tuple] = node;
+          arcs_buffer[arc_tuple] = node;
         }
       }
     }
   }
   nlohmann::json arc_node;
-  for (const auto &[arc, _] : _arcs_buffer) {
+  for (const auto &[arc, _] : arcs_buffer) {
     arc_node[fmt::format(
         "{} {}-{} {}", std::get<0>(arc), std::get<1>(arc) ? "(rise)" : "(fall)",
         std::get<2>(arc), std::get<3>(arc) ? "(rise)" : "(fall)")] =
-        _arcs_buffer[arc];
+        arcs_buffer[arc];
   }
   fmt::print(_arcs_writers[cmp_name]->out_file, "{}", arc_node.dump(2));
 }

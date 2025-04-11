@@ -11,6 +11,9 @@ configs:
   analyse_tuples:
     # - ["invs0", "invs0"]
     - ["leda", "leda"]
+    - ["invs0", "invs0"]
+    # - ["leda", "invs0"]
+    # - ["invs0", "leda"]
   # fanout_filter: x >= 1
   delay_filter: x >= 0
   enable_rise_fall: True

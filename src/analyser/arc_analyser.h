@@ -21,8 +21,8 @@ class arc_analyser : public analyser {
       absl::flat_hash_map<std::pair<std::string_view, bool>,
                           std::shared_ptr<Path>> &pin2path_map);
   void match(const std::string &cmp_name,
-             absl::flat_hash_map<std::pair<std::string_view, bool>,
-                                 std::shared_ptr<Path>> &pin_map,
+             const absl::flat_hash_map<std::pair<std::string_view, bool>,
+                                       std::shared_ptr<Path>> &pin_map,
              const std::vector<std::shared_ptr<basedb>> &dbs);
   bool parse_configs() override;
   void open_writers();
@@ -31,9 +31,6 @@ class arc_analyser : public analyser {
   bool _enable_super_arc;
   bool _enable_rise_fall;
   absl::flat_hash_map<std::string, std::shared_ptr<writer>> _arcs_writers;
-  absl::flat_hash_map<std::tuple<std::string, bool, std::string, bool>,
-                      nlohmann::json>
-      _arcs_buffer;
   std::vector<double> _delay_filter_op_code;
   std::vector<double> _fanout_filter_op_code;
   super_arc::super_arc_pattern _super_arc;
