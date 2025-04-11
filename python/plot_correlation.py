@@ -38,7 +38,11 @@ def get_reg_group(reg_name):
 
 def gen_data(datas):
     data_dict = {
-        k: {"delay": [v["key"]["delay"], v["value"]["delay"]], "size": 1}
+        k: {
+            "delay": [v["key"]["delay"], v["value"]["delay"]],
+            "size": 1,
+            "type": v["type"],
+        }
         for k, v in datas.items()
     }
     return data_dict
@@ -49,7 +53,11 @@ def group_dict(data_dict):
     for key, value in data_dict.items():
         group_key = get_reg_group(key)
         if group_key not in data_dict_grouped:
-            data_dict_grouped[group_key] = {"delay": [0, 0], "size": 0}
+            data_dict_grouped[group_key] = {
+                "delay": [0, 0],
+                "size": 0,
+                "type": "cell arc",
+            }
         data_dict_grouped[group_key]["delay"] = [
             a + b for a, b in zip(value["delay"], data_dict_grouped[group_key]["delay"])
         ]
@@ -58,9 +66,28 @@ def group_dict(data_dict):
 
 
 def plot_group(data_dict: dict, name: str, x_label, y_label):
-    x_list = [v["delay"][0] for v in data_dict.values()]
-    y_list = [v["delay"][1] for v in data_dict.values()]
-    size_list = [v["size"] * 100 for v in data_dict.values()]
+    # Separate data into cell arcs and net arcs
+    cell_x = []
+    cell_y = []
+    cell_size = []
+    net_x = []
+    net_y = []
+    net_size = []
+
+    for k, v in data_dict.items():
+        if "type" in v and v["type"] == "cell arc":
+            cell_x.append(v["delay"][0])
+            cell_y.append(v["delay"][1])
+            cell_size.append(v["size"] * 100)
+        elif "type" in v and v["type"] == "net arc":
+            net_x.append(v["delay"][0])
+            net_y.append(v["delay"][1])
+            net_size.append(v["size"] * 100)
+
+    # Combine all data for regression line and histogram
+    x_list = cell_x + net_x
+    y_list = cell_y + net_y
+    size_list = cell_size + net_size
     fig, [ax0, ax1] = plt.subplots(
         nrows=1, ncols=2, figsize=(16, 6), gridspec_kw={"width_ratios": [1, 1.2]}
     )
@@ -68,7 +95,32 @@ def plot_group(data_dict: dict, name: str, x_label, y_label):
     ax0.set_xlabel(x_label)
     ax0.set_ylabel(y_label)
     ax0.axhline(y=0, color="green", linestyle="--")
-    ax0.scatter(x_list, y_list, c="k", marker=".", linewidth=0, s=size_list, alpha=0.5)
+    # Scatter plot for cell arcs (red)
+    ax0.scatter(
+        cell_x,
+        cell_y,
+        c="red",
+        marker=".",
+        linewidth=0,
+        s=cell_size,
+        alpha=0.5,
+        label="Cell Arc",
+    )
+
+    # Scatter plot for net arcs (blue)
+    ax0.scatter(
+        net_x,
+        net_y,
+        c="blue",
+        marker=".",
+        linewidth=0,
+        s=net_size,
+        alpha=0.5,
+        label="Net Arc",
+    )
+
+    # Add legend for scatter plots
+    ax0.legend()
     ax0.grid(ls=":", color="blue")
 
     func = np.polyfit(x_list, y_list, 1)
@@ -102,7 +154,11 @@ def plot_correlation(path, output_file, x_label, y_label):
     grouped_dict = group_dict(data_dict)
 
     avg_dict = {
-        k: {"delay": [i / v["size"] for i in v["delay"]], "size": v["size"]}
+        k: {
+            "delay": [i / v["size"] for i in v["delay"]],
+            "size": v["size"],
+            "type": v["type"],
+        }
         for k, v in grouped_dict.items()
     }
 
@@ -110,11 +166,15 @@ def plot_correlation(path, output_file, x_label, y_label):
 
     # plot
     print(f"{datetime.now()}: start plotting")
-    r2_dict = {"raw": 0.0, "grouped": 0.0, "average": 0.0}
+    r2_dict = {
+        "raw": 0.0,
+        "average": 0.0,
+        "num_arc": len(data_dict),
+        "num_cell_arc": len([v for v in data_dict.values() if v["type"] == "cell arc"]),
+        "num_net_arc": len([v for v in data_dict.values() if v["type"] == "net arc"]),
+        "num_group": len(grouped_dict),
+    }
     r2_dict["raw"] = plot_group(data_dict, f"{output_file}.png", x_label, y_label)
-    r2_dict["grouped"] = plot_group(
-        grouped_dict, f"{output_file}_grouped.png", x_label, y_label
-    )
     r2_dict["average"] = plot_group(
         avg_dict, f"{output_file}_average.png", x_label, y_label
     )
