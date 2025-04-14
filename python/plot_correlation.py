@@ -75,7 +75,7 @@ def plot_group(data_dict: dict, name: str, x_label, y_label):
     net_size = []
 
     for k, v in data_dict.items():
-        if "type" in v and v["type"] == "cell arc":
+        if "type" in v and (v["type"] == "cell arc" or v["type"] == "pair arc"):
             cell_x.append(v["delay"][0])
             cell_y.append(v["delay"][1])
             cell_size.append(v["size"] * 100)
