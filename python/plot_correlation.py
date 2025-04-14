@@ -24,11 +24,12 @@ def get_reg_group(reg_name):
 
     ls_layer = reg_name.split("/")
     res = ""
-    keep_until = len(ls_layer) - digit_shrink_level - 1
+    keep_until = len(ls_layer) - digit_shrink_level
+    keep_until = max(0, keep_until)
     if digit_shrink_level == -1:
         keep_until = 0
     for i in range(0, keep_until):
-        res += "/"
+        res += "/" if i > 0 else ""
         res += ls_layer[i]
     for i in range(max(0, keep_until), len(ls_layer)):
         res += "/" if i > 0 else ""
@@ -42,6 +43,8 @@ def gen_data(datas):
             "delay": [v["key"]["delay"], v["value"]["delay"]],
             "size": 1,
             "type": v["type"],
+            "from": v["from"],
+            "to": v["to"],
         }
         for k, v in datas.items()
     }
@@ -51,7 +54,8 @@ def gen_data(datas):
 def group_dict(data_dict):
     data_dict_grouped = {}
     for key, value in data_dict.items():
-        group_key = get_reg_group(key)
+        group_key = get_reg_group(value["from"]) + "-" + get_reg_group(value["to"])
+        print(f"key: {key}, group_key: {group_key}")
         if group_key not in data_dict_grouped:
             data_dict_grouped[group_key] = {
                 "delay": [0, 0],
