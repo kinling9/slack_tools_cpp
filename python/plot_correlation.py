@@ -23,15 +23,16 @@ def get_reg_group(reg_name):
         return bracket_number.sub("", s)
 
     ls_layer = reg_name.split("/")
-    res = remove_bracket_numbers(ls_layer[0])
-    keep_until = len(ls_layer) - digit_shrink_level - 1
+    res = ""
+    keep_until = len(ls_layer) - digit_shrink_level
+    keep_until = max(0, keep_until)
     if digit_shrink_level == -1:
-        keep_until = 1
-    for i in range(1, keep_until):
-        res += "/"
+        keep_until = 0
+    for i in range(0, keep_until):
+        res += "/" if i > 0 else ""
         res += ls_layer[i]
-    for i in range(max(1, keep_until), len(ls_layer)):
-        res += "/"
+    for i in range(max(0, keep_until), len(ls_layer)):
+        res += "/" if i > 0 else ""
         res += replace_digits(ls_layer[i])
     return res
 
@@ -42,6 +43,8 @@ def gen_data(datas):
             "delay": [v["key"]["delay"], v["value"]["delay"]],
             "size": 1,
             "type": v["type"],
+            "from": v["from"],
+            "to": v["to"],
         }
         for k, v in datas.items()
     }
@@ -51,7 +54,8 @@ def gen_data(datas):
 def group_dict(data_dict):
     data_dict_grouped = {}
     for key, value in data_dict.items():
-        group_key = get_reg_group(key)
+        group_key = get_reg_group(value["from"]) + "-" + get_reg_group(value["to"])
+        print(f"key: {key}, group_key: {group_key}")
         if group_key not in data_dict_grouped:
             data_dict_grouped[group_key] = {
                 "delay": [0, 0],
@@ -87,7 +91,7 @@ def plot_group(data_dict: dict, name: str, x_label, y_label):
     # Combine all data for regression line and histogram
     x_list = cell_x + net_x
     y_list = cell_y + net_y
-    size_list = cell_size + net_size
+    # size_list = cell_size + net_size
     fig, [ax0, ax1] = plt.subplots(
         nrows=1, ncols=2, figsize=(16, 6), gridspec_kw={"width_ratios": [1, 1.2]}
     )
@@ -153,6 +157,12 @@ def plot_correlation(path, output_file, x_label, y_label):
     data_dict = gen_data(data)
 
     grouped_dict = group_dict(data_dict)
+    data_dict_df = pd.DataFrame.from_dict(data_dict, orient="index")
+    with open(f"{output_file}.csv", "w") as f:
+        data_dict_df.to_csv(f)
+    grouped_dict_df = pd.DataFrame.from_dict(grouped_dict, orient="index")
+    with open(f"{output_file}_grouped.csv", "w") as f:
+        grouped_dict_df.to_csv(f)
 
     avg_dict = {
         k: {
@@ -162,6 +172,9 @@ def plot_correlation(path, output_file, x_label, y_label):
         }
         for k, v in grouped_dict.items()
     }
+    avg_dict_df = pd.DataFrame.from_dict(avg_dict, orient="index")
+    with open(f"{output_file}_average.csv", "w") as f:
+        avg_dict_df.to_csv(f)
 
     print(f"# values: {len(data)}, matched groups = {len(data_dict)}")
 
