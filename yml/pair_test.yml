@@ -16,4 +16,4 @@ configs:
     # - ["invs0", "leda"]
   # fanout_filter: x >= 1
   # delay_filter: x >= 0
-  enable_rise_fall: True
+  enable_rise_fall: False
