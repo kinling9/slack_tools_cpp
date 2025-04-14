@@ -32,4 +32,6 @@ if __name__ == "__main__":
         all_r2_df = pd.concat([all_r2_df, sub_df], ignore_index=True)
     print(all_r2_df)
     flow_name = args.path.split("/")[-1].split(".")[0]
-    all_r2_df.to_csv(f"{output_dir}/{flow_name}_r2.csv", index=False)
+    all_r2_df.to_csv(
+        f"{output_dir}/{flow_name}_r2.csv", index=False, float_format="%.4f"
+    )

@@ -96,10 +96,11 @@ def plot_group(data_dict: dict, name: str, x_label, y_label):
     ax0.set_ylabel(y_label)
     ax0.axhline(y=0, color="green", linestyle="--")
     # Scatter plot for cell arcs (red)
+    group_color = "red" if len(net_y) else "k"
     ax0.scatter(
         cell_x,
         cell_y,
-        c="red",
+        c=group_color,
         marker=".",
         linewidth=0,
         s=cell_size,
