@@ -10,6 +10,7 @@
 #include "analyser/comparator.h"
 #include "analyser/existence_checker.h"
 #include "analyser/fanout_analyser.h"
+#include "analyser/pair_analyser.h"
 #include "analyser/path_analyser.h"
 #include "parser/def_parser.h"
 #include "parser/invs_rpt.h"
@@ -63,6 +64,8 @@ void flow_control::parse_yml(std::string yml_file) {
     _analyser = std::make_unique<fanout_analyser>(config["configs"]);
   } else if (mode == "path analyse") {
     _analyser = std::make_unique<path_analyser>(config["configs"]);
+  } else if (mode == "pair analyse") {
+    _analyser = std::make_unique<pair_analyser>(config["configs"]);
   } else {
     throw std::system_error(
         errno, std::generic_category(),

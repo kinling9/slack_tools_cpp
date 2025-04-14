@@ -20,14 +20,15 @@ class arc_analyser : public analyser {
       const std::shared_ptr<basedb> &db,
       absl::flat_hash_map<std::pair<std::string_view, bool>,
                           std::shared_ptr<Path>> &pin2path_map);
-  void match(const std::string &cmp_name,
-             const absl::flat_hash_map<std::pair<std::string_view, bool>,
-                                       std::shared_ptr<Path>> &pin_map,
-             const std::vector<std::shared_ptr<basedb>> &dbs);
+  virtual void match(
+      const std::string &cmp_name,
+      const absl::flat_hash_map<std::pair<std::string_view, bool>,
+                                std::shared_ptr<Path>> &pin_map,
+      const std::vector<std::shared_ptr<basedb>> &dbs);
   bool parse_configs() override;
   void open_writers();
 
- private:
+ protected:
   bool _enable_super_arc;
   bool _enable_rise_fall;
   absl::flat_hash_map<std::string, std::shared_ptr<writer>> _arcs_writers;

@@ -46,8 +46,30 @@ configs:
 
 ### arc analyse
 
+> analyse cell arc and net arc independently
+
 ```yml
 mode: arc analyse
+rpts:
+  invs0:
+    path: rpt/invs_rpts/axi4lscope.simple.gz
+    type: invs
+  leda:
+    path: rpt/leda_rpts/z80_core_top_N7_LEC_allpath.rpt.gz
+    type: leda
+configs:
+  output_dir: output
+  analyse_tuples:
+    - ["leda", "leda"]
+  delay_filter: x >= 0 # filter for delay
+```
+
+### pair analyse
+
+> pair cell arc and next net arc and analyse together
+
+```yml
+mode: pair analyse
 rpts:
   invs0:
     path: rpt/invs_rpts/axi4lscope.simple.gz
