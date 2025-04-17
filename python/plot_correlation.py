@@ -176,7 +176,7 @@ def plot_correlation(path, output_file, x_label, y_label):
     data_dict = gen_data(data)
 
     data_dict_df = pd.DataFrame.from_dict(data_dict, orient="index")
-    with open(f"{output_file}.csv", "w") as f:
+    with open(f"{output_file}_arc.csv", "w") as f:
         data_dict_df.to_csv(f)
 
     print(f"# values: {len(data)}, matched groups = {len(data_dict)}")

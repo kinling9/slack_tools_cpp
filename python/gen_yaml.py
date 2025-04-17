@@ -26,6 +26,7 @@ def generate_yaml_content(json_file: str, output_dir: str = "output"):
             "output_dir": "",
             "analyse_tuples": [],
             "compare_mode": "endpoint",
+            "slack_filter": "x < 1",
         },
     }
     # Generate the YAML content based on the provided structure
