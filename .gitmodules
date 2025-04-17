@@ -19,3 +19,6 @@
 [submodule "thirdparty/json"]
 	path = thirdparty/json
 	url = https://github.com/nlohmann/json.git
+[submodule "configs"]
+	path = configs
+	url = git@github.com:kinling9/slack_tools_config.git
