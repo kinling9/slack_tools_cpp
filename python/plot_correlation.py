@@ -55,7 +55,6 @@ def group_arc(data_dict):
     data_dict_grouped = {}
     for key, value in data_dict.items():
         group_key = get_reg_group(value["from"]) + "-" + get_reg_group(value["to"])
-        # print(f"key: {key}, group_key: {group_key}")
         if group_key not in data_dict_grouped:
             data_dict_grouped[group_key] = {
                 "delay": [0, 0],
@@ -73,7 +72,6 @@ def group_reg(data_dict):
     data_dict_grouped = {}
     for key, value in data_dict.items():
         group_key = get_reg_group(key)
-        # print(f"key: {key}, group_key: {group_key}")
         if group_key not in data_dict_grouped:
             data_dict_grouped[group_key] = {
                 "delay": [0, 0],
@@ -194,7 +192,6 @@ def plot_correlation(path, output_file, x_label, y_label):
     # After calculating r2_dict, create a DataFrame and save to CSV
     r2_dict_with_name = {"name": output_file.split("/")[-1], **r2_dict}
     r2_df = pd.DataFrame([r2_dict_with_name], columns=r2_dict_with_name.keys())
-    # r2_df.to_csv(f"{output_file}_r2_scores.csv", index=False)
     print(f"{datetime.now()}: finish plotting")
     return r2_df
 
@@ -235,6 +232,10 @@ def plot_text(path: list, output_file, x_label, y_label):
         }
         for k, v in grouped_dict.items()
     }
+    avg_dict_df = pd.DataFrame.from_dict(avg_dict, orient="index")
+    with open(f"{output_file}_end_avg.csv", "w") as f:
+        avg_dict_df.to_csv(f)
+
     r2_dict = {
         "end": 0.0,
         "end_group": 0.0,
