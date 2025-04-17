@@ -51,16 +51,34 @@ def gen_data(datas):
     return data_dict
 
 
-def group_dict(data_dict):
+def group_arc(data_dict):
     data_dict_grouped = {}
     for key, value in data_dict.items():
         group_key = get_reg_group(value["from"]) + "-" + get_reg_group(value["to"])
-        print(f"key: {key}, group_key: {group_key}")
+        # print(f"key: {key}, group_key: {group_key}")
         if group_key not in data_dict_grouped:
             data_dict_grouped[group_key] = {
                 "delay": [0, 0],
                 "size": 0,
                 "type": "cell arc",
+            }
+        data_dict_grouped[group_key]["delay"] = [
+            a + b for a, b in zip(value["delay"], data_dict_grouped[group_key]["delay"])
+        ]
+        data_dict_grouped[group_key]["size"] += 1
+    return data_dict_grouped
+
+
+def group_reg(data_dict):
+    data_dict_grouped = {}
+    for key, value in data_dict.items():
+        group_key = get_reg_group(key)
+        # print(f"key: {key}, group_key: {group_key}")
+        if group_key not in data_dict_grouped:
+            data_dict_grouped[group_key] = {
+                "delay": [0, 0],
+                "size": 0,
+                "type": "endpoint",
             }
         data_dict_grouped[group_key]["delay"] = [
             a + b for a, b in zip(value["delay"], data_dict_grouped[group_key]["delay"])
@@ -77,12 +95,14 @@ def plot_group(data_dict: dict, name: str, x_label, y_label):
     net_x = []
     net_y = []
     net_size = []
+    scatter_type = ""
 
     for k, v in data_dict.items():
-        if "type" in v and (v["type"] == "cell arc" or v["type"] == "pair arc"):
+        if "type" in v and v["type"] != "net arc":
             cell_x.append(v["delay"][0])
             cell_y.append(v["delay"][1])
             cell_size.append(v["size"] * 100)
+            scatter_type = v["type"]
         elif "type" in v and v["type"] == "net arc":
             net_x.append(v["delay"][0])
             net_y.append(v["delay"][1])
@@ -109,20 +129,21 @@ def plot_group(data_dict: dict, name: str, x_label, y_label):
         linewidth=0,
         s=cell_size,
         alpha=0.5,
-        label="Cell Arc",
+        label="cell arc" if len(net_y) else scatter_type,
     )
 
     # Scatter plot for net arcs (blue)
-    ax0.scatter(
-        net_x,
-        net_y,
-        c="blue",
-        marker=".",
-        linewidth=0,
-        s=net_size,
-        alpha=0.5,
-        label="Net Arc",
-    )
+    if len(net_y):
+        ax0.scatter(
+            net_x,
+            net_y,
+            c="blue",
+            marker=".",
+            linewidth=0,
+            s=net_size,
+            alpha=0.5,
+            label="net arc",
+        )
 
     # Add legend for scatter plots
     ax0.legend()
@@ -156,14 +177,56 @@ def plot_correlation(path, output_file, x_label, y_label):
         data = json.load(f)
     data_dict = gen_data(data)
 
-    grouped_dict = group_dict(data_dict)
     data_dict_df = pd.DataFrame.from_dict(data_dict, orient="index")
     with open(f"{output_file}.csv", "w") as f:
         data_dict_df.to_csv(f)
-    grouped_dict_df = pd.DataFrame.from_dict(grouped_dict, orient="index")
-    with open(f"{output_file}_grouped.csv", "w") as f:
-        grouped_dict_df.to_csv(f)
 
+    print(f"# values: {len(data)}, matched groups = {len(data_dict)}")
+
+    # plot
+    print(f"{datetime.now()}: start plotting")
+    r2_dict = {
+        "arc": 0.0,
+        "num_arc": len(data_dict),
+    }
+    r2_dict["arc"] = plot_group(data_dict, f"{output_file}_arc.png", x_label, y_label)
+
+    # After calculating r2_dict, create a DataFrame and save to CSV
+    r2_dict_with_name = {"name": output_file.split("/")[-1], **r2_dict}
+    r2_df = pd.DataFrame([r2_dict_with_name], columns=r2_dict_with_name.keys())
+    # r2_df.to_csv(f"{output_file}_r2_scores.csv", index=False)
+    print(f"{datetime.now()}: finish plotting")
+    return r2_df
+
+
+def collect_data_to_dict(data_file_name):
+    data_dict = dict()
+    data_file = open(data_file_name)
+    for line in data_file:
+        tokens = line.split()
+        if tokens[0] in data_dict:
+            print(
+                f"Warning: ignore another occurance of key '{tokens[0]}' in file '{data_file_name}'"
+            )
+            continue
+        data_dict[tokens[0]] = float(tokens[1])
+    return data_dict
+
+
+def plot_text(path: list, output_file, x_label, y_label):
+    x_data_dict = collect_data_to_dict(path[0])
+    y_data_dict = collect_data_to_dict(path[1])
+
+    data_dict = {}
+
+    for k, v in x_data_dict.items():
+        if k in y_data_dict:
+            data_dict[k] = {
+                "delay": [v, y_data_dict[k]],
+                "size": 1,
+                "type": "cell arc",
+            }
+    grouped_dict = group_reg(data_dict)
     avg_dict = {
         k: {
             "delay": [i / v["size"] for i in v["delay"]],
@@ -172,32 +235,20 @@ def plot_correlation(path, output_file, x_label, y_label):
         }
         for k, v in grouped_dict.items()
     }
-    avg_dict_df = pd.DataFrame.from_dict(avg_dict, orient="index")
-    with open(f"{output_file}_average.csv", "w") as f:
-        avg_dict_df.to_csv(f)
-
-    print(f"# values: {len(data)}, matched groups = {len(data_dict)}")
-
-    # plot
-    print(f"{datetime.now()}: start plotting")
     r2_dict = {
-        "raw": 0.0,
-        "average": 0.0,
-        "num_arc": len(data_dict),
-        "num_cell_arc": len([v for v in data_dict.values() if v["type"] == "cell arc"]),
-        "num_net_arc": len([v for v in data_dict.values() if v["type"] == "net arc"]),
-        "num_group": len(grouped_dict),
+        "end": 0.0,
+        "end_group": 0.0,
+        "num_end": len(data_dict),
+        "num_group": len(avg_dict),
     }
-    r2_dict["raw"] = plot_group(data_dict, f"{output_file}.png", x_label, y_label)
-    r2_dict["average"] = plot_group(
-        avg_dict, f"{output_file}_average.png", x_label, y_label
+    r2_dict["end"] = plot_group(
+        data_dict, f"{output_file}_endpoint.png", x_label, y_label
     )
-
-    # After calculating r2_dict, create a DataFrame and save to CSV
+    r2_dict["end_group"] = plot_group(
+        avg_dict, f"{output_file}_endpoint_avg.png", x_label, y_label
+    )
     r2_dict_with_name = {"name": output_file.split("/")[-1], **r2_dict}
     r2_df = pd.DataFrame([r2_dict_with_name], columns=r2_dict_with_name.keys())
-    # r2_df.to_csv(f"{output_file}_r2_scores.csv", index=False)
-    print(f"{datetime.now()}: finish plotting")
     return r2_df
 
 
