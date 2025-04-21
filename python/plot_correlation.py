@@ -76,7 +76,7 @@ def group_reg(data_dict):
             data_dict_grouped[group_key] = {
                 "delay": [0, 0],
                 "size": 0,
-                "type": "endpoint",
+                "type": "endpoint_grp",
             }
         data_dict_grouped[group_key]["delay"] = [
             a + b for a, b in zip(value["delay"], data_dict_grouped[group_key]["delay"])
@@ -99,7 +99,7 @@ def plot_group(data_dict: dict, name: str, x_label, y_label):
         if "type" in v and v["type"] != "net arc":
             cell_x.append(v["delay"][0])
             cell_y.append(v["delay"][1])
-            cell_size.append(v["size"] * 100)
+            cell_size.append(v["size"] * (100 if v["type"] != "endpoint_grp" else 1))
             scatter_type = v["type"]
         elif "type" in v and v["type"] == "net arc":
             net_x.append(v["delay"][0])
@@ -221,7 +221,7 @@ def plot_text(path: list, output_file, x_label, y_label):
             data_dict[k] = {
                 "delay": [v, y_data_dict[k]],
                 "size": 1,
-                "type": "cell arc",
+                "type": "endpoint",
             }
     grouped_dict = group_reg(data_dict)
     avg_dict = {
