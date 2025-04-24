@@ -8,7 +8,7 @@
 #include "yaml-cpp/yaml.h"
 
 int main(int argc, char** argv) {
-  argparse::ArgumentParser program("cpp_timing_analyser");
+  argparse::ArgumentParser program("slack_tool");
   program.add_argument("yml").help("yml config file");
 
   try {
