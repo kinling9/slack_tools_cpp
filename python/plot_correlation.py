@@ -151,6 +151,7 @@ def plot_group(data_dict: dict, name: str, x_label, y_label):
     xn = np.linspace(min(x_list), max(x_list), 1000)
     yn = np.poly1d(func)
     r2 = sklearn.metrics.r2_score(y_list, x_list)
+    scale_r2 = sklearn.metrics.r2_score(y_list, yn(x_list))
     ax0.set_title("Scatter plot (r2 = {:0.4f})".format(r2), fontsize=10)
     ax0.plot(xn, yn(xn))
 
@@ -164,7 +165,7 @@ def plot_group(data_dict: dict, name: str, x_label, y_label):
     ax0.set_ylim(ax1.get_ylim())
 
     plt.savefig(name, bbox_inches="tight")
-    return float(r2)
+    return float(r2), float(scale_r2)
 
 
 def plot_correlation(path, output_file, x_label, y_label):
