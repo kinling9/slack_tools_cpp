@@ -19,7 +19,7 @@ design_cons& design_cons::get_instance() {
 design_cons::design_cons() {
   YAML::Node periods;
   try {
-    periods = YAML::LoadFile("yml/design_period.yml");
+    periods = YAML::LoadFile("configs/design_period.yml");
   } catch (const std::exception& err) {
     std::cerr << err.what() << std::endl;
     std::exit(1);
