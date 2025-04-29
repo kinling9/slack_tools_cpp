@@ -111,12 +111,9 @@ void arc_analyser::match(
         return double_filter(_delay_filter_op_code, pin_ptr->incr_delay);
       };
   for (const auto &key_path : dbs[0]->paths) {
-    for (const auto &pin_tuple :
-         key_path->path | std::views::filter([&](const auto &pin) {
-           return !_super_arc.check_super_arc(pin->type, pin->name);
-         }) | std::views::adjacent<2> |
-             std::views::filter(delay_filter) |
-             std::views::filter(fanout_filter)) {
+    for (const auto &pin_tuple : key_path->path | std::views::adjacent<2> |
+                                     std::views::filter(delay_filter) |
+                                     std::views::filter(fanout_filter)) {
       const auto &[pin_from, pin_to] = pin_tuple;
       auto arc_tuple = std::make_tuple(
           pin_from->name, _rf_checker.check(pin_from->rise_fall), pin_to->name,
