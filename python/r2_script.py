@@ -7,6 +7,7 @@ import subprocess
 import pandas as pd
 import gen_yaml
 import plot_correlation
+import filter_net
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
@@ -53,6 +54,9 @@ if __name__ == "__main__":
         sub_df = pd.merge(
             sub_df_arc,
             sub_df_end,
+        )
+        filter_net.sort_and_convert(
+            f"{output_dir}/{name}.json", f"{output_dir}/{name}.filter.csv", 100
         )
 
         all_r2_df = pd.concat([all_r2_df, sub_df], ignore_index=True)
