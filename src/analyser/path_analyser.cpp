@@ -235,9 +235,7 @@ nlohmann::json path_analyser::path_analyse(
     pin_set.insert({pin->name, _rf_checker.check(pin->rise_fall)});
   }
   for (const auto &pin_tuple :
-       key_path->path | std::views::filter([&](const auto &pin) {
-         return !_super_arc.check_super_arc(pin->type, pin->name);
-       }) | std::views::adjacent<2> |
+       key_path->path | std::views::adjacent<2> |
            std::views::filter([&](const auto &pin_tuple) {
              const auto &[pin_from, pin_to] = pin_tuple;
              return pin_set.contains(
