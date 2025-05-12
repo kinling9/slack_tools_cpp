@@ -34,8 +34,8 @@ nlohmann::json to_json(const std::shared_ptr<Path> path,
            })) {
     node["pins"].push_back(value_pin->to_json());
     locs.push_back(value_pin->location);
-    if (value_pin->name == std::get<2>(names) &&
-        value_pin->rise_fall == std::get<3>(names)) {
+    if (value_pin->name == std::get<0>(names) &&
+        value_pin->rise_fall == std::get<1>(names)) {
       continue;
     }
     delay += value_pin->incr_delay;
