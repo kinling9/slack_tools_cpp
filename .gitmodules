@@ -6,7 +6,7 @@
   url = https://github.com/abseil/abseil-cpp.git
 [submodule "rpt"]
   path = rpt
-  url = git@github.com:kinling9/benchmark_rpts.git
+  url = git@github.com:kinling9/slack_tools_rpts.git
 [submodule "thirdparty/argparse"]
   path = thirdparty/argparse
   url = https://github.com/p-ranav/argparse.git
