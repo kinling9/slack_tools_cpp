@@ -47,6 +47,9 @@ struct data_block {
   // leda index_size
   std::tuple<std::size_t, std::size_t> index_size;
 
+  // leda pta DFX
+  bool is_leda_pta = false;
+
   // invs start flag
   bool start = false;
 

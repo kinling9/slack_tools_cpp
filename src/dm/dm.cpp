@@ -25,6 +25,15 @@ nlohmann::json Pin::to_json() {
   node["trans"] = trans;
   node["cell"] = cell;
   node["rf"] = rise_fall;
+
+  if (pta_buf.has_value()) {
+    node["pta_buf"] = pta_buf.value();
+  }
+
+  if (pta_net.has_value()) {
+    node["pta_net"] = pta_net.value();
+  }
+
   return node;
 }
 

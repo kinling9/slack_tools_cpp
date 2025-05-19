@@ -21,6 +21,9 @@ void get_param(const std::vector<std::string_view> &tokens,
   if (row.contains(key)) {
     int index = row.at(key);
     index = index < 0 ? -index : index;
+    if (static_cast<size_t>(index) >= tokens.size()) {
+      return;
+    }
     auto token = tokens[index];
     param = boost::convert<T>(token, boost::cnv::strtol()).value();
   }
@@ -72,7 +75,7 @@ class leda_rpt_parser : public rpt_parser<T> {
       {"Fanout", false},    {"Cap", false},     {"CX-Derate", false},
       {"CG-Derate", false}, {"Trans", true},    {"Incr", true},
       {"Path", true},       {"Location", true}, {"Point", true},
-      {"Derate", true}};
+      {"Derate", true},     {"PtaBuf", true},   {"PtaNet", true}};
   absl::flat_hash_map<std::size_t, std::unordered_map<std::string, std::size_t>>
       _row_cache;
   absl::flat_hash_map<std::size_t, std::tuple<std::size_t, std::size_t>>
@@ -159,6 +162,9 @@ void leda_rpt_parser<T>::parse_line(T line,
           int i = 0, j = -1;
           for (const auto &[_, str] : tokens) {
             std::string key = std::string(str);
+            if (key == "PtaBuf") {
+              path_block->is_leda_pta = true;
+            }
             if (_row_type.contains(key)) {
               if (_row_type.at(key)) {
                 path_block->row[key] = i++;
@@ -194,8 +200,14 @@ void leda_rpt_parser<T>::parse_line(T line,
           path_block->headers.clear();
         }
         // conditions when token size of net & cell are the same
-        if (tokens.size() == std::get<0>(path_block->index_size) &&
-            !absl::StrContains(tokens[0], "(net)")) {
+        const auto token_count = tokens.size();
+        const auto expected_count = std::get<0>(path_block->index_size);
+        const bool is_suitable_token_count =
+            token_count == expected_count ||
+            (path_block->is_leda_pta && token_count == expected_count - 2);
+        const bool is_not_net = !absl::StrContains(tokens[0], "(net)");
+
+        if (is_suitable_token_count && is_not_net) {
           Pin pin;
           pin.type = "leda";
           pin.is_input = path_block->is_input;
@@ -208,6 +220,15 @@ void leda_rpt_parser<T>::parse_line(T line,
           path_block->start = true;
           get_param(tokens, "Trans", path_block->row, pin.trans);
           get_param(tokens, "Incr", path_block->row, pin.incr_delay);
+          if (path_block->is_leda_pta) {
+            double pta_buf = 0, pta_net = 0;
+            get_param(tokens, "PtaBuf", path_block->row, pta_buf);
+            get_param(tokens, "PtaNet", path_block->row, pta_net);
+            if (token_count == expected_count) {
+              pin.pta_buf = pta_buf;
+              pin.pta_net = pta_net;
+            }
+          }
           get_path_dly(tokens, path_block->row, pin);
           if (pin.name == path_block->path_obj->startpoint &&
               !path_block->path_obj->path_params.contains(

@@ -1,0 +1,14 @@
+mode: pair analyse
+rpts:
+  leda1:
+    path: rpt/leda_rpts/z80_core_top_N7_LEC_pta.rpt
+    type: leda
+    max_paths: 1
+configs:
+  analyse_tuples:
+    - - leda1
+      - leda1
+    # - - leda2
+    #   - leda3
+  output_dir: output
+  enable_rise_fall: False

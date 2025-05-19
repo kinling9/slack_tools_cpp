@@ -3,6 +3,7 @@
 
 #include <memory>
 #include <nlohmann/json.hpp>
+#include <optional>
 #include <string>
 #include <vector>
 
@@ -21,6 +22,8 @@ class Pin {
   double trans;
   double incr_delay;
   double path_delay;
+  std::optional<double> pta_buf;
+  std::optional<double> pta_net;
   bool rise_fall;
   bool is_input;  // cell input
   std::pair<double, double> location;
