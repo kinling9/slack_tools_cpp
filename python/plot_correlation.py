@@ -113,7 +113,7 @@ def plot_group(data_dict: dict, name: str, x_label, y_label):
     fig, [ax0, ax1] = plt.subplots(
         nrows=1, ncols=2, figsize=(16, 6), gridspec_kw={"width_ratios": [1, 1.2]}
     )
-
+    # ax0.axis("equal")
     ax0.set_xlabel(x_label)
     ax0.set_ylabel(y_label)
     ax0.axhline(y=0, color="green", linestyle="--")
@@ -154,15 +154,18 @@ def plot_group(data_dict: dict, name: str, x_label, y_label):
     scale_r2 = sklearn.metrics.r2_score(y_list, yn(x_list))
     ax0.set_title("Scatter plot (r2 = {:0.4f})".format(r2), fontsize=10)
     ax0.plot(xn, yn(xn))
+    ax0.plot(xn, xn)
 
     ax1.set_title("2D histogram", fontsize=10)
     h = ax1.hist2d(x_list, y_list, bins=50)
+    ax1.set_aspect("equal", adjustable="box")
     ax1.axhline(y=0, color="green", linestyle="--")
     ax1.axvline(x=0, color="green", linestyle="--")
     fig.colorbar(h[3], ax=ax1)
 
     ax0.set_xlim(ax1.get_xlim())
     ax0.set_ylim(ax1.get_ylim())
+    ax0.set_aspect("equal", adjustable="box")
 
     plt.savefig(name, bbox_inches="tight")
     return float(r2), float(scale_r2)
