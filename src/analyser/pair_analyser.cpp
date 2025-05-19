@@ -68,12 +68,10 @@ void pair_analyser::match(
               {"to",
                fmt::format("{} {}", to.first, to.second ? "(rise)" : "(fall)")},
           };
-          if (!pin_from->is_input) {
-            node["net"] = pin_from->net->name;
-            node["fanout"] = pin_from->net->fanout;
-          }
           node["key"] =
               super_arc::to_json(key_path, arc_tuple, _enable_rise_fall);
+          node["key"]["net"] = pin_inter->net->name;
+          node["key"]["fanout"] = pin_inter->net->fanout;
           node["value"] =
               super_arc::to_json(value_path, arc_tuple, _enable_rise_fall);
 
