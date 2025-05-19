@@ -19,6 +19,13 @@ def sort_and_convert(input_file, output_csv, top_n=None):
             sorted_entries = sorted_entries[:top_n]
         sorted_data = {k: v for k, v in sorted_entries}
 
+        mean_absolute_error = sum(
+            abs(sorted_data[k]["delta_delay"]) for k in sorted_data
+        ) / len(sorted_data)
+        max_absolute_error = sorted_data[sorted_entries[0][0]]["delta_delay"]
+        # print(f"Mean Absolute Error: {mean_absolute_error:.2f} ns")
+        # print(f"Max Absolute Error: {max_absolute_error:.2f} ns")
+
         with open(output_csv, "w", newline="") as csvfile:
             writer = csv.writer(csvfile)
             header = [
@@ -109,6 +116,7 @@ def sort_and_convert(input_file, output_csv, top_n=None):
 
         print(f"\nSuccess! Processed {len(sorted_data)} entries.")
         print(f"CSV file saved to: {output_csv}")
+        return mean_absolute_error, max_absolute_error
     except FileNotFoundError:
         print(f"Error: Input file '{input_file}' not found.")
     except json.JSONDecodeError:
