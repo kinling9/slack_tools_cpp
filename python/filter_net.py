@@ -22,7 +22,7 @@ def sort_and_convert(input_file, output_csv, top_n=None):
         mean_absolute_error = sum(
             abs(sorted_data[k]["delta_delay"]) for k in sorted_data
         ) / len(sorted_data)
-        max_absolute_error = abs(sorted_data[sorted_entries[0][0]]["delta_delay"])
+        max_error = abs(sorted_data[sorted_entries[0][0]]["delta_delay"])
         # print(f"Mean Absolute Error: {mean_absolute_error:.2f} ns")
         # print(f"Max Absolute Error: {max_absolute_error:.2f} ns")
 
@@ -116,7 +116,7 @@ def sort_and_convert(input_file, output_csv, top_n=None):
 
         print(f"\nSuccess! Processed {len(sorted_data)} entries.")
         print(f"CSV file saved to: {output_csv}")
-        return mean_absolute_error, max_absolute_error
+        return mean_absolute_error, max_error
     except FileNotFoundError:
         print(f"Error: Input file '{input_file}' not found.")
     except json.JSONDecodeError:
