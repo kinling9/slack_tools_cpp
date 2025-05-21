@@ -155,7 +155,11 @@ void leda_rpt_parser<T>::parse_line(T line,
       if (path_block->split_count == 0) {
         auto tokens = split_string_by_n_spaces(line, 2, 8);
         std::size_t key_tokens = tokens.size();
-        if (_row_cache.contains(key_tokens)) {
+        _row_cache_mutex.lock();
+        bool contains = _row_cache.contains(key_tokens);
+        _row_cache_mutex.unlock();
+        if (contains) {
+          std::lock_guard<std::mutex> lock(_row_cache_mutex);
           path_block->row = _row_cache[key_tokens];
           path_block->index_size = _size_cache[key_tokens];
         } else {
