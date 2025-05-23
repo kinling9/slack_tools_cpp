@@ -67,12 +67,10 @@ class Path {
   double get_detour();
   double get_cell_delay_pct();
   double get_net_delay_pct();
+  double get_delay();
 
  private:
   std::optional<double> total_delay;
-
- private:
-  double get_delay();
 };
 
 class basedb {

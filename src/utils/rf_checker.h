@@ -14,7 +14,7 @@ class rf_checker {
   void set_enable_rise_fall(const bool& enable_rise_fall) {
     _enable_rise_fall = enable_rise_fall;
   }
-  bool check(const bool& rf) { return rf && _enable_rise_fall; }
+  bool check(const bool& rf) const { return rf && _enable_rise_fall; }
 
  private:
   bool _enable_rise_fall;
