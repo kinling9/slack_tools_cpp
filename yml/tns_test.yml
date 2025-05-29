@@ -17,3 +17,4 @@ configs:
   # fanout_filter: x >= 1
   # delay_filter: x >= 0
   enable_rise_fall: False
+  enable_super_arc: True
