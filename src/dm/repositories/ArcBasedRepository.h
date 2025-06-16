@@ -6,5 +6,20 @@
  */
 
 #pragma once
+#include "dm/interfaces/IRepository.h"
 
-// TODO: Implement the interface/class declaration here
+class ArcBasedRepository : public IRepository {
+ public:
+  ArcBasedRepository() = default;
+  ~ArcBasedRepository() override = default;
+
+  void add_arc(const dm::Arc &arc) override;
+  void add_path(const dm::Path &path) override;
+  std::vector<dm::Arc> read_arcs() const override;
+  std::vector<dm::Path> read_paths() const override;
+  dm::Arc query_arcs(const dm::Pin &from_pin,
+                     const dm::Pin &to_pin) const override;
+
+ private:
+  std::vector<dm::Arc> arcs_;
+};

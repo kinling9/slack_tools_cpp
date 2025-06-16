@@ -7,4 +7,4 @@
 
 #pragma once
 
-// TODO: Implement the interface/class declaration here
+#include "dm/interfaces/IDataAccessor.h"

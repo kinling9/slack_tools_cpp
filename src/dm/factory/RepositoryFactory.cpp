@@ -7,4 +7,19 @@
 
 #include "RepositoryFactory.h"
 
-// TODO: Implement the functionality here
+#include <stdexcept>
+
+#include "RepositoryFactory.h"
+#include "dm/repositories/ArcBasedRepository.h"
+#include "dm/repositories/PathBasedRepository.h"
+
+std::unique_ptr<IRepository> RepositoryFactory::create(RepositoryType type) {
+  switch (type) {
+    case RepositoryType::PATH_BASED:
+      return std::make_unique<PathBasedRepository>();
+    case RepositoryType::ARC_BASED:
+      return std::make_unique<ArcBasedRepository>();
+    default:
+      throw std::invalid_argument("Unknown repository type");
+  }
+}

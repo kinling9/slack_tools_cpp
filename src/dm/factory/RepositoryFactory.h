@@ -7,4 +7,18 @@
 
 #pragma once
 
-// TODO: Implement the interface/class declaration here
+#include <memory>
+#include <string>
+
+#include "dm/interfaces/IRepository.h"
+
+class RepositoryFactory {
+ public:
+  enum class RepositoryType { PATH_BASED, ARC_BASED };
+
+  // 根据类型创建仓储
+  static std::unique_ptr<IRepository> create(RepositoryType type);
+
+ private:
+  RepositoryFactory() = default;
+};

@@ -7,4 +7,23 @@
 
 #include "ArcBasedRepository.h"
 
-// TODO: Implement the functionality here
+void ArcBasedRepository::add_arc(const dm::Arc &arc) { arcs_.push_back(arc); }
+void ArcBasedRepository::add_path(const dm::Path &path) {
+  // Arc-based repository does not store paths
+  throw std::runtime_error("ArcBasedRepository does not support paths");
+}
+std::vector<dm::Arc> ArcBasedRepository::read_arcs() const { return arcs_; }
+std::vector<dm::Path> ArcBasedRepository::read_paths() const {
+  // Arc-based repository does not store paths
+  throw std::runtime_error("ArcBasedRepository does not support paths");
+}
+dm::Arc ArcBasedRepository::query_arcs(const dm::Pin &from_pin,
+                                       const dm::Pin &to_pin) const {
+  for (const auto &arc : arcs_) {
+    if (arc.start_pin->name == from_pin.name &&
+        arc.end_pin->name == to_pin.name) {
+      return arc;
+    }
+  }
+  throw std::runtime_error("Arc not found");
+}

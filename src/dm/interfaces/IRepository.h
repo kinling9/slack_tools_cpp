@@ -6,5 +6,29 @@
  */
 
 #pragma once
+#include "dm/models/Arc.h"
+#include "dm/models/Path.h"
 
-// TODO: Implement the interface/class declaration here
+class IRepository {
+ public:
+  virtual ~IRepository() = default;
+
+  // CRUD operations
+  // virtual void create(const std::string &data) = 0;
+  // virtual std::string read(const std::string &id) const = 0;
+  // virtual void update(const std::string &id, const std::string &data) = 0;
+  // virtual void delete_(const std::string &id) = 0;
+
+  virtual void add_arc(const dm::Arc &arc) = 0;
+  virtual void add_path(const dm::Path &path) = 0;
+  virtual std::vector<dm::Arc> read_arcs() const = 0;
+  virtual std::vector<dm::Path> read_paths() const = 0;
+  virtual dm::Arc query_arcs(const dm::Pin &from_pin,
+                             const dm::Pin &to_pin) const = 0;
+
+  // Query operations
+  // virtual std::vector<std::string> query(const std::string &criteria) const = 0;
+ public:
+  std::string type;
+  std::string design;
+};

@@ -7,4 +7,20 @@
 
 #include "PathBasedRepository.h"
 
-// TODO: Implement the functionality here
+void PathBasedRepository::add_arc(const dm::Arc &arc) {
+  // Path-based repository does not store arcs
+  throw std::runtime_error("PathBasedRepository does not support arcs");
+}
+void PathBasedRepository::add_path(const dm::Path &path) {
+  paths_.push_back(path);
+}
+std::vector<dm::Arc> PathBasedRepository::read_arcs() const {
+  // Path-based repository does not store arcs
+  throw std::runtime_error("PathBasedRepository does not support arcs");
+}
+std::vector<dm::Path> PathBasedRepository::read_paths() const { return paths_; }
+dm::Arc PathBasedRepository::query_arcs(const dm::Pin &from_pin,
+                                        const dm::Pin &to_pin) const {
+  // Path-based repository does not store arcs
+  throw std::runtime_error("PathBasedRepository does not support arcs");
+}
