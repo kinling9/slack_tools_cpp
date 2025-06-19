@@ -79,9 +79,9 @@ void pair_analyser_csv::gen_arc_tuples(
   //     fmt::print("Net arc: {} - {}\n", net_from, net_to);
   //   }
   // }
-  for (const auto &[cell_to, cell_arcs] : db->get_cell_arcs()) {
-    if (db->get_net_arcs().contains(cell_to)) {
-      auto net_arc_map = db->get_net_arcs().at(cell_to);
+  for (const auto &[cell_to, cell_arcs] : db->cell_arcs) {
+    if (db->net_arcs.contains(cell_to)) {
+      auto &net_arc_map = db->net_arcs.at(cell_to);
       if (net_arc_map.empty()) {
         fmt::print("No net arcs for cell {}\n", cell_to);
         continue;  // Skip if there are no net arcs for this cell

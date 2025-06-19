@@ -23,6 +23,7 @@ class flow_control {
   configs _configs;
   // compare mode
   absl::flat_hash_map<std::string, std::shared_ptr<basedb>> _dbs;
+  std::mutex _dbs_mutex;
   absl::flat_hash_map<std::string,
                       std::vector<std::pair<std::string, std::string>>>
       _rpts;

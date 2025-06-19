@@ -87,9 +87,19 @@ void flow_control::parse_yml(std::string yml_file) {
   auto rpt_node = config["rpts"];
   auto valid_rpts = _analyser->check_valid(rpt_node);
 
+  std::vector<std::thread> threads;
   for (const auto& rpt : valid_rpts) {
-    run_function(fmt::format("parse rpt {}", rpt),
-                 [&]() { parse_rpt(rpt_node[rpt], rpt); });
+    threads.emplace_back([this, &rpt_node, rpt]() {
+      run_function(fmt::format("parse rpt {}", rpt),
+                   [&]() { parse_rpt(rpt_node[rpt], rpt); });
+    });
+    // run_function(fmt::format("parse rpt {}", rpt),
+    //              [&]() { parse_rpt(rpt_node[rpt], rpt); });
+  }
+  for (auto& t : threads) {
+    if (t.joinable()) {
+      t.join();
+    }
   }
 }
 
@@ -115,7 +125,10 @@ void flow_control::parse_rpt(const YAML::Node& rpt, std::string key) {
                       "Cannot parse net csv file {}, skip.", net_csv_path));
       std::exit(1);
     }
-    _dbs[key] = std::make_shared<basedb>(parser->get_db());
+    {
+      std::lock_guard<std::mutex> lock(_dbs_mutex);
+      _dbs[key] = std::make_shared<basedb>(parser->get_db());
+    }
     return;
   }
   auto rpt_file = rpt["path"].as<std::string>();
@@ -182,7 +195,10 @@ void flow_control::parse_rpt(const YAML::Node& rpt, std::string key) {
     }
     cur_db->type_map = parser->get_type_map();
   }
-  _dbs[key] = cur_db;
+  {
+    std::lock_guard<std::mutex> lock(_dbs_mutex);
+    _dbs[key] = cur_db;
+  }
 }
 
 void flow_control::run() {
