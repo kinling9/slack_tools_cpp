@@ -36,18 +36,36 @@ def generate_yaml_content(json_file: str, output_dir: str = "output"):
     for result in results:
         short = result["values"]["SHORT"]
         analyse_tuple = []
+        csv_path = {}
         for k, v in result["results"]["arc"].items():
-            arc_yaml["rpts"][f"{short}_{k}"] = {
-                "path": v,
-                "type": "leda",
+            if "csv" in k:
+                if "net" in k:
+                    csv_path["net"] = v
+                else:
+                    csv_path["cell"] = v
+            else:
+                arc_yaml["rpts"][f"{short}_{k}"] = {
+                    "path": v,
+                    "type": "leda",
+                }
+                analyse_tuple.append(f"{short}_{k}")
+        if len(csv_path) == 2:
+            arc_yaml["rpts"][f"{short}_csv"] = {
+                "net_csv": csv_path["net"],
+                "cell_csv": csv_path["cell"],
+                "type": "csv",
             }
-            analyse_tuple.append(f"{short}_{k}")
+            analyse_tuple.insert(0, f"{short}_csv")
+            arc_yaml["mode"] = "pair analyse csv"
+            arc_yaml["configs"]["enable_rise_fall"] = False
         arc_yaml["configs"]["analyse_tuples"].append(analyse_tuple)
+        analyse_tuple = []
         for k, v in result["results"]["endpoint"].items():
             endpoint_yaml["rpts"][f"{short}_{k}"] = {
                 "path": v,
                 "type": "leda_endpoint",
             }
+            analyse_tuple.append(f"{short}_{k}")
         endpoint_yaml["configs"]["analyse_tuples"].append(analyse_tuple)
 
     return arc_yaml, endpoint_yaml

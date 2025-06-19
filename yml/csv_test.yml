@@ -1,0 +1,16 @@
+mode: pair analyse csv
+rpts:
+  csv:
+    net_csv: rpt/leda_csv/aes_net_delay.csv
+    cell_csv: rpt/leda_csv/aes_cell_delay.csv
+    type: csv
+  leda:
+    path: rpt/leda_rpts/aes_all.rpt
+    type: leda
+configs:
+  output_dir: output
+  analyse_tuples:
+    - ["csv", "leda"] # csv first as base, leda as golden
+  # fanout_filter: x >= 1
+  # delay_filter: x >= 0
+  enable_rise_fall: False

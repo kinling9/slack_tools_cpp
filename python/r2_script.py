@@ -8,6 +8,8 @@ import pandas as pd
 import gen_yaml
 import plot_correlation
 import filter_net
+import re
+import os
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
@@ -28,19 +30,13 @@ if __name__ == "__main__":
     arc_yaml_file = yaml_files[0]
     endpoint_yaml_file = yaml_files[1]
 
-    with open(arc_yaml_file) as f:
+    with open(endpoint_yaml_file) as f:
         data = yaml.safe_load(f)
     output_dir = data["configs"]["output_dir"]
     analyse_tuples = data["configs"]["analyse_tuples"]
 
     for pair in analyse_tuples:
         name = "-".join(pair)
-        sub_df_arc = plot_correlation.plot_correlation(
-            f"{output_dir}/{name}.json",
-            f"{output_dir}/{name}",
-            f"{pair[0]}",
-            f"{pair[1]}",
-        )
         sub_df_end = plot_correlation.plot_text(
             [
                 f"{output_dir}/{name}_scatter_0.txt",
@@ -50,6 +46,24 @@ if __name__ == "__main__":
             f"{pair[0]}",
             f"{pair[1]}",
         )
+        if os.path.exists(f"{output_dir}/{name}.json"):
+            sub_df_arc = plot_correlation.plot_correlation(
+                f"{output_dir}/{name}.json",
+                f"{output_dir}/{name}",
+                f"{pair[0]}",
+                f"{pair[1]}",
+            )
+        else:
+            pair[0] = re.sub(r"_[^_]+$", "_csv", pair[0])
+            name = "-".join(pair)
+            sub_df_arc = plot_correlation.plot_correlation(
+                f"{output_dir}/{name}.json",
+                f"{output_dir}/{name}",
+                f"{pair[0]}",
+                f"{pair[1]}",
+            )
+            sub_df_arc["name"] = sub_df_end["name"]
+
         # combine the two dataframes and remove the duplicate columns
         sub_df = pd.merge(
             sub_df_arc,

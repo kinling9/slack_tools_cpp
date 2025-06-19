@@ -12,21 +12,21 @@ class arc_analyser : public analyser {
  public:
   arc_analyser(const YAML::Node &configs) : analyser(configs, 2){};
   ~arc_analyser() override = default;
-  void analyse() override;
-
- private:
-  void gen_value_map();
+  virtual void analyse() override;
+  void open_writers();
   void gen_pin2path_map(
       const std::shared_ptr<basedb> &db,
       absl::flat_hash_map<std::pair<std::string_view, bool>,
                           std::shared_ptr<Path>> &pin2path_map);
+
+ private:
+  void gen_value_map();
   virtual void match(
       const std::string &cmp_name,
       const absl::flat_hash_map<std::pair<std::string_view, bool>,
                                 std::shared_ptr<Path>> &pin_map,
       const std::vector<std::shared_ptr<basedb>> &dbs);
   bool parse_configs() override;
-  void open_writers();
 
  protected:
   bool _enable_super_arc;

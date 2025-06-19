@@ -48,6 +48,18 @@ class Net {
   nlohmann::json to_json();
 };
 
+class Arc {
+ public:
+  std::string type;             // Arc类型（如：setup, hold, recovery等）
+  std::string from_pin;         // 起始Pin
+  std::string to_pin;           // 结束Pin
+  std::array<double, 2> delay;  // delay_rise, delay_fall, according to end_pin
+  // std::vector<std::shared_ptr<Path>> paths;  // 路径列表
+
+ public:
+  // nlohmann::json to_json();  // 转换为JSON格式
+};
+
 class Path {
  public:
   std::string startpoint;
@@ -80,9 +92,34 @@ class basedb {
   void update_loc_from_map(
       const absl::flat_hash_map<std::string, std::pair<double, double>>&
           loc_map);
+  void add_arc(bool is_cell_arc, const std::shared_ptr<Arc>& arc) {
+    if (is_cell_arc) {
+      cell_arcs[arc->to_pin][arc->from_pin] = arc;
+    } else {
+      net_arcs[arc->from_pin][arc->to_pin] = arc;
+    }
+  }
+  std::unordered_map<std::string,
+                     std::unordered_map<std::string, std::shared_ptr<Arc>>>
+  get_cell_arcs() {
+    return cell_arcs;
+  }
+
+  std::unordered_map<std::string,
+                     std::unordered_map<std::string, std::shared_ptr<Arc>>>
+  get_net_arcs() {
+    return net_arcs;
+  }
 
  public:
   std::vector<std::shared_ptr<Path>> paths;
+  std::unordered_map<std::string,
+                     std::unordered_map<std::string, std::shared_ptr<Arc>>>
+      cell_arcs;
+  std::unordered_map<std::string,
+                     std::unordered_map<std::string, std::shared_ptr<Arc>>>
+      net_arcs;
+
   std::string type;
   std::string design;
   absl::flat_hash_map<std::string, std::string> type_map;
