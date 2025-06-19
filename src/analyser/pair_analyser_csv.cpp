@@ -39,9 +39,26 @@ void pair_analyser_csv::csv_match(
             {"pins", nlohmann::json::array()},
             {"delay", arc_cell->delay[0] + arc_net->delay[0]},
         };
-        node["key"]["pins"].push_back({"name", pin_from});
-        node["key"]["pins"].push_back({"name", pin_inter});
-        node["key"]["pins"].push_back({"name", pin_to});
+        nlohmann::json pin_from_node = {
+            {"name", pin_from},
+            {"is_input", true},
+            {"rf", false},
+        };
+        node["key"]["pins"].push_back(pin_from_node);
+        nlohmann::json pin_inter_node = {
+            {"name", pin_inter},
+            {"is_input", false},
+            {"incr_delay", arc_cell->delay[0]},
+            {"rf", false},
+        };
+        node["key"]["pins"].push_back(pin_inter_node);
+        nlohmann::json pin_to_node = {
+            {"name", pin_to},
+            {"is_input", false},
+            {"incr_delay", arc_net->delay[0]},
+            {"rf", false},
+        };
+        node["key"]["pins"].push_back(pin_to_node);
 
         node["value"] =
             super_arc::to_json(value_path, arc_tuple, _enable_rise_fall);
