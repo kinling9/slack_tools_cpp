@@ -11,7 +11,9 @@
 #include "analyser/existence_checker.h"
 #include "analyser/fanout_analyser.h"
 #include "analyser/pair_analyser.h"
+#include "analyser/pair_analyser_csv.h"
 #include "analyser/path_analyser.h"
+#include "parser/csv_parser.h"
 #include "parser/def_parser.h"
 #include "parser/invs_rpt.h"
 #include "parser/leda_endpoint.h"
@@ -66,6 +68,8 @@ void flow_control::parse_yml(std::string yml_file) {
     _analyser = std::make_unique<path_analyser>(config["configs"]);
   } else if (mode == "pair analyse") {
     _analyser = std::make_unique<pair_analyser>(config["configs"]);
+  } else if (mode == "pair analyse csv") {
+    _analyser = std::make_unique<pair_analyser_csv>(config["configs"]);
   } else {
     throw std::system_error(
         errno, std::generic_category(),
@@ -90,8 +94,31 @@ void flow_control::parse_yml(std::string yml_file) {
 }
 
 void flow_control::parse_rpt(const YAML::Node& rpt, std::string key) {
-  auto rpt_file = rpt["path"].as<std::string>();
   auto rpt_type = rpt["type"].as<std::string>();
+  if (rpt_type == "csv") {
+    auto parser = std::make_shared<csv_parser>();
+    auto cell_csv_path = rpt["cell_csv"].as<std::string>();
+    auto net_csv_path = rpt["net_csv"].as<std::string>();
+    fmt::print("Parsing cell csv file {}\n", cell_csv_path);
+    if (!parser->parse_file(true, cell_csv_path)) {
+      throw std::system_error(
+          errno, std::generic_category(),
+          fmt::format(fmt::fg(fmt::color::red),
+                      "Cannot parse cell csv file {}, skip.", cell_csv_path));
+      std::exit(1);
+    }
+    fmt::print("Parsing net csv file {}\n", net_csv_path);
+    if (!parser->parse_file(false, net_csv_path)) {
+      throw std::system_error(
+          errno, std::generic_category(),
+          fmt::format(fmt::fg(fmt::color::red),
+                      "Cannot parse net csv file {}, skip.", net_csv_path));
+      std::exit(1);
+    }
+    _dbs[key] = std::make_shared<basedb>(parser->get_db());
+    return;
+  }
+  auto rpt_file = rpt["path"].as<std::string>();
   bool ignore_path = false;
   if (rpt["ignore_path"]) {
     ignore_path = rpt["ignore_path"].as<bool>();

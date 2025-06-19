@@ -29,7 +29,18 @@ absl::flat_hash_set<std::string> analyser::check_valid(YAML::Node &rpts) {
   design_cons &cons = design_cons::get_instance();
   for (const auto &rpt : rpts) {
     std::string key = rpt.first.as<std::string>();
-    std::string file_path = rpt.second["path"].as<std::string>();
+    std::string file_path;
+    if (!rpt.second["path"]) {
+      if (!rpt.second["cell_csv"] ||
+          !rpt.second["net_csv"]) {  // for csv parser
+        fmt::print(fmt::fg(fmt::color::red),
+                   "Path is not defined in rpt {}, skip.\n", key);
+        continue;
+      }
+      file_path = rpt.second["cell_csv"].as<std::string>();
+    } else {
+      file_path = rpt.second["path"].as<std::string>();
+    }
     std::string name = cons.get_name(file_path);
     if (absl::StrContains(rpt.second["type"].as<std::string>(), "def")) {
       if (!rpt.second["def"]) {

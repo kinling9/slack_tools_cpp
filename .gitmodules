@@ -22,3 +22,6 @@
 [submodule "configs"]
 	path = configs
 	url = git@github.com:kinling9/slack_tools_config.git
+[submodule "thirdparty/csv-parser"]
+	path = thirdparty/csv-parser
+	url = https://github.com/vincentlaucsb/csv-parser.git
