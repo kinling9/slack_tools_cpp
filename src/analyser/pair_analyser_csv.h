@@ -9,8 +9,7 @@ class pair_analyser_csv : public arc_analyser {
                  absl::flat_hash_set<std::tuple<std::shared_ptr<Arc>,
                                                 std::shared_ptr<Arc>>> &arcs,
                  absl::flat_hash_map<std::pair<std::string_view, bool>,
-                                     std::shared_ptr<Path>> &pin_map,
-                 const std::vector<std::shared_ptr<basedb>> &dbs);
+                                     std::shared_ptr<Path>> &pin_map);
   void gen_arc_tuples(
       const std::shared_ptr<basedb> &db,
       absl::flat_hash_set<

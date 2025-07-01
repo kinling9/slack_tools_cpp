@@ -12,11 +12,17 @@ void pair_analyser_csv::csv_match(
     absl::flat_hash_set<std::tuple<std::shared_ptr<Arc>, std::shared_ptr<Arc>>>
         &arcs,
     absl::flat_hash_map<std::pair<std::string_view, bool>,
-                        std::shared_ptr<Path>> &pin_map,
-    const std::vector<std::shared_ptr<basedb>> &dbs) {
+                        std::shared_ptr<Path>> &pin_map) {
   absl::flat_hash_map<std::tuple<std::string, bool, std::string, bool>,
                       nlohmann::json>
       arcs_buffer;
+  auto createPinNode = [](const std::string &name, bool is_input,
+                          double incr_delay) {
+    return nlohmann::json{{"name", name},
+                          {"is_input", is_input},
+                          {"incr_delay", incr_delay},
+                          {"rf", false}};
+  };
   for (const auto &[arc_cell, arc_net] : arcs) {
     auto pin_from = arc_cell->from_pin;
     auto pin_inter = arc_cell->to_pin;
@@ -34,31 +40,18 @@ void pair_analyser_csv::csv_match(
                                  from.second ? "(rise)" : "(fall)")},
             {"to",
              fmt::format("{} {}", to.first, to.second ? "(rise)" : "(fall)")},
+            {"key",
+             {
+                 {"pins", nlohmann::json::array()},
+                 {"delay", arc_cell->delay[0] + arc_net->delay[0]},
+             }},
         };
-        node["key"] = {
-            {"pins", nlohmann::json::array()},
-            {"delay", arc_cell->delay[0] + arc_net->delay[0]},
-        };
-        nlohmann::json pin_from_node = {
-            {"name", pin_from},
-            {"is_input", true},
-            {"rf", false},
-        };
-        node["key"]["pins"].push_back(pin_from_node);
-        nlohmann::json pin_inter_node = {
-            {"name", pin_inter},
-            {"is_input", false},
-            {"incr_delay", arc_cell->delay[0]},
-            {"rf", false},
-        };
-        node["key"]["pins"].push_back(pin_inter_node);
-        nlohmann::json pin_to_node = {
-            {"name", pin_to},
-            {"is_input", false},
-            {"incr_delay", arc_net->delay[0]},
-            {"rf", false},
-        };
-        node["key"]["pins"].push_back(pin_to_node);
+
+        node["key"]["pins"].push_back(createPinNode(pin_from, true, 0));
+        node["key"]["pins"].push_back(
+            createPinNode(pin_inter, false, arc_cell->delay[0]));
+        node["key"]["pins"].push_back(
+            createPinNode(pin_to, false, arc_net->delay[0]));
 
         node["value"] =
             super_arc::to_json(value_path, arc_tuple, _enable_rise_fall);
@@ -66,11 +59,6 @@ void pair_analyser_csv::csv_match(
         double delta_delay = node["key"]["delay"].get<double>() -
                              node["value"]["delay"].get<double>();
         node["delta_delay"] = delta_delay;
-        // node["delta_length"] = node["key"]["length"].get<double>() -
-        //                        node["value"]["length"].get<double>();
-        // if (node["key"]["endpoint"].get<std::string>() ==
-        //     node["value"]["endpoint"].get<std::string>()) {
-        // }
         arcs_buffer[arc_tuple] = node;
       }
     }
@@ -89,13 +77,6 @@ void pair_analyser_csv::gen_arc_tuples(
     const std::shared_ptr<basedb> &db,
     absl::flat_hash_set<std::tuple<std::shared_ptr<Arc>, std::shared_ptr<Arc>>>
         &arcs) {
-  // fmt::print("cell_arcs size {}, net_arcs size {}\n",
-  //            db->get_cell_arcs().size(), db->get_net_arcs().size());
-  // for (const auto &[net_from, net_arcs] : db->get_net_arcs()) {
-  //   for (const auto &[net_to, net_arc] : net_arcs) {
-  //     fmt::print("Net arc: {} - {}\n", net_from, net_to);
-  //   }
-  // }
   for (const auto &[cell_to, cell_arcs] : db->cell_arcs) {
     if (db->net_arcs.contains(cell_to)) {
       auto &net_arc_map = db->net_arcs.at(cell_to);
@@ -141,8 +122,7 @@ void pair_analyser_csv::analyse() {
           pin_map;
       gen_arc_tuples(_dbs.at(rpt_pair[0]), arcs);
       gen_pin2path_map(_dbs.at(rpt_pair[1]), pin_map);
-      csv_match(cmp_name, arcs, pin_map,
-                {_dbs.at(rpt_pair[0]), _dbs.at(rpt_pair[1])});
+      csv_match(cmp_name, arcs, pin_map);
     });
   }
   for (auto &t : threads) {

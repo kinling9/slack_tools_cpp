@@ -189,9 +189,12 @@ def plot_correlation(path, output_file, x_label, y_label):
     print(f"{datetime.now()}: start plotting")
     r2_dict = {
         "arc": 0.0,
+        "arc_scaled": 0.0,
         "num_arc": len(data_dict),
     }
-    r2_dict["arc"] = plot_group(data_dict, f"{output_file}_arc.png", x_label, y_label)
+    r2_result = plot_group(data_dict, f"{output_file}_arc.png", x_label, y_label)
+    r2_dict["arc"] = r2_result[0]
+    r2_dict["arc_scaled"] = r2_result[1]
 
     # After calculating r2_dict, create a DataFrame and save to CSV
     r2_dict_with_name = {"name": output_file.split("/")[-1], **r2_dict}
@@ -242,16 +245,20 @@ def plot_text(path: list, output_file, x_label, y_label):
 
     r2_dict = {
         "end": 0.0,
+        "end_scaled": 0.0,
         "end_group": 0.0,
+        "end_group_scaled": 0.0,
         "num_end": len(data_dict),
         "num_group": len(avg_dict),
     }
-    r2_dict["end"] = plot_group(
-        data_dict, f"{output_file}_endpoint.png", x_label, y_label
-    )
-    r2_dict["end_group"] = plot_group(
+    end_result = plot_group(data_dict, f"{output_file}_endpoint.png", x_label, y_label)
+    end_group_result = plot_group(
         avg_dict, f"{output_file}_endpoint_avg.png", x_label, y_label
     )
+    r2_dict["end"] = end_result[0]
+    r2_dict["end_scaled"] = end_result[1]
+    r2_dict["end_group"] = end_group_result[0]
+    r2_dict["end_group_scaled"] = end_group_result[1]
     r2_dict_with_name = {"name": output_file.split("/")[-1], **r2_dict}
     r2_df = pd.DataFrame([r2_dict_with_name], columns=r2_dict_with_name.keys())
     return r2_df
