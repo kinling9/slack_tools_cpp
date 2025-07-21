@@ -46,8 +46,14 @@ def validate_loop_variables(loop_variables):
 def process_multi_loop_templates(data):
     """Process templates with multiple loop variables of the same size."""
     loop_results = []
-    arc_templates = data.get("arc_templates", {})
-    endpoint_templates = data.get("endpoint_templates", {})
+    templates = {}
+    # Extract all templates from data
+    for key in data:
+        if key.endswith("_templates"):
+            template_type = key.split("_templates")[0]
+            # Remove "_template" suffix
+            templates[template_type] = data[key]
+
     base_variables = data.get("variables", {})
     loop_variables = data.get("loop_variables", {})
 
@@ -70,22 +76,20 @@ def process_multi_loop_templates(data):
             iteration_values[var_name] = values[i]
 
         # Process each template with the current variable set
-        arc_results = {}
-        for template_name, template_text in arc_templates.items():
-            arc_results[template_name] = decode_template(
-                template_text, current_variables
-            )
-        endpoint_results = {}
-        for template_name, template_text in endpoint_templates.items():
-            endpoint_results[template_name] = decode_template(
-                template_text, current_variables
-            )
+        template_results = {}
+        for template_type, template_dict in templates.items():
+            processed = {}
+            for template_name, template_text in template_dict.items():
+                processed[template_name] = decode_template(
+                    template_text, current_variables
+                )
+            template_results[template_type] = processed
 
         loop_results.append(
             {
                 "iteration": i + 1,
                 "values": iteration_values,
-                "results": {"arc": arc_results, "endpoint": endpoint_results},
+                "results": template_results,
             }
         )
 
