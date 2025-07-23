@@ -1,14 +1,13 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 
-import json_decoder
 import argparse
 import yaml
 import json
 import os
 
 
-def generate_yaml_content(json_file: str, output_dir: str = "output"):
+def generate_yaml_content(results: list, output_dir: str = "output"):
     arc_yaml = {
         "mode": "pair analyse",
         "rpts": {},
@@ -30,7 +29,6 @@ def generate_yaml_content(json_file: str, output_dir: str = "output"):
         },
     }
     # Generate the YAML content based on the provided structure
-    results = json_decoder.process_json(json_file)
     arc_yaml["configs"]["output_dir"] = output_dir
     endpoint_yaml["configs"]["output_dir"] = output_dir
     for result in results:
@@ -71,12 +69,8 @@ def generate_yaml_content(json_file: str, output_dir: str = "output"):
     return arc_yaml, endpoint_yaml
 
 
-def generate_yaml(json_file: str) -> tuple:
-
-    with open(json_file, "r") as file:
-        data = json.load(file)
-    output = data.get("variables", {}).get("OUTPUT", "output")
-    arc_yaml, endpoint_yaml = generate_yaml_content(json_file, output)
+def generate_yaml(results: list, output: str) -> tuple:
+    arc_yaml, endpoint_yaml = generate_yaml_content(results, output)
     if not os.path.exists("tmp_yml"):
         os.makedirs("tmp_yml")
 
