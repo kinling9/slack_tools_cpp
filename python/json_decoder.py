@@ -12,14 +12,15 @@ def load_json_template(file_path):
 
 
 def decode_template(template, variables):
-    """Replace all variable references in the template with their values."""
+    """Replace all variable references in the template with their values using Tcl-like rules."""
     result = template
-    # Find all variables in the template (format: $VARIABLE)
     for var_name, var_value in variables.items():
-        # Create a pattern to match the variable (case-insensitive)
-        pattern = f"\\${var_name}"
-        # Replace all occurrences of the variable with its value
-        result = re.sub(pattern, str(var_value), result, flags=re.IGNORECASE)
+        # Escape special regex characters in variable names
+        escaped_name = re.escape(var_name)
+        # Match either ${var_name} or $var_name\b
+        pattern = rf"\$\{{{escaped_name}\}}|\${escaped_name}\b"
+        replacement = str(var_value)
+        result = re.sub(pattern, replacement, result)
     return result
 
 
