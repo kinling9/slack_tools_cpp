@@ -19,8 +19,12 @@ void pair_analyser::match(
           return true;
         }
         const auto &[_0, pin_ptr, _1] = pin_ptr_tuple;
+        if (!pin_ptr->net.has_value()) {
+          return true;  // No net, no fanout
+        }
+        std::shared_ptr<Net> net_ptr = pin_ptr->net.value();
         return !pin_ptr->is_input &&
-               double_filter(_fanout_filter_op_code, pin_ptr->net->fanout);
+               double_filter(_fanout_filter_op_code, net_ptr->fanout);
       };
   auto delay_filter =
       [&](const std::tuple<std::shared_ptr<Pin>, std::shared_ptr<Pin>,
@@ -31,7 +35,8 @@ void pair_analyser::match(
         }
         const auto &[pin_ptr0, pin_ptr1, _] = pin_ptr_tuple;
         return double_filter(_delay_filter_op_code,
-                             pin_ptr0->incr_delay + pin_ptr1->incr_delay);
+                             pin_ptr0->incr_delay.value_or(0.) +
+                                 pin_ptr1->incr_delay.value_or(0.));
       };
   auto drop_filter =
       [&](const std::tuple<std::shared_ptr<Pin>, std::shared_ptr<Pin>,
@@ -70,8 +75,10 @@ void pair_analyser::match(
           };
           node["key"] =
               super_arc::to_json(key_path, arc_tuple, _enable_rise_fall);
-          node["key"]["net"] = pin_inter->net->name;
-          node["key"]["fanout"] = pin_inter->net->fanout;
+          if (pin_inter->net.has_value()) {
+            node["key"]["net"] = pin_inter->net.value()->name;
+            node["key"]["fanout"] = pin_inter->net.value()->fanout;
+          }
           node["value"] =
               super_arc::to_json(value_path, arc_tuple, _enable_rise_fall);
 

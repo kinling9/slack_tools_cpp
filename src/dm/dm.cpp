@@ -6,7 +6,7 @@ YAML::Node Pin::to_yaml() {
   YAML::Node node;
   // pack for arc analyser
   node["name"] = name;
-  node["incr_delay"] = incr_delay;
+  node["incr_delay"] = incr_delay.value_or(0.);
   node["path_delay"] = path_delay;
   node["location"] = YAML::Node();
   node["location"].push_back(location.first);
@@ -18,13 +18,15 @@ YAML::Node Pin::to_yaml() {
 nlohmann::json Pin::to_json() {
   nlohmann::json node;
   node["name"] = name;
-  node["incr_delay"] = incr_delay;
+  node["incr_delay"] = incr_delay.value_or(0.);
   node["path_delay"] = path_delay;
   node["location"] = nlohmann::json::array({location.first, location.second});
   node["is_input"] = is_input;
   node["trans"] = trans;
-  node["cell"] = cell;
-  node["rf"] = rise_fall;
+  if (cell.has_value()) {
+    node["cell"] = cell.value();
+  }
+  node["rf"] = rise_fall.value_or(false);
 
   if (pta_buf.has_value()) {
     node["pta_buf"] = pta_buf.value();
@@ -88,7 +90,7 @@ double Path::get_delay() {
   }
   double delay = 0;
   for (const auto &pin : path) {
-    delay += pin->incr_delay;
+    delay += pin->incr_delay.value_or(0.);
   }
   total_delay = delay;
   return delay;
@@ -102,7 +104,7 @@ double Path::get_cell_delay_pct() {
   for (const auto &pin : path | std::views::filter([](const auto &pin) {
                            return !pin->is_input;
                          })) {
-    cell_delay += pin->incr_delay;
+    cell_delay += pin->incr_delay.value_or(0.);
   }
   double total_delay = get_delay();
   double pct = cell_delay / total_delay;
@@ -118,7 +120,7 @@ double Path::get_net_delay_pct() {
   for (const auto &pin : path | std::views::filter([](const auto &pin) {
                            return pin->is_input;
                          })) {
-    net_delay += pin->incr_delay;
+    net_delay += pin->incr_delay.value_or(0.);
   }
   double total_delay = get_delay();
   double pct = net_delay / total_delay;

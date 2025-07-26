@@ -14,19 +14,20 @@
 #include "utils/utils.h"
 
 template <typename T>
-void get_param(const std::vector<std::string_view> &tokens,
-               const std::string &key,
-               const std::unordered_map<std::string, std::size_t> &row,
-               T &param) {
+std::optional<T> get_param(
+    const std::vector<std::string_view> &tokens, const std::string &key,
+    const std::unordered_map<std::string, std::size_t> &row) {
   if (row.contains(key)) {
     int index = row.at(key);
     index = index < 0 ? -index : index;
     if (static_cast<size_t>(index) >= tokens.size()) {
-      return;
+      return std::nullopt;
     }
     auto token = tokens[index];
-    param = boost::convert<T>(token, boost::cnv::strtol()).value();
+    return std::optional<T>(
+        boost::convert<T>(token, boost::cnv::strtol()).value_or(T{}));
   }
+  return std::nullopt;
 }
 
 void get_path_dly(const std::vector<std::string_view> &tokens,
@@ -222,16 +223,18 @@ void leda_rpt_parser<T>::parse_line(T line,
             return;
           }
           path_block->start = true;
-          get_param(tokens, "Trans", path_block->row, pin.trans);
-          get_param(tokens, "Incr", path_block->row, pin.incr_delay);
+          std::optional<double> pin_trans;
+          pin_trans =
+              get_param<double>(tokens, "Trans", path_block->row).value_or(0);
+          pin.incr_delay = get_param<double>(tokens, "Incr", path_block->row);
           if (path_block->is_leda_pta) {
-            double pta_buf = 0, pta_net = 0;
-            get_param(tokens, "PtaBuf", path_block->row, pta_buf);
-            get_param(tokens, "PtaNet", path_block->row, pta_net);
-            if (token_count == expected_count) {
-              pin.pta_buf = pta_buf;
-              pin.pta_net = pta_net;
-            }
+            // double pta_buf = 0, pta_net = 0;
+            pin.pta_buf = get_param<double>(tokens, "PtaBuf", path_block->row);
+            pin.pta_net = get_param<double>(tokens, "PtaNet", path_block->row);
+            // if (token_count == expected_count) {
+            //   pin.pta_buf = pta_buf;
+            //   pin.pta_net = pta_net;
+            // }
           }
           get_path_dly(tokens, path_block->row, pin);
           if (pin.name == path_block->path_obj->startpoint &&
@@ -260,8 +263,10 @@ void leda_rpt_parser<T>::parse_line(T line,
           }
           auto &net = path_block->net_obj;
           get_net_name(tokens, path_block->row, net);
-          get_param(tokens, "Fanout", path_block->row, net->fanout);
-          get_param(tokens, "Cap", path_block->row, net->cap);
+          net->fanout =
+              get_param<int>(tokens, "Fanout", path_block->row).value_or(0);
+          net->cap =
+              get_param<double>(tokens, "Cap", path_block->row).value_or(0.);
           path_block->pin_obj->is_input = false;
           net->pins = std::make_pair(path_block->pin_obj, nullptr);
           path_block->pin_obj->net = net;
