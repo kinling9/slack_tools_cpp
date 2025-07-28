@@ -223,8 +223,7 @@ void leda_rpt_parser<T>::parse_line(T line,
             return;
           }
           path_block->start = true;
-          std::optional<double> pin_trans;
-          pin_trans =
+          pin.trans =
               get_param<double>(tokens, "Trans", path_block->row).value_or(0);
           pin.incr_delay = get_param<double>(tokens, "Incr", path_block->row);
           if (path_block->is_leda_pta) {

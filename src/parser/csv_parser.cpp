@@ -10,6 +10,8 @@
 
 bool csv_parser::parse_file(csv_type type, const std::string &filename) {
   std::ifstream file(filename, std::ios_base::in | std::ios_base::binary);
+  csv::CSVFormat format;
+  format.trim({' ', '\t'});
   if (!isgz(filename)) {
     file.close();
     std::ifstream simple_file(filename);
@@ -17,7 +19,7 @@ bool csv_parser::parse_file(csv_type type, const std::string &filename) {
     if (!simple_file.is_open()) {
       return false;
     }
-    csv::CSVReader ifs(simple_file);
+    csv::CSVReader ifs(simple_file, format);
     parse(type, ifs);
     simple_file.close();
   } else {
@@ -31,7 +33,7 @@ bool csv_parser::parse_file(csv_type type, const std::string &filename) {
     inbuf.push(file);
     std::ostringstream decompressed;
     boost::iostreams::copy(inbuf, decompressed);
-    csv::CSVReader ifs(decompressed.str());
+    csv::CSVReader ifs(decompressed.str(), format);
     parse(type, ifs);
     file.close();
   }

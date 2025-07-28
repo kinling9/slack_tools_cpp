@@ -37,22 +37,26 @@ def generate_yaml_content(results: list, output_dir: str = "output"):
         csv_path = {}
         for k, v in result["results"]["arc"].items():
             if "csv" in k:
-                if "net" in k:
-                    csv_path["net"] = v
+                key_map = {"net": "net", "cell": "cell", "at": "at"}
+                found = next(
+                    (mapped for keyword, mapped in key_map.items() if keyword in k),
+                    None,
+                )
+                if found:
+                    csv_path[found] = v
                 else:
-                    csv_path["cell"] = v
+                    print(f"Unknown CSV key: {k}")
+
             else:
                 arc_yaml["rpts"][f"{short}_{k}"] = {
                     "path": v,
                     "type": "leda",
                 }
                 analyse_tuple.append(f"{short}_{k}")
-        if len(csv_path) == 2:
-            arc_yaml["rpts"][f"{short}_csv"] = {
-                "net_csv": csv_path["net"],
-                "cell_csv": csv_path["cell"],
-                "type": "csv",
-            }
+        if csv_path:
+            csv_entry = {f"{k}_csv": v for k, v in csv_path.items()}
+            csv_entry["type"] = "csv"
+            arc_yaml["rpts"][f"{short}_csv"] = csv_entry
             analyse_tuple.insert(0, f"{short}_csv")
             arc_yaml["mode"] = "pair analyse csv"
             arc_yaml["configs"]["enable_rise_fall"] = False
