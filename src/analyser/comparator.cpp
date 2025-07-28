@@ -137,19 +137,19 @@ void comparator::match(
     }
   }
 
-  std::vector<double> diff_ratios(_slack_margins.size(), 0.0);
+  std::vector<double> diff_ratios(_slack_margins.size(), 0.);
   for (std::size_t i = 0; i < _slack_margins.size(); i++) {
     diff_ratios[i] = static_cast<double>(diff_nums[i]) / path_nums[0];
   }
 
   int mismatch = path_nums[0] - slack_diffs.size();
   double average_slack_diff =
-      std::accumulate(slack_diffs.begin(), slack_diffs.end(), 0.0) /
+      std::accumulate(slack_diffs.begin(), slack_diffs.end(), 0.) /
       slack_diffs.size();
   double variance_slack_diff =
       standardDeviation(slack_diffs, slack_diffs.size());
 
-  std::vector<double> match_ratios(_match_percentages.size(), 0.0);
+  std::vector<double> match_ratios(_match_percentages.size(), 0.);
   std::vector<std::size_t> analyse_paths = {path_nums[0], path_nums[1]};
   for (std::size_t i = 0; i < _match_percentages.size(); i++) {
     double percentage = _match_percentages[i];

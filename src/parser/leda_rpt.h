@@ -26,8 +26,9 @@ std::optional<T> get_param(
     auto token = tokens[index];
     return std::optional<T>(
         boost::convert<T>(token, boost::cnv::strtol()).value_or(T{}));
+  } else {
+    return std::nullopt;
   }
-  return std::nullopt;
 }
 
 void get_path_dly(const std::vector<std::string_view> &tokens,
@@ -227,13 +228,8 @@ void leda_rpt_parser<T>::parse_line(T line,
               get_param<double>(tokens, "Trans", path_block->row).value_or(0);
           pin.incr_delay = get_param<double>(tokens, "Incr", path_block->row);
           if (path_block->is_leda_pta) {
-            // double pta_buf = 0, pta_net = 0;
             pin.pta_buf = get_param<double>(tokens, "PtaBuf", path_block->row);
             pin.pta_net = get_param<double>(tokens, "PtaNet", path_block->row);
-            // if (token_count == expected_count) {
-            //   pin.pta_buf = pta_buf;
-            //   pin.pta_net = pta_net;
-            // }
           }
           get_path_dly(tokens, path_block->row, pin);
           if (pin.name == path_block->path_obj->startpoint &&

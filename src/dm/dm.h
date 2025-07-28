@@ -57,8 +57,6 @@ class Arc {
   std::string to_pin;           // 结束Pin
   std::array<double, 2> delay;  // delay_rise, delay_fall, according to end_pin
   // std::vector<std::shared_ptr<Path>> paths;  // 路径列表
-  // std::optional<std::array<int, 2>> location_from;  // 起始Pin位置（x, y）
-  // std::optional<std::array<int, 2>> location_to;    // 结束Pin位置（x, y）
   std::optional<int> fanout;  // fanout of the net_arc
 
  public:

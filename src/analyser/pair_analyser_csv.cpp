@@ -6,6 +6,7 @@
 #include <thread>
 
 #include "dm/dm.h"
+#include "utils/utils.h"
 
 void pair_analyser_csv::csv_match(
     const std::string &cmp_name,
@@ -31,7 +32,7 @@ void pair_analyser_csv::csv_match(
         node["location"] =
             nlohmann::json::array({pin->location.first, pin->location.second});
         node["trans"] = pin->trans;
-        node["cap"] = pin->cap.value_or(0.0);
+        node["cap"] = pin->cap.value_or(0.);
       }
     }
     return node;
@@ -65,10 +66,25 @@ void pair_analyser_csv::csv_match(
             createPinNode(pin_inter, false, arc_cell->delay[0]));
         node["key"]["pins"].push_back(
             createPinNode(pin_to, false, arc_net->delay[0]));
-
         node["value"] =
             super_arc::to_json(value_path, arc_tuple, _enable_rise_fall);
 
+        if (csv_pin_db.contains(pin_inter)) {
+          node["key"]["slack"] =
+              csv_pin_db.at(pin_inter)->path_slack.value_or(0.0);
+          node["delta_slack"] = node["key"]["slack"].get<double>() -
+                                node["value"]["slack"].get<double>();
+        }
+        if (!csv_pin_db.empty()) {
+          std::vector<std::pair<float, float>> locs;
+          for (const auto &pin : node["key"]["pins"]) {
+            locs.push_back({pin["location"][0].get<double>(),
+                            pin["location"][1].get<double>()});
+          }
+          node["key"]["length"] = manhattan_distance(locs);
+          node["delta_length"] = node["key"]["length"].get<double>() -
+                                 node["value"]["length"].get<double>();
+        }
         double delta_delay = node["key"]["delay"].get<double>() -
                              node["value"]["delay"].get<double>();
         node["delta_delay"] = delta_delay;
