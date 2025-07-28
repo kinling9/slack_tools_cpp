@@ -28,6 +28,8 @@ class Pin {
   bool is_input;  // cell input
   std::pair<double, double> location;
   std::optional<std::shared_ptr<Net>> net;
+  std::optional<double> cap;         // max capacitance of the pin
+  std::optional<double> path_slack;  // slack of the path
 
   // TODO: remove type, using db pointer instead
   std::string type;
@@ -116,12 +118,15 @@ class basedb {
 
  public:
   std::vector<std::shared_ptr<Path>> paths;
+
+  // csv attributes
   std::unordered_map<std::string,
                      std::unordered_map<std::string, std::shared_ptr<Arc>>>
       cell_arcs;
   std::unordered_map<std::string,
                      std::unordered_map<std::string, std::shared_ptr<Arc>>>
       net_arcs;
+  std::unordered_map<std::string, std::shared_ptr<Pin>> pins;
 
   std::string type;
   std::string design;
