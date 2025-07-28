@@ -246,7 +246,9 @@ void rpt_parser<T>::print_paths() {
     fmt::print("{}\n", fmt::join(path->path_params, ""));
     for (const auto &p : path->path) {
       fmt::print("Pin: {}\n", p->to_json().dump());
-      fmt::print("Net {}\n", p->net->to_json().dump());
+      if (p->net.has_value()) {
+        fmt::print("Net {}\n", p->net.value()->to_json().dump());
+      }
     }
   }
 }

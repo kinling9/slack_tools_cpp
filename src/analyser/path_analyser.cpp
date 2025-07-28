@@ -263,9 +263,10 @@ nlohmann::json path_analyser::path_analyse(
              fmt::format("{} {}", to.first, to.second ? "(rise)" : "(fall)")},
             {"count", 1},
         };
-        if (!pin_from->is_input) {
-          node["net"] = pin_from->net->name;
-          node["fanout"] = pin_from->net->fanout;
+        if (!pin_from->is_input && pin_from->net.has_value()) {
+          auto net = pin_from->net.value();
+          node["net"] = net->name;
+          node["fanout"] = net->fanout;
         }
         node["key"] =
             super_arc::to_json(key_path, arc_tuple, _enable_rise_fall);
@@ -281,9 +282,12 @@ nlohmann::json path_analyser::path_analyse(
 
         std::vector<std::unordered_map<std::string, double>> attributes;
         for (const auto &iter : {"key", "value"}) {
-          attributes.push_back({{"delay", node[iter]["delay"]},
-                                {"length", node[iter]["length"]},
-                                {"fanout", pin_from->net->fanout}});
+          attributes.push_back(
+              {{"delay", node[iter]["delay"]},
+               {"length", node[iter]["length"]},
+               {"fanout",
+                pin_from->net.has_value() ? pin_from->net.value()->fanout : 0},
+               {"slack", node[iter]["slack"]}});
         }
         for (const auto &filter : _filters) {
           if (node["type"] == filter->_target) {

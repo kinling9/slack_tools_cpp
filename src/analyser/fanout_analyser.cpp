@@ -40,8 +40,11 @@ void fanout_analyser::check_fanout(const std::shared_ptr<basedb> &db,
       ++total_count;
       bool affected = false;
       for (const auto &pin : path->path) {
-        if (double_filter(_fanout_filter_op_code, pin->net->fanout)) {
-          nets.insert(pin->net->name);
+        if (!pin->net.has_value()) {
+          continue;  // No net, no fanout
+        }
+        if (double_filter(_fanout_filter_op_code, pin->net.value()->fanout)) {
+          nets.insert(pin->net.value()->name);
           affected = true;
         }
       }

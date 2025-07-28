@@ -12,16 +12,29 @@ void pair_analyser_csv::csv_match(
     absl::flat_hash_set<std::tuple<std::shared_ptr<Arc>, std::shared_ptr<Arc>>>
         &arcs,
     absl::flat_hash_map<std::pair<std::string_view, bool>,
-                        std::shared_ptr<Path>> &pin_map) {
+                        std::shared_ptr<Path>> &pin_map,
+    const std::unordered_map<std::string, std::shared_ptr<Pin>> &csv_pin_db) {
   absl::flat_hash_map<std::tuple<std::string, bool, std::string, bool>,
                       nlohmann::json>
       arcs_buffer;
-  auto createPinNode = [](const std::string &name, bool is_input,
-                          double incr_delay) {
-    return nlohmann::json{{"name", name},
-                          {"is_input", is_input},
-                          {"incr_delay", incr_delay},
-                          {"rf", false}};
+  auto createPinNode = [&csv_pin_db](const std::string &name, bool is_input,
+                                     double incr_delay) {
+    auto node = nlohmann::json{{"name", name},
+                               {"is_input", is_input},
+                               {"incr_delay", incr_delay},
+                               {"rf", false}};
+    if (!csv_pin_db.empty()) {
+      auto pin_it = csv_pin_db.find(name);
+      if (pin_it != csv_pin_db.end()) {
+        auto pin = pin_it->second;
+        node["path_delay"] = pin->path_delay;
+        node["location"] =
+            nlohmann::json::array({pin->location.first, pin->location.second});
+        node["trans"] = pin->trans;
+        node["cap"] = pin->cap.value_or(0.0);
+      }
+    }
+    return node;
   };
   for (const auto &[arc_cell, arc_net] : arcs) {
     auto pin_from = arc_cell->from_pin;
@@ -122,7 +135,7 @@ void pair_analyser_csv::analyse() {
           pin_map;
       gen_arc_tuples(_dbs.at(rpt_pair[0]), arcs);
       gen_pin2path_map(_dbs.at(rpt_pair[1]), pin_map);
-      csv_match(cmp_name, arcs, pin_map);
+      csv_match(cmp_name, arcs, pin_map, _dbs.at(rpt_pair[0])->pins);
     });
   }
   for (auto &t : threads) {

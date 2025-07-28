@@ -25,10 +25,10 @@ def slack_score(test_path: str, target_path: str, period):
         "TNS_ns"
     ].values[0]
     print(f"Target WNS: {target_wns}, Target TNS: {target_tns}")
-    test_wns_cal = max(test_wns, 0)
-    target_wns_cal = max(target_wns, 0)
-    test_tns_cal = max(test_tns, 0)
-    target_tns_cal = max(target_tns, 0)
+    test_wns_cal = min(test_wns, 0)
+    target_wns_cal = min(target_wns, 0)
+    test_tns_cal = min(test_tns, 0)
+    target_tns_cal = min(target_tns, 0)
     wns_score = abs(test_wns_cal - target_wns_cal) / abs(period)
     tns_score = (
         abs(
