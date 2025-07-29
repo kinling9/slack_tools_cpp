@@ -43,7 +43,11 @@ if __name__ == "__main__":
             score = slack_score.slack_score(
                 res["results"]["summary"][keys[0]],
                 res["results"]["summary"][keys[1]],
-                design_period[res["values"]["SHORT"]],
+                (
+                    design_period[res["values"]["SHORT"]]
+                    if res["values"]["SHORT"] in design_period
+                    else design_period[res["values"]["NAME"]]
+                ),
             )
             df = pd.DataFrame([score])
             summary_df = pd.concat([summary_df, df], ignore_index=True)
