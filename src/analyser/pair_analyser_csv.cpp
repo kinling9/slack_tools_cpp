@@ -77,13 +77,20 @@ void pair_analyser_csv::csv_match(
         }
         if (!csv_pin_db.empty()) {
           std::vector<std::pair<float, float>> locs;
+          bool valid_location = true;
           for (const auto &pin : node["key"]["pins"]) {
+            if (pin["location"].is_null()) {
+              valid_location = false;
+              break;
+            }
             locs.push_back({pin["location"][0].get<double>(),
                             pin["location"][1].get<double>()});
           }
-          node["key"]["length"] = manhattan_distance(locs);
-          node["delta_length"] = node["key"]["length"].get<double>() -
-                                 node["value"]["length"].get<double>();
+          if (!valid_location) {
+            node["key"]["length"] = manhattan_distance(locs);
+            node["delta_length"] = node["key"]["length"].get<double>() -
+                                   node["value"]["length"].get<double>();
+          }
         }
         double delta_delay = node["key"]["delay"].get<double>() -
                              node["value"]["delay"].get<double>();
