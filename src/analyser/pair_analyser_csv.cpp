@@ -79,7 +79,7 @@ void pair_analyser_csv::csv_match(
           std::vector<std::pair<float, float>> locs;
           bool valid_location = true;
           for (const auto &pin : node["key"]["pins"]) {
-            if (pin["location"].is_null()) {
+            if (!pin.contains("location")) {
               valid_location = false;
               break;
             }
