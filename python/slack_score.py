@@ -24,23 +24,29 @@ def slack_score(test_path: str, target_path: str, period):
     test_data = get_values(extract_timing.get_timing_analysis(test_path))
     target_data = get_values(extract_timing.get_timing_analysis(target_path))
 
-    def score(a, b, log_scale=False):
+    def calc_score(a, b, log_scale=False):
         a_c, b_c = clipped(a), clipped(b)
+        diff = abs(a_c - b_c)
         if log_scale:
             a_log = math.log2(100 * period - a_c)
             b_log = math.log2(100 * period - b_c)
             return 0.1 * abs(abs(a_log) - abs(b_log))
-        return abs(a_c - b_c) / abs(period)
+        return diff / abs(period)
 
-    return (
-        {
-            f"{key}_score": 100
-            - 100 * score(test_data[key], target_data[key], "tns" in key)
-            for key in ["wns", "tns", "wns100", "r2r_wns", "r2r_tns"]
-        }
-        | {f"test_{k}": v for k, v in test_data.items()}
-        | {f"target_{k}": v for k, v in target_data.items()}
-    )
+    # Ordered keys as: wns, wns100, tns, r2r_wns, r2r_tns
+    ordered_keys = ["wns", "wns100", "tns", "r2r_wns", "r2r_tns"]
+    log_scale_keys = {"tns", "wns100", "r2r_tns"}
+
+    result = {}
+    for key in ordered_keys:
+        test_val = test_data[key]
+        target_val = target_data[key]
+        score_val = calc_score(test_val, target_val, key in log_scale_keys)
+        result[f"target_{key}"] = target_val
+        result[f"test_{key}"] = test_val
+        result[f"{key}_score"] = 100 - 100 * score_val
+
+    return result
 
 
 if __name__ == "__main__":
