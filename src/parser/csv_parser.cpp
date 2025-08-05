@@ -8,8 +8,10 @@
 #include "internal/csv_reader.hpp"
 #include "utils/utils.h"
 
-bool csv_parser::parse_file(bool is_cell_arc, const std::string &filename) {
+bool csv_parser::parse_file(csv_type type, const std::string &filename) {
   std::ifstream file(filename, std::ios_base::in | std::ios_base::binary);
+  csv::CSVFormat format;
+  format.trim({' ', '\t'});
   if (!isgz(filename)) {
     file.close();
     std::ifstream simple_file(filename);
@@ -17,8 +19,8 @@ bool csv_parser::parse_file(bool is_cell_arc, const std::string &filename) {
     if (!simple_file.is_open()) {
       return false;
     }
-    csv::CSVReader ifs(simple_file);
-    parse(is_cell_arc, ifs);
+    csv::CSVReader ifs(simple_file, format);
+    parse(type, ifs);
     simple_file.close();
   } else {
     // boost::iostreams::filtering_streambuf<boost::iostreams::input> inbuf;
@@ -31,22 +33,54 @@ bool csv_parser::parse_file(bool is_cell_arc, const std::string &filename) {
     inbuf.push(file);
     std::ostringstream decompressed;
     boost::iostreams::copy(inbuf, decompressed);
-    csv::CSVReader ifs(decompressed.str());
-    parse(is_cell_arc, ifs);
+    csv::CSVReader ifs(decompressed.str(), format);
+    parse(type, ifs);
     file.close();
   }
   return true;
 }
 
-void csv_parser::parse(bool is_cell_arc, csv::CSVReader &ifs) {
-  for (auto &row : ifs) {
-    std::string from_pin = row["from_pin"].get<>();
-    std::string to_pin = row["to_pin"].get<>();
-    double setup_delay_rise = row["setup_delay_rise"].get<double>();
-    double setup_delay_fall = row["setup_delay_fall"].get<double>();
-    Arc arc_obj{.from_pin = from_pin,
-                .to_pin = to_pin,
-                .delay = {setup_delay_rise, setup_delay_fall}};
-    _db.add_arc(is_cell_arc, std::make_shared<Arc>(arc_obj));
+void csv_parser::parse(csv_type type, csv::CSVReader &ifs) {
+  if (type == csv_type::PinAT) {
+    for (auto &row : ifs) {
+      std::string pin_name = row["pin"].get<>();
+      double x = row["x"].get<double>();
+      double y = row["y"].get<double>();
+      double max_rise_slack = row["max_rise_slack"].get<double>();
+      double max_fall_slack = row["max_fall_slack"].get<double>();
+      double path_slack = std::min(max_rise_slack, max_fall_slack);
+      bool rf = max_rise_slack < max_fall_slack;
+      double cap = rf ? row["max_rise_cap"].get<double>()
+                      : row["max_fall_cap"].get<double>();
+      double trans = rf ? row["max_rise_trans"].get<double>()
+                        : row["max_fall_trans"].get<double>();
+      double path_delay = rf ? row["max_rise_at"].get<double>()
+                             : row["max_fall_at"].get<double>();
+      Pin pin_obj{
+          .name = pin_name,
+          .trans = trans,
+          .path_delay = path_delay,
+          .location = {x, y},
+          .cap = cap,
+          .path_slack = path_slack,
+      };
+      _db.pins[pin_name] = std::make_shared<Pin>(pin_obj);
+    }
+  } else {
+    for (auto &row : ifs) {
+      std::string from_pin = row["from_pin"].get<>();
+      std::string to_pin = row["to_pin"].get<>();
+      double setup_delay_rise = row["setup_delay_rise"].get<double>();
+      double setup_delay_fall = row["setup_delay_fall"].get<double>();
+      std::optional<int> fanout;
+      if (type == csv_type::NetArc) {
+        fanout = row["fanout"].get<int>();
+      }
+      Arc arc_obj{.from_pin = from_pin,
+                  .to_pin = to_pin,
+                  .delay = {setup_delay_rise, setup_delay_fall},
+                  .fanout = fanout};
+      _db.add_arc(type == csv_type::CellArc, std::make_shared<Arc>(arc_obj));
+    }
   }
 }

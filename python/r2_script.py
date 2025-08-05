@@ -43,7 +43,11 @@ if __name__ == "__main__":
             score = slack_score.slack_score(
                 res["results"]["summary"][keys[0]],
                 res["results"]["summary"][keys[1]],
-                design_period[res["values"]["SHORT"]],
+                (
+                    design_period[res["values"]["SHORT"]]
+                    if res["values"]["SHORT"] in design_period
+                    else design_period[res["values"]["NAME"]]
+                ),
             )
             df = pd.DataFrame([score])
             summary_df = pd.concat([summary_df, df], ignore_index=True)
@@ -106,8 +110,11 @@ if __name__ == "__main__":
     if "tns_score" in summary_df.columns:
         all_r2_df = pd.merge(all_r2_df, summary_df, left_index=True, right_index=True)
         all_r2_df["score"] = (
-            (100 - all_r2_df["wns_score"]) / 100
-            + (100 - all_r2_df["tns_score"]) / 100
+            0.15 * (100 - all_r2_df["wns_score"]) / 100
+            + 0.35 * (100 - all_r2_df["wns100_score"]) / 100
+            + 0.5 * (100 - all_r2_df["tns_score"]) / 100
+            + 0.5 * (100 - all_r2_df["r2r_tns_score"]) / 100
+            + 0.5 * (100 - all_r2_df["r2r_wns_score"]) / 100
             + all_r2_df["mae"]
             - (0.7 * all_r2_df["arc"] + 0.3 * all_r2_df["arc_scaled"])
             - (0.3 * all_r2_df["end"] + 0.7 * all_r2_df["end_scaled"])

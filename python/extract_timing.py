@@ -94,6 +94,11 @@ def extract_timing_metrics(report_text: str) -> Dict[str, float]:
     if nvp_match:
         metrics["NVP"] = float(nvp_match.group(1))
 
+    wns100_pattern = r"The 100th Path Slack.*?:\s*([-+]?\d*\.?\d+)"
+    wns100_match = re.search(wns100_pattern, report_text, re.IGNORECASE)
+    if wns100_match:
+        metrics["WNS_100"] = float(wns100_match.group(1))
+
     return metrics
 
 
@@ -177,6 +182,7 @@ def get_timing_analysis(file_path: str) -> pd.DataFrame:
         "Path_Group": "OVERALL_SUMMARY",
         "WNS_ns": summary_groups["WNS"],  # Worst (most negative) slack
         "TNS_ns": summary_groups["TNS"],  # Total of all negative slack
+        "WNS100_ns": summary_groups.get("WNS_100", None),  # 100th path slack
         "Violations": df["Violations"].sum(),  # Total violations
         "Logic_Levels": df["Logic_Levels"].max(),  # Max logic levels
         "Path_Length_ns": df["Path_Length_ns"].max(),  # Longest path

@@ -6,22 +6,36 @@
 #include <thread>
 
 #include "dm/dm.h"
+#include "utils/utils.h"
 
 void pair_analyser_csv::csv_match(
     const std::string &cmp_name,
     absl::flat_hash_set<std::tuple<std::shared_ptr<Arc>, std::shared_ptr<Arc>>>
         &arcs,
     absl::flat_hash_map<std::pair<std::string_view, bool>,
-                        std::shared_ptr<Path>> &pin_map) {
+                        std::shared_ptr<Path>> &pin_map,
+    const std::unordered_map<std::string, std::shared_ptr<Pin>> &csv_pin_db) {
   absl::flat_hash_map<std::tuple<std::string, bool, std::string, bool>,
                       nlohmann::json>
       arcs_buffer;
-  auto createPinNode = [](const std::string &name, bool is_input,
-                          double incr_delay) {
-    return nlohmann::json{{"name", name},
-                          {"is_input", is_input},
-                          {"incr_delay", incr_delay},
-                          {"rf", false}};
+  auto createPinNode = [&csv_pin_db](const std::string &name, bool is_input,
+                                     double incr_delay) {
+    auto node = nlohmann::json{{"name", name},
+                               {"is_input", is_input},
+                               {"incr_delay", incr_delay},
+                               {"rf", false}};
+    if (!csv_pin_db.empty()) {
+      auto pin_it = csv_pin_db.find(name);
+      if (pin_it != csv_pin_db.end()) {
+        auto pin = pin_it->second;
+        node["path_delay"] = pin->path_delay;
+        node["location"] =
+            nlohmann::json::array({pin->location.first, pin->location.second});
+        node["trans"] = pin->trans;
+        node["cap"] = pin->cap.value_or(0.);
+      }
+    }
+    return node;
   };
   for (const auto &[arc_cell, arc_net] : arcs) {
     auto pin_from = arc_cell->from_pin;
@@ -52,10 +66,32 @@ void pair_analyser_csv::csv_match(
             createPinNode(pin_inter, false, arc_cell->delay[0]));
         node["key"]["pins"].push_back(
             createPinNode(pin_to, false, arc_net->delay[0]));
-
         node["value"] =
             super_arc::to_json(value_path, arc_tuple, _enable_rise_fall);
 
+        if (csv_pin_db.contains(pin_inter)) {
+          node["key"]["slack"] =
+              csv_pin_db.at(pin_inter)->path_slack.value_or(0.0);
+          node["delta_slack"] = node["key"]["slack"].get<double>() -
+                                node["value"]["slack"].get<double>();
+        }
+        if (!csv_pin_db.empty()) {
+          std::vector<std::pair<float, float>> locs;
+          bool valid_location = true;
+          for (const auto &pin : node["key"]["pins"]) {
+            if (!pin.contains("location")) {
+              valid_location = false;
+              break;
+            }
+            locs.push_back({pin["location"][0].get<double>(),
+                            pin["location"][1].get<double>()});
+          }
+          if (!valid_location) {
+            node["key"]["length"] = manhattan_distance(locs);
+            node["delta_length"] = node["key"]["length"].get<double>() -
+                                   node["value"]["length"].get<double>();
+          }
+        }
         double delta_delay = node["key"]["delay"].get<double>() -
                              node["value"]["delay"].get<double>();
         node["delta_delay"] = delta_delay;
@@ -122,7 +158,7 @@ void pair_analyser_csv::analyse() {
           pin_map;
       gen_arc_tuples(_dbs.at(rpt_pair[0]), arcs);
       gen_pin2path_map(_dbs.at(rpt_pair[1]), pin_map);
-      csv_match(cmp_name, arcs, pin_map);
+      csv_match(cmp_name, arcs, pin_map, _dbs.at(rpt_pair[0])->pins);
     });
   }
   for (auto &t : threads) {

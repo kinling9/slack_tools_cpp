@@ -110,7 +110,7 @@ void flow_control::parse_rpt(const YAML::Node& rpt, std::string key) {
     auto cell_csv_path = rpt["cell_csv"].as<std::string>();
     auto net_csv_path = rpt["net_csv"].as<std::string>();
     fmt::print("Parsing cell csv file {}\n", cell_csv_path);
-    if (!parser->parse_file(true, cell_csv_path)) {
+    if (!parser->parse_file(csv_type::CellArc, cell_csv_path)) {
       throw std::system_error(
           errno, std::generic_category(),
           fmt::format(fmt::fg(fmt::color::red),
@@ -118,12 +118,25 @@ void flow_control::parse_rpt(const YAML::Node& rpt, std::string key) {
       std::exit(1);
     }
     fmt::print("Parsing net csv file {}\n", net_csv_path);
-    if (!parser->parse_file(false, net_csv_path)) {
+    if (!parser->parse_file(csv_type::NetArc, net_csv_path)) {
       throw std::system_error(
           errno, std::generic_category(),
           fmt::format(fmt::fg(fmt::color::red),
                       "Cannot parse net csv file {}, skip.", net_csv_path));
       std::exit(1);
+    }
+
+    if (rpt["at_csv"]) {
+      auto at_csv_path = rpt["at_csv"].as<std::string>();
+      fmt::print("Parsing pin at csv file {}\n", at_csv_path);
+      if (!parser->parse_file(csv_type::PinAT, at_csv_path)) {
+        throw std::system_error(
+            errno, std::generic_category(),
+            fmt::format(fmt::fg(fmt::color::red),
+                        "Cannot parse pin at csv file {}, skip.",
+                        net_csv_path));
+        std::exit(1);
+      }
     }
     {
       std::lock_guard<std::mutex> lock(_dbs_mutex);

@@ -17,17 +17,19 @@ class Path;
 class Pin {
  public:
   std::string name;
-  std::string cell;
-  std::string instance;  // invs only
+  std::optional<std::string> cell;
+  std::optional<std::string> instance;  // invs only
   double trans;
-  double incr_delay;
+  std::optional<double> incr_delay;
   double path_delay;
   std::optional<double> pta_buf;
   std::optional<double> pta_net;
-  bool rise_fall;
+  std::optional<bool> rise_fall;
   bool is_input;  // cell input
   std::pair<double, double> location;
-  std::shared_ptr<Net> net;
+  std::optional<std::shared_ptr<Net>> net;
+  std::optional<double> cap;         // max capacitance of the pin
+  std::optional<double> path_slack;  // slack of the path
 
   // TODO: remove type, using db pointer instead
   std::string type;
@@ -55,6 +57,7 @@ class Arc {
   std::string to_pin;           // 结束Pin
   std::array<double, 2> delay;  // delay_rise, delay_fall, according to end_pin
   // std::vector<std::shared_ptr<Path>> paths;  // 路径列表
+  std::optional<int> fanout;  // fanout of the net_arc
 
  public:
   // nlohmann::json to_json();  // 转换为JSON格式
@@ -113,12 +116,15 @@ class basedb {
 
  public:
   std::vector<std::shared_ptr<Path>> paths;
+
+  // csv attributes
   std::unordered_map<std::string,
                      std::unordered_map<std::string, std::shared_ptr<Arc>>>
       cell_arcs;
   std::unordered_map<std::string,
                      std::unordered_map<std::string, std::shared_ptr<Arc>>>
       net_arcs;
+  std::unordered_map<std::string, std::shared_ptr<Pin>> pins;
 
   std::string type;
   std::string design;

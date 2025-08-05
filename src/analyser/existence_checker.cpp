@@ -26,8 +26,8 @@ void existence_checker::check_existence(const std::shared_ptr<basedb> &db,
       if (cell_maps.contains(cell_name)) {
         if (cell_maps.at(cell_name) != pin->cell) {
           fmt::print(invalid_writer.out_file,
-                     "Pin: {}, Cell: {}, Expected: {}\n", pin->name, pin->cell,
-                     cell_maps.at(cell_name));
+                     "Pin: {}, Cell: {}, Expected: {}\n", pin->name,
+                     pin->cell.value_or(""), cell_maps.at(cell_name));
         }
       }
     }

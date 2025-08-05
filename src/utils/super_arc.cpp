@@ -38,7 +38,7 @@ nlohmann::json to_json(const std::shared_ptr<Path> path,
         value_pin->rise_fall == std::get<1>(names)) {
       continue;
     }
-    delay += value_pin->incr_delay;
+    delay += value_pin->incr_delay.value_or(0.);
   }
   node["delay"] = delay;
   node["length"] = manhattan_distance(locs);
