@@ -35,7 +35,7 @@ def slack_score(test_path: str, target_path: str, period):
 
     # Ordered keys as: wns, wns100, tns, r2r_wns, r2r_tns
     ordered_keys = ["wns", "wns100", "tns", "r2r_wns", "r2r_tns"]
-    log_scale_keys = {"tns", "wns100", "r2r_tns"}
+    log_scale_keys = {"tns", "r2r_tns"}
 
     result = {}
     for key in ordered_keys:
