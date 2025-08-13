@@ -86,7 +86,7 @@ void pair_analyser_csv::csv_match(
             locs.push_back({pin["location"][0].get<double>(),
                             pin["location"][1].get<double>()});
           }
-          if (!valid_location) {
+          if (valid_location) {
             node["key"]["length"] = manhattan_distance(locs);
             node["delta_length"] = node["key"]["length"].get<double>() -
                                    node["value"]["length"].get<double>();
