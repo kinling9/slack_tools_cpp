@@ -9,7 +9,8 @@ import pandas as pd
 def slack_score(test_path: str, target_path: str, period):
     def get_values(df):
         overall = df[df["Path_Group"] == "OVERALL_SUMMARY"].iloc[0]
-        r2r = df[df["Path_Group"] == "reg2reg"].iloc[0]
+        # r2r = df[df["Path_Group"] == "reg2reg"].iloc[0]
+        r2r = df[df["Path_Group"].str.lower() == "reg2reg"].iloc[0]
         return {
             "wns": overall["WNS_ns"],
             "tns": overall["TNS_ns"],
