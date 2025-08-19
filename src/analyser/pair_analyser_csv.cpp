@@ -68,6 +68,9 @@ void pair_analyser_csv::csv_match(
             createPinNode(pin_to, false, arc_net->delay[0]));
         node["value"] =
             super_arc::to_json(value_path, arc_tuple, _enable_rise_fall);
+        if (arc_net->fanout.has_value()) {
+          node["key"]["fanout"] = arc_net->fanout.value();
+        }
 
         if (csv_pin_db.contains(pin_inter)) {
           node["key"]["slack"] =
