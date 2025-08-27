@@ -5,6 +5,7 @@ import argparse
 import yaml
 import json
 import os
+from collections import defaultdict
 
 
 def generate_yaml_content(results: list, output_dir: str = "output"):
@@ -38,12 +39,15 @@ def generate_yaml_content(results: list, output_dir: str = "output"):
         for k, v in result["results"]["arc"].items():
             if "csv" in k:
                 key_map = {"net": "net", "cell": "cell", "at": "at"}
-                found = next(
+                csv_type = next(
                     (mapped for keyword, mapped in key_map.items() if keyword in k),
                     None,
                 )
-                if found:
-                    csv_path[found] = v
+                csv_key = k.split("_")[0]
+                if csv_type:
+                    if csv_key not in csv_path:
+                        csv_path[csv_key] = {}
+                    csv_path[csv_key][csv_type] = v
                 else:
                     print(f"Unknown CSV key: {k}")
 
@@ -53,13 +57,20 @@ def generate_yaml_content(results: list, output_dir: str = "output"):
                     "type": "leda",
                 }
                 analyse_tuple.append(f"{short}_{k}")
+        print(csv_path)
         if csv_path:
-            csv_entry = {f"{k}_csv": v for k, v in csv_path.items()}
-            csv_entry["type"] = "csv"
-            arc_yaml["rpts"][f"{short}_csv"] = csv_entry
-            analyse_tuple.insert(0, f"{short}_csv")
-            arc_yaml["mode"] = "pair analyse csv"
-            arc_yaml["configs"]["enable_rise_fall"] = False
+            tmp_tuple = []
+            if len(csv_path) > 1:
+                arc_yaml["mode"] = "pair analyse dij"
+            else:
+                arc_yaml["mode"] = "pair analyse csv"
+            for k, v in csv_path.items():
+                csv_entry = {f"{k}_csv": v for k, v in v.items()}
+                csv_entry["type"] = "csv"
+                arc_yaml["rpts"][f"{k}_{short}_csv"] = csv_entry
+                arc_yaml["configs"]["enable_rise_fall"] = False
+                tmp_tuple.append(f"{k}_{short}_csv")
+            analyse_tuple.extend(tmp_tuple)
         arc_yaml["configs"]["analyse_tuples"].append(analyse_tuple)
         analyse_tuple = []
         for k, v in result["results"]["endpoint"].items():
