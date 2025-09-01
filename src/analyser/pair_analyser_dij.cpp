@@ -119,9 +119,11 @@ void pair_analyser_dij::csv_match(
     bool is_cell_arc = true;
     auto value_db = _dbs.at(rpt_pair[1]);
     for (const auto &pin_tuple : connect_check.path | std::views::adjacent<2>) {
-      const auto &[mid_from, mid_to] = pin_tuple;
+      const auto &[mid_from_view, mid_to_view] = pin_tuple;
       std::shared_ptr<Arc> mid_arc = nullptr;
       // fmt::print("Mid arc from {} to {}\n", mid_from, mid_to);
+      std::string mid_from = std::string(mid_from_view);
+      std::string mid_to = std::string(mid_to_view);
       mid_arc = is_cell_arc ? value_db->cell_arcs[mid_from][mid_to]
                             : value_db->net_arcs[mid_from][mid_to];
       is_cell_arc = !is_cell_arc;

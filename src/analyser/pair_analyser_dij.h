@@ -35,8 +35,8 @@ class ScopedTimer {
 class CacheResult {
  public:
   double distance;
-  std::vector<std::string> path;
-  CacheResult(double dist, const std::vector<std::string> &p)
+  std::vector<std::string_view> path;
+  CacheResult(double dist, const std::vector<std::string_view> &p)
       : distance(dist), path(p) {}
   CacheResult() : distance(-1), path({}) {}
 };
@@ -61,8 +61,8 @@ class SparseGraphShortestPath {
   bool topo_sorted = false;
 
   // String和int的双向映射
-  std::unordered_map<std::string, int> string_to_int;  // string -> int
-  std::vector<std::string> int_to_string;              // int -> string
+  std::unordered_map<std::string_view, int> string_to_int;  // string -> int
+  std::vector<std::string_view> int_to_string;              // int -> string
   int next_node_id = 0;
 
  public:
@@ -80,7 +80,7 @@ class SparseGraphShortestPath {
   }
 
   // 获取或创建节点的int映射
-  int getOrCreateNodeId(const std::string &node_name) {
+  int getOrCreateNodeId(const std::string_view &node_name) {
     auto it = string_to_int.find(node_name);
     if (it != string_to_int.end()) {
       return it->second;
@@ -94,7 +94,7 @@ class SparseGraphShortestPath {
   }
 
   // 根据int获取string
-  std::string getNodeName(int node_id) const {
+  std::string_view getNodeName(int node_id) const {
     if (node_id >= 0 && node_id < static_cast<int>(int_to_string.size())) {
       return int_to_string[node_id];
     }
@@ -102,7 +102,7 @@ class SparseGraphShortestPath {
   }
 
   // 根据string获取int (如果不存在返回-1)
-  int getNodeId(const std::string &node_name) const {
+  int getNodeId(const std::string_view &node_name) const {
     auto it = string_to_int.find(node_name);
     return (it != string_to_int.end()) ? it->second : -1;
   }
@@ -405,7 +405,7 @@ class SparseGraphShortestPath {
           continue;
         }
 
-        std::vector<std::string> path;
+        std::vector<std::string_view> path;
         int current = node_id;
 
         // 从目标节点回溯到源节点
@@ -427,8 +427,8 @@ class SparseGraphShortestPath {
   }
 
   // 查询两点间最短距离 (string接口)
-  CacheResult queryShortestDistance(const std::string &from,
-                                    const std::string &to) {
+  CacheResult queryShortestDistance(const std::string_view &from,
+                                    const std::string_view &to) {
     int from_id = getNodeId(from);
     int to_id = getNodeId(to);
 
@@ -553,8 +553,8 @@ class SparseGraphShortestPath {
   }
 
   // 获取所有节点名称
-  std::vector<std::string> getAllNodeNames() const {
-    std::vector<std::string> names;
+  std::vector<std::string_view> getAllNodeNames() const {
+    std::vector<std::string_view> names;
     for (int node_id : all_nodes) {
       names.push_back(getNodeName(node_id));
     }
