@@ -12,39 +12,23 @@ void pair_analyser_dij::analyse() {
     _rf_checker.set_enable_rise_fall(true);
   }
   open_writers();
-  std::vector<std::thread> threads;
+  // std::vector<std::thread> threads;
   fmt::print("Analyse tuples: {}\n", fmt::join(_analyse_tuples, ", "));
   for (const auto &rpt_pair : _analyse_tuples) {
-    threads.emplace_back([this, rpt_pair]() {
-      std::string cmp_name = fmt::format("{}", fmt::join(rpt_pair, "-"));
-      absl::flat_hash_set<
-          std::tuple<std::shared_ptr<Arc>, std::shared_ptr<Arc>>>
-          arcs;
-      gen_arc_tuples(_dbs.at(rpt_pair[0]), arcs);
-      init_graph(_dbs.at(rpt_pair[1]), rpt_pair[1]);
-      csv_match(rpt_pair, arcs, _dbs.at(rpt_pair[0])->pins,
-                _dbs.at(rpt_pair[1])->pins);
-      // for (const auto &arc : arcs) {
-      //   auto from = std::get<0>(arc)->from_pin;
-      //   auto to = std::get<1>(arc)->to_pin;
-      //   CacheResult distance = {-1, {}};
-      //   if (_sparse_graph_ptrs.contains(rpt_pair[1])) {
-      //     distance = _sparse_graph_ptrs.at(rpt_pair[1])
-      //                    ->queryShortestDistance(from, to);
-      //     fmt::print("Distance from {} to {} is {}\n", from, to,
-      //                distance.distance);
-      //     fmt::print("Path: {}\n", fmt::join(distance.path, " -> "));
-      //   } else {
-      //     fmt::print("No graph for type {}\n", _dbs.at(rpt_pair[1])->type);
-      //   }
-      // }
-    });
+    // threads.emplace_back([this, rpt_pair]() {
+    std::string cmp_name = fmt::format("{}", fmt::join(rpt_pair, "-"));
+    absl::flat_hash_set<std::tuple<std::shared_ptr<Arc>, std::shared_ptr<Arc>>>
+        arcs;
+    gen_arc_tuples(_dbs.at(rpt_pair[0]), arcs);
+    init_graph(_dbs.at(rpt_pair[1]), rpt_pair[1]);
+    csv_match(rpt_pair, arcs, _dbs.at(rpt_pair[0])->pins,
+              _dbs.at(rpt_pair[1])->pins);
   }
-  for (auto &t : threads) {
-    if (t.joinable()) {
-      t.join();
-    }
-  }
+  // for (auto &t : threads) {
+  //   if (t.joinable()) {
+  //     t.join();
+  //   }
+  // }
 }
 
 void pair_analyser_dij::init_graph(const std::shared_ptr<basedb> &db,
@@ -138,8 +122,8 @@ void pair_analyser_dij::csv_match(
       const auto &[mid_from, mid_to] = pin_tuple;
       std::shared_ptr<Arc> mid_arc = nullptr;
       // fmt::print("Mid arc from {} to {}\n", mid_from, mid_to);
-      mid_arc = is_cell_arc ? value_db->get_cell_arcs()[mid_from][mid_to]
-                            : value_db->get_net_arcs()[mid_from][mid_to];
+      mid_arc = is_cell_arc ? value_db->cell_arcs[mid_from][mid_to]
+                            : value_db->net_arcs[mid_from][mid_to];
       is_cell_arc = !is_cell_arc;
       node["value"]["pins"].push_back(createPinNode(
           mid_to, !is_cell_arc, mid_arc->delay[0], csv_pin_db_value));
@@ -190,6 +174,9 @@ void pair_analyser_dij::csv_match(
                          node["value"]["delay"].get<double>();
     node["delta_delay"] = delta_delay;
     arcs_buffer[arc_tuple] = node;
+  }
+  for (auto [name, time] : _sparse_graph_ptrs[rpt_pair[1]]->timing_stats) {
+    fmt::print("Timing stats {}: {} s\n", name, time / 1e6);
   }
   nlohmann::json arc_node;
   for (const auto &[arc, _] : arcs_buffer) {
