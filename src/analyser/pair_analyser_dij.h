@@ -214,63 +214,8 @@ class SparseGraphShortestPath {
     topo_sorted = true;
   }
 
-  void precomputeAllPairsEfficient(int comp_id) {
-    auto &distance_matrix = distance_matrixs[comp_id];
-    auto &predecessor_matrix = predecessor_matrixs[comp_id];
-    const auto &topological_order = graph_components[comp_id];
-
-    // 对每个节点作为源点进行单源最短路径计算
-    for (int source : topological_order) {
-      std::unordered_map<int, double> &dist =
-          distance_matrix[source];  // dist[target] = distance
-      std::unordered_map<int, int> &prev =
-          predecessor_matrix[source];  // prev[target] = predecessor
-
-      // 按拓扑顺序处理（从源点开始）
-      bool found_source = false;
-      // 初始化距离
-      for (int node : topological_order) {
-        if (node == source) {
-          found_source = true;
-        }
-        if (!found_source) continue;  // 跳过源点之前的节点
-        dist[node] = std::numeric_limits<double>::infinity();
-        prev[node] = -1;
-      }
-      dist[source] = 0.0;
-
-      found_source = false;
-      for (int u : topological_order) {
-        if (u == source) {
-          found_source = true;
-        }
-        if (!found_source) continue;  // 跳过源点之前的节点
-
-        if (dist[u] == std::numeric_limits<double>::infinity()) {
-          continue;
-        }
-
-        for (const auto &neighbor : adj_list[u]) {
-          int v = neighbor.first;
-          double weight = neighbor.second;
-
-          if (dist[v] > dist[u] + weight) {
-            dist[v] = dist[u] + weight;
-            prev[v] = u;
-          }
-        }
-      }
-
-      // // 存储结果
-      // for (int target : topological_order) {
-      //   distance_matrix[source][target] = dist[target];
-      //   predecessor_matrix[source][target] = prev[target];
-      // }
-    }
-  }
-
   void precomputePairsEfficient(int source) {
-    int comp_id = component_id[source];
+    const int &comp_id = component_id[source];
     auto &distance_matrix = distance_matrixs[comp_id];
     auto &predecessor_matrix = predecessor_matrixs[comp_id];
     const auto &topological_order = graph_components[comp_id];
@@ -282,48 +227,30 @@ class SparseGraphShortestPath {
 
     // 按拓扑顺序处理（从源点开始）
     bool found_source = false;
-    // 初始化距离
-    for (int node : topological_order) {
-      if (node == source) {
-        found_source = true;
-      }
-      if (!found_source) continue;  // 跳过源点之前的节点
-      dist[node] = std::numeric_limits<double>::infinity();
-      prev[node] = -1;
-    }
     dist[source] = 0.0;
-
-    found_source = false;
-    for (int u : topological_order) {
+    for (const int &u : topological_order) {
       if (u == source) {
         found_source = true;
       }
       if (!found_source) continue;  // 跳过源点之前的节点
 
-      if (dist[u] == std::numeric_limits<double>::infinity()) {
+      if (dist.find(u) == dist.end()) {
         continue;
       }
 
-      for (const auto &neighbor : adj_list[u]) {
-        int v = neighbor.first;
-        double weight = neighbor.second;
-
-        if (dist[v] > dist[u] + weight) {
-          dist[v] = dist[u] + weight;
+      for (const auto &[v, weight] : adj_list[u]) {
+        const double new_dist = dist[u] + weight;
+        auto it = dist.find(v);
+        if (it == dist.end() || it->second > new_dist) {
+          dist[v] = new_dist;
           prev[v] = u;
         }
       }
     }
-
-    // // 存储结果
-    // for (int target : topological_order) {
-    //   distance_matrix[source][target] = dist[target];
-    //   predecessor_matrix[source][target] = prev[target];
-    // }
   }
 
-  std::unordered_map<int, CacheResult> DAGFromSource(int source_id) {
-    std::unordered_map<int, CacheResult> distances;
+  void DAGFromSource(int source_id) {
+    std::unordered_map<int, CacheResult> &distances = distance_cache[source_id];
     int comp_id = component_id[source_id];
     const std::unordered_map<int, int> &previous =
         predecessor_matrixs[comp_id][source_id];  // 记录前驱节点
@@ -342,6 +269,7 @@ class SparseGraphShortestPath {
         }
         // fmt::print("To sink_id {} with distance {}\n", sink_id, distance);
         distances[sink_id] = CacheResult(distance, {});
+        continue;
         auto &path = distances[sink_id].path;
         int current = sink_id;
         while (current != source_id && current != -1 &&
@@ -358,8 +286,6 @@ class SparseGraphShortestPath {
         }
       }
     }
-
-    return distances;
   }
 
   // Dijkstra算法计算从source到所有可达节点的最短距离和路径
@@ -499,20 +425,14 @@ class SparseGraphShortestPath {
           }
         }
       }
-      {
-        ScopedTimer timer(timing_stats, "dag_init");
-        // for (int i = 0; i < components_computed; i++) {
-        //   precomputeAllPairsEfficient(i);
-        // }
-        if (distance_cache.find(from_id) == distance_cache.end()) {
+      if (distance_cache.find(from_id) == distance_cache.end()) {
+        {
+          ScopedTimer timer(timing_stats, "dag_init");
           precomputePairsEfficient(from_id);
         }
-      }
-      {
-        ScopedTimer timer(timing_stats, "dag_and_cache");
-        if (distance_cache.find(from_id) == distance_cache.end()) {
-          auto distances = DAGFromSource(from_id);
-          distance_cache[from_id] = distances;
+        {
+          ScopedTimer timer(timing_stats, "dag_and_cache");
+          DAGFromSource(from_id);
         }
       }
     }
