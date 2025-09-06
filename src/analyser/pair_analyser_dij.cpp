@@ -2,9 +2,383 @@
 
 #include <fmt/ranges.h>
 
+#include <algorithm>
+#include <limits>
+#include <syncstream>
 #include <thread>
 
 #include "utils/utils.h"
+
+SparseGraphShortestPath::SparseGraphShortestPath(
+    const std::vector<std::shared_ptr<Arc>> &edges) {
+  buildGraph(edges);
+}
+
+int SparseGraphShortestPath::getOrCreateNodeId(
+    const std::string_view &node_name) {
+  auto it = string_to_int.find(node_name);
+  if (it != string_to_int.end()) {
+    return it->second;
+  }
+  int node_id = next_node_id++;
+  string_to_int[node_name] = node_id;
+  int_to_string.push_back(node_name);
+  return node_id;
+}
+
+std::string_view SparseGraphShortestPath::getNodeName(int node_id) const {
+  if (node_id >= 0 && node_id < static_cast<int>(int_to_string.size())) {
+    return int_to_string[node_id];
+  }
+  return "";
+}
+
+int SparseGraphShortestPath::getNodeId(
+    const std::string_view &node_name) const {
+  auto it = string_to_int.find(node_name);
+  return (it != string_to_int.end()) ? it->second : -1;
+}
+
+void SparseGraphShortestPath::buildGraph(
+    const std::vector<std::shared_ptr<Arc>> &edges) {
+  for (const auto &edge : edges) {
+    int from_id = getOrCreateNodeId(edge->from_pin);
+    int to_id = getOrCreateNodeId(edge->to_pin);
+    adj_list[from_id].emplace_back(to_id, edge->delay[0]);
+    rev_adj_list[to_id].emplace_back(from_id, edge->delay[0]);
+    all_nodes.insert(from_id);
+    all_nodes.insert(to_id);
+  }
+}
+
+void SparseGraphShortestPath::computeComponents() {
+  if (components_computed != 0) return;
+  std::unordered_set<int> visited;
+  int comp_id = 0;
+  for (int node_id : all_nodes) {
+    if (visited.find(node_id) == visited.end()) {
+      graph_components.resize(comp_id + 1);
+      std::queue<int> q;
+      q.push(node_id);
+      visited.insert(node_id);
+      component_id[node_id] = comp_id;
+      graph_components[comp_id].push_back(node_id);
+      while (!q.empty()) {
+        int curr = q.front();
+        q.pop();
+        if (adj_list.find(curr) != adj_list.end()) {
+          for (auto &[neighbor_id, _] : adj_list[curr]) {
+            if (visited.find(neighbor_id) == visited.end()) {
+              visited.insert(neighbor_id);
+              component_id[neighbor_id] = comp_id;
+              graph_components[comp_id].push_back(neighbor_id);
+              q.push(neighbor_id);
+            }
+          }
+        }
+        if (rev_adj_list.find(curr) != adj_list.end()) {
+          for (auto &[neighbor_id, _] : rev_adj_list[curr]) {
+            if (visited.find(neighbor_id) == visited.end()) {
+              visited.insert(neighbor_id);
+              component_id[neighbor_id] = comp_id;
+              graph_components[comp_id].push_back(neighbor_id);
+              q.push(neighbor_id);
+            }
+          }
+        }
+      }
+      comp_id++;
+    }
+  }
+  components_computed = comp_id;
+  std::shared_lock lock(precomp_mutex);
+  distance_matrixs.resize(components_computed);
+  predecessor_matrixs.resize(components_computed);
+  lock.unlock();
+}
+
+void SparseGraphShortestPath::topologicalSort(int comp_id) {
+  std::unordered_map<int, int> in_degree;
+  std::queue<int> q;
+  std::vector<int> result;
+  const auto &nodes = graph_components[comp_id];
+  for (const auto &node : nodes) {
+    in_degree[node] = 0;
+  }
+  for (const auto &node : adj_list) {
+    for (const auto &neighbor : node.second) {
+      in_degree[neighbor.first]++;
+    }
+  }
+  for (const auto &node : in_degree) {
+    if (node.second == 0) {
+      q.push(node.first);
+    }
+  }
+  while (!q.empty()) {
+    int u = q.front();
+    q.pop();
+    result.push_back(u);
+    for (const auto &neighbor : adj_list[u]) {
+      in_degree[neighbor.first]--;
+      if (in_degree[neighbor.first] == 0) {
+        q.push(neighbor.first);
+      }
+    }
+  }
+  graph_components[comp_id] = result;
+  topo_sorted = true;
+}
+
+void SparseGraphShortestPath::precomputePairsEfficient(int source) {
+  const int &comp_id = component_id[source];
+  const auto &topological_order = graph_components[comp_id];
+  std::unique_lock lock(precomp_mutex);
+  auto &distance_matrix = distance_matrixs[comp_id];
+  auto &predecessor_matrix = predecessor_matrixs[comp_id];
+  std::unordered_map<int, double> &dist = distance_matrix[source];
+  std::unordered_map<int, int> &prev = predecessor_matrix[source];
+  dist.clear();
+  prev.clear();
+  lock.unlock();
+  dist[source] = 0.0;
+  auto source_it =
+      std::find(topological_order.begin(), topological_order.end(), source);
+  if (source_it == topological_order.end()) {
+    return;
+  }
+  for (auto it = source_it; it != topological_order.end(); ++it) {
+    const int u = *it;
+    auto dist_it = dist.find(u);
+    if (dist_it == dist.end()) {
+      continue;
+    }
+    const double u_dist = dist_it->second;
+    const auto &neighbors = adj_list[u];
+    for (const auto &[v, weight] : neighbors) {
+      const double new_dist = u_dist + weight;
+      auto [v_it, inserted] = dist.emplace(v, new_dist);
+      if (!inserted && v_it->second > new_dist) {
+        v_it->second = new_dist;
+        prev[v] = u;
+      } else if (inserted) {
+        prev[v] = u;
+      }
+    }
+  }
+}
+
+void SparseGraphShortestPath::DAGFromSource(int source_id) {
+  std::unordered_map<int, CacheResult> &distances = distance_cache[source_id];
+  int comp_id = component_id[source_id];
+  const std::unordered_map<int, int> &previous =
+      predecessor_matrixs[comp_id][source_id];
+  const auto &distance_matrix = distance_matrixs.at(comp_id);
+  distances[source_id] = CacheResult(0, {});
+  {
+    ScopedTimer timer(timing_stats, "reconstruct_paths");
+    for (const auto &[sink_id, distance] : distance_matrix.at(source_id)) {
+      if (distance == std::numeric_limits<double>::infinity()) {
+        continue;
+      }
+      std::shared_lock lock(cache_mutex);
+      distances[sink_id] = CacheResult(distance, {});
+      lock.unlock();
+      continue;
+      auto &path = distances[sink_id].path;
+      int current = sink_id;
+      while (current != source_id && current != -1 &&
+             previous.find(current) != previous.end()) {
+        path.push_back(getNodeName(current));
+        current = previous.at(current);
+      }
+      if (current == source_id) {
+        path.push_back(getNodeName(source_id));
+        std::reverse(path.begin(), path.end());
+      }
+    }
+  }
+}
+
+std::unordered_map<int, CacheResult>
+SparseGraphShortestPath::dijkstraFromSource(int source_id) {
+  std::unordered_map<int, CacheResult> distances;
+  std::unordered_map<int, int> previous;
+  std::priority_queue<std::pair<double, int>,
+                      std::vector<std::pair<double, int>>,
+                      std::greater<std::pair<double, int>>>
+      pq;
+  distances[source_id] = CacheResult(0, {});
+  pq.push({0, source_id});
+  {
+    ScopedTimer timer(timing_stats, "dijkstra_main_loop");
+    while (!pq.empty()) {
+      auto [curr_dist, curr_node_id] = pq.top();
+      pq.pop();
+      if (curr_dist > distances[curr_node_id].distance) continue;
+      if (adj_list.find(curr_node_id) != adj_list.end()) {
+        for (auto &[neighbor_id, edge_dist] : adj_list[curr_node_id]) {
+          double new_dist = curr_dist + edge_dist;
+          if (distances.find(neighbor_id) == distances.end() ||
+              new_dist < distances[neighbor_id].distance) {
+            distances[neighbor_id] = {new_dist, {}};
+            previous[neighbor_id] = curr_node_id;
+            pq.push({new_dist, neighbor_id});
+          }
+        }
+      }
+    }
+  }
+  {
+    ScopedTimer timer(timing_stats, "reconstruct_paths");
+    for (auto &[node_id, cache_result] : distances) {
+      if (node_id == source_id) {
+        cache_result.path = {getNodeName(source_id)};
+        continue;
+      }
+      std::vector<std::string_view> path;
+      int current = node_id;
+      while (current != source_id && previous.find(current) != previous.end()) {
+        path.push_back(getNodeName(current));
+        current = previous[current];
+      }
+      if (current == source_id) {
+        path.push_back(getNodeName(source_id));
+        std::reverse(path.begin(), path.end());
+        cache_result.path = path;
+      }
+    }
+  }
+  return distances;
+}
+
+CacheResult SparseGraphShortestPath::queryShortestDistance(
+    const std::string_view &from, const std::string_view &to) {
+  int from_id = getNodeId(from);
+  int to_id = getNodeId(to);
+  if (from_id == -1 || to_id == -1) {
+    return {-1, {}};
+  }
+  return queryShortestDistanceById(from_id, to_id);
+}
+
+CacheResult SparseGraphShortestPath::queryShortestDistanceById(int from_id,
+                                                               int to_id) {
+  CacheResult result;
+  {
+    ScopedTimer timer(timing_stats, "check_node_existence");
+    if (all_nodes.find(from_id) == all_nodes.end() ||
+        all_nodes.find(to_id) == all_nodes.end()) {
+      return {-1, {}};
+    }
+  }
+  {
+    ScopedTimer timer(timing_stats, "check_self_loop");
+    if (from_id == to_id) {
+      return {0, {getNodeName(from_id)}};
+    }
+  }
+  {
+    ScopedTimer timer(timing_stats, "check_cache");
+    if (distance_cache.find(from_id) != distance_cache.end() &&
+        distance_cache.at(from_id).find(to_id) !=
+            distance_cache.at(from_id).end()) {
+      return distance_cache.at(from_id).at(to_id);
+    }
+  }
+  {
+    ScopedTimer timer(timing_stats, "compute_components_check");
+    std::shared_lock lock(component_mutex);
+    if (components_computed == 0) {
+      computeComponents();
+    }
+    lock.unlock();
+  }
+  {
+    ScopedTimer timer(timing_stats, "check_connectivity");
+    std::shared_lock lock(cache_mutex);
+    if (component_id.at(from_id) != component_id.at(to_id)) {
+      distance_cache[from_id][to_id] = {-1, {}};
+      return {-1, {}};
+    }
+    lock.unlock();
+  }
+  if (0) {
+    {
+      ScopedTimer timer(timing_stats, "dijkstra_and_cache");
+      if (distance_cache.find(from_id) == distance_cache.end()) {
+        auto distances = dijkstraFromSource(from_id);
+        distance_cache[from_id] = distances;
+      }
+    }
+  } else {
+    {
+      ScopedTimer timer(timing_stats, "topo_sort");
+      std::shared_lock lock(component_mutex);
+      if (!topo_sorted) {
+        for (int i = 0; i < components_computed; i++) {
+          topologicalSort(i);
+        }
+      }
+      lock.unlock();
+    }
+    if (distance_cache.find(from_id) == distance_cache.end()) {
+      {
+        ScopedTimer timer(timing_stats, "dag_init");
+        precomputePairsEfficient(from_id);
+      }
+      {
+        ScopedTimer timer(timing_stats, "dag_and_cache");
+        DAGFromSource(from_id);
+      }
+    }
+  }
+  {
+    ScopedTimer timer(timing_stats, "final_lookup");
+    const auto &from_cache = distance_cache.at(from_id);
+    if (from_cache.find(to_id) != from_cache.end()) {
+      result = from_cache.at(to_id);
+    } else {
+      result = {-1, {}};
+    }
+    std::shared_lock lock(cache_mutex);
+    distance_cache[from_id][to_id] = result;
+    lock.unlock();
+  }
+  return result;
+}
+
+void SparseGraphShortestPath::clearCache() {
+  distance_cache.clear();
+  components_computed = false;
+  component_id.clear();
+}
+
+void SparseGraphShortestPath::printStats() const {
+  std::cout << "Number of nodes: " << all_nodes.size() << std::endl;
+  std::cout << "Number of edges: ";
+  int edge_count = 0;
+  for (const auto &[node_id, neighbors] : adj_list) {
+    edge_count += neighbors.size();
+  }
+  std::cout << edge_count << std::endl;
+  std::cout << "Number of cached sources: " << distance_cache.size()
+            << std::endl;
+  std::cout << "String to int mappings: " << string_to_int.size() << std::endl;
+}
+
+std::vector<std::string_view> SparseGraphShortestPath::getAllNodeNames() const {
+  std::vector<std::string_view> names;
+  for (int node_id : all_nodes) {
+    names.push_back(getNodeName(node_id));
+  }
+  return names;
+}
+
+std::vector<int> SparseGraphShortestPath::getAllNodeIds() const {
+  std::vector<int> ids(all_nodes.begin(), all_nodes.end());
+  return ids;
+}
 
 void pair_analyser_dij::analyse() {
   if (_enable_rise_fall) {

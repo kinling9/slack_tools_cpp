@@ -5,12 +5,15 @@
 #include <climits>
 #include <functional>
 #include <iostream>
+#include <mutex>
 #include <queue>
+#include <shared_mutex>
 #include <unordered_map>
 #include <unordered_set>
 #include <vector>
 
 #include "pair_analyser_csv.h"
+
 class ScopedTimer {
  public:
   using Clock = std::chrono::high_resolution_clock;
@@ -23,13 +26,16 @@ class ScopedTimer {
     auto duration =
         std::chrono::duration_cast<std::chrono::microseconds>(end - m_start)
             .count();
+    std::unique_lock lock(timer_mutex);
     m_accum[m_name] += duration;
+    lock.unlock();
   }
 
  private:
   std::map<std::string, long long> &m_accum;
   std::string m_name;
   std::chrono::time_point<Clock> m_start;
+  std::shared_mutex timer_mutex;
 };
 
 class CacheResult {
@@ -73,419 +79,63 @@ class SparseGraphShortestPath {
   std::vector<std::unordered_map<int, std::unordered_map<int, int>>>
       predecessor_matrixs;  // 前驱矩阵
 
+  mutable std::shared_mutex graph_mutex;  // Protects adj_list, rev_adj_list
+
+  // Cache for shortest paths - heavily read, written during Dijkstra
+  mutable std::shared_mutex cache_mutex;  // Support multiple concurrent readers
+
+  // Node set and component info
+  mutable std::shared_mutex
+      component_mutex;  // Protects component-related state
+
+  mutable std::shared_mutex precomp_mutex;  // Protects precomputation results
+
  public:
   // 构造函数，输入边的向量
-  SparseGraphShortestPath(const std::vector<std::shared_ptr<Arc>> &edges) {
-    buildGraph(edges);
-  }
+  SparseGraphShortestPath(const std::vector<std::shared_ptr<Arc>> &edges);
 
   // 获取或创建节点的int映射
-  int getOrCreateNodeId(const std::string_view &node_name) {
-    auto it = string_to_int.find(node_name);
-    if (it != string_to_int.end()) {
-      return it->second;
-    }
-
-    // 创建新的映射
-    int node_id = next_node_id++;
-    string_to_int[node_name] = node_id;
-    int_to_string.push_back(node_name);
-    return node_id;
-  }
+  int getOrCreateNodeId(const std::string_view &node_name);
 
   // 根据int获取string
-  std::string_view getNodeName(int node_id) const {
-    if (node_id >= 0 && node_id < static_cast<int>(int_to_string.size())) {
-      return int_to_string[node_id];
-    }
-    return "";  // 无效ID
-  }
+  std::string_view getNodeName(int node_id) const;
 
   // 根据string获取int (如果不存在返回-1)
-  int getNodeId(const std::string_view &node_name) const {
-    auto it = string_to_int.find(node_name);
-    return (it != string_to_int.end()) ? it->second : -1;
-  }
+  int getNodeId(const std::string_view &node_name) const;
 
   // 构建图的邻接表
-  void buildGraph(const std::vector<std::shared_ptr<Arc>> &edges) {
-    for (const auto &edge : edges) {
-      int from_id = getOrCreateNodeId(edge->from_pin);
-      int to_id = getOrCreateNodeId(edge->to_pin);
-
-      adj_list[from_id].emplace_back(to_id, edge->delay[0]);
-      rev_adj_list[to_id].emplace_back(from_id, edge->delay[0]);
-      all_nodes.insert(from_id);
-      all_nodes.insert(to_id);
-    }
-  }
+  void buildGraph(const std::vector<std::shared_ptr<Arc>> &edges);
 
   // 计算连通分量（用于快速判断两点是否连通）
-  void computeComponents() {
-    if (components_computed != 0) return;
+  void computeComponents();
 
-    std::unordered_set<int> visited;
-    int comp_id = 0;
+  void topologicalSort(int comp_id);
 
-    for (int node_id : all_nodes) {
-      if (visited.find(node_id) == visited.end()) {
-        // BFS遍历当前连通分量
-        graph_components.resize(comp_id + 1);
-        std::queue<int> q;
-        q.push(node_id);
-        visited.insert(node_id);
-        component_id[node_id] = comp_id;
-        graph_components[comp_id].push_back(node_id);
+  void precomputePairsEfficient(int source);
 
-        while (!q.empty()) {
-          int curr = q.front();
-          q.pop();
-
-          // 遍历所有邻居（正向和反向）
-          if (adj_list.find(curr) != adj_list.end()) {
-            for (auto &[neighbor_id, _] : adj_list[curr]) {
-              if (visited.find(neighbor_id) == visited.end()) {
-                visited.insert(neighbor_id);
-                component_id[neighbor_id] = comp_id;
-                graph_components[comp_id].push_back(neighbor_id);
-                q.push(neighbor_id);
-              }
-            }
-          }
-
-          // 检查反向边
-          if (rev_adj_list.find(curr) != adj_list.end()) {
-            for (auto &[neighbor_id, _] : rev_adj_list[curr]) {
-              if (visited.find(neighbor_id) == visited.end()) {
-                visited.insert(neighbor_id);
-                component_id[neighbor_id] = comp_id;
-                graph_components[comp_id].push_back(neighbor_id);
-                q.push(neighbor_id);
-              }
-            }
-          }
-        }
-        comp_id++;
-      }
-    }
-    components_computed = comp_id;
-    distance_matrixs.resize(components_computed);
-    predecessor_matrixs.resize(components_computed);
-  }
-
-  void topologicalSort(int comp_id) {
-    std::unordered_map<int, int> in_degree;
-    std::queue<int> q;
-    std::vector<int> result;
-
-    const auto &nodes = graph_components[comp_id];
-
-    // 初始化入度
-    for (const auto &node : nodes) {
-      // if (adj_list.find(node) == adj_list.end()) continue;
-      in_degree[node] = 0;
-    }
-    for (const auto &node : adj_list) {
-      for (const auto &neighbor : node.second) {
-        in_degree[neighbor.first]++;
-      }
-    }
-
-    // 将入度为0的节点加入队列
-    for (const auto &node : in_degree) {
-      if (node.second == 0) {
-        q.push(node.first);
-      }
-    }
-
-    // 执行拓扑排序
-    while (!q.empty()) {
-      int u = q.front();
-      q.pop();
-      result.push_back(u);
-      for (const auto &neighbor : adj_list[u]) {
-        in_degree[neighbor.first]--;
-        if (in_degree[neighbor.first] == 0) {
-          q.push(neighbor.first);
-        }
-      }
-    }
-    graph_components[comp_id] = result;
-    topo_sorted = true;
-  }
-
-  void precomputePairsEfficient(int source) {
-    const int &comp_id = component_id[source];
-    auto &distance_matrix = distance_matrixs[comp_id];
-    auto &predecessor_matrix = predecessor_matrixs[comp_id];
-    const auto &topological_order = graph_components[comp_id];
-
-    std::unordered_map<int, double> &dist =
-        distance_matrix[source];  // dist[target] = distance
-    std::unordered_map<int, int> &prev =
-        predecessor_matrix[source];  // prev[target] = predecessor
-
-    // 按拓扑顺序处理（从源点开始）
-    bool found_source = false;
-    dist[source] = 0.0;
-    for (const int &u : topological_order) {
-      if (u == source) {
-        found_source = true;
-      }
-      if (!found_source) continue;  // 跳过源点之前的节点
-
-      if (dist.find(u) == dist.end()) {
-        continue;
-      }
-
-      for (const auto &[v, weight] : adj_list[u]) {
-        const double new_dist = dist[u] + weight;
-        auto it = dist.find(v);
-        if (it == dist.end() || it->second > new_dist) {
-          dist[v] = new_dist;
-          prev[v] = u;
-        }
-      }
-    }
-  }
-
-  void DAGFromSource(int source_id) {
-    std::unordered_map<int, CacheResult> &distances = distance_cache[source_id];
-    int comp_id = component_id[source_id];
-    const std::unordered_map<int, int> &previous =
-        predecessor_matrixs[comp_id][source_id];  // 记录前驱节点
-    const auto &distance_matrix = distance_matrixs[comp_id];
-
-    distances[source_id] = CacheResult(0, {});
-    // fmt::print("DAG from source {}\n", source_id);
-
-    // 重构所有路径 (转换为string路径)
-    {
-      ScopedTimer timer(timing_stats, "reconstruct_paths");
-
-      for (const auto &[sink_id, distance] : distance_matrix.at(source_id)) {
-        if (distance == std::numeric_limits<double>::infinity()) {
-          continue;
-        }
-        // fmt::print("To sink_id {} with distance {}\n", sink_id, distance);
-        distances[sink_id] = CacheResult(distance, {});
-        continue;
-        auto &path = distances[sink_id].path;
-        int current = sink_id;
-        while (current != source_id && current != -1 &&
-               previous.find(current) != previous.end()) {
-          path.push_back(getNodeName(current));
-          // fmt::print("Tracing to {} with id {}\n", getNodeName(current),
-          //            current);
-          current = previous.at(current);
-        }
-
-        if (current == source_id) {
-          path.push_back(getNodeName(source_id));
-          std::reverse(path.begin(), path.end());  // 反转得到正确顺序
-        }
-      }
-    }
-  }
+  void DAGFromSource(int source_id);
 
   // Dijkstra算法计算从source到所有可达节点的最短距离和路径
-  std::unordered_map<int, CacheResult> dijkstraFromSource(int source_id) {
-    std::unordered_map<int, CacheResult> distances;
-    std::unordered_map<int, int> previous;  // 记录前驱节点
-    std::priority_queue<std::pair<double, int>,
-                        std::vector<std::pair<double, int>>,
-                        std::greater<std::pair<double, int>>>
-        pq;  // {dist, node_id}
-
-    distances[source_id] = CacheResult(0, {});
-    pq.push({0, source_id});
-
-    {
-      ScopedTimer timer(timing_stats, "dijkstra_main_loop");
-      while (!pq.empty()) {
-        auto [curr_dist, curr_node_id] = pq.top();
-        pq.pop();
-
-        if (curr_dist > distances[curr_node_id].distance) continue;
-
-        if (adj_list.find(curr_node_id) != adj_list.end()) {
-          for (auto &[neighbor_id, edge_dist] : adj_list[curr_node_id]) {
-            double new_dist = curr_dist + edge_dist;
-            if (distances.find(neighbor_id) == distances.end() ||
-                new_dist < distances[neighbor_id].distance) {
-              distances[neighbor_id] = {new_dist, {}};
-              previous[neighbor_id] = curr_node_id;  // 记录前驱节点
-              pq.push({new_dist, neighbor_id});
-            }
-          }
-        }
-      }
-    }
-
-    // 重构所有路径 (转换为string路径)
-    {
-      ScopedTimer timer(timing_stats, "reconstruct_paths");
-      for (auto &[node_id, cache_result] : distances) {
-        if (node_id == source_id) {
-          cache_result.path = {getNodeName(source_id)};  // 源节点到自己的路径
-          continue;
-        }
-
-        std::vector<std::string_view> path;
-        int current = node_id;
-
-        // 从目标节点回溯到源节点
-        while (current != source_id &&
-               previous.find(current) != previous.end()) {
-          path.push_back(getNodeName(current));
-          current = previous[current];
-        }
-
-        if (current == source_id) {
-          path.push_back(getNodeName(source_id));
-          std::reverse(path.begin(), path.end());  // 反转得到正确顺序
-          cache_result.path = path;
-        }
-      }
-    }
-
-    return distances;
-  }
+  std::unordered_map<int, CacheResult> dijkstraFromSource(int source_id);
 
   // 查询两点间最短距离 (string接口)
   CacheResult queryShortestDistance(const std::string_view &from,
-                                    const std::string_view &to) {
-    int from_id = getNodeId(from);
-    int to_id = getNodeId(to);
-
-    // 检查节点是否存在
-    if (from_id == -1 || to_id == -1) {
-      return {-1, {}};  // 节点不存在
-    }
-
-    return queryShortestDistanceById(from_id, to_id);
-  }
+                                    const std::string_view &to);
 
   // 查询两点间最短距离 (int接口)
-  CacheResult queryShortestDistanceById(int from_id, int to_id) {
-    CacheResult result;
-    {
-      ScopedTimer timer(timing_stats, "check_node_existence");
-      if (all_nodes.find(from_id) == all_nodes.end() ||
-          all_nodes.find(to_id) == all_nodes.end()) {
-        return {-1, {}};
-      }
-    }
-
-    {
-      ScopedTimer timer(timing_stats, "check_self_loop");
-      if (from_id == to_id) {
-        return {0, {getNodeName(from_id)}};
-      }
-    }
-
-    {
-      ScopedTimer timer(timing_stats, "check_cache");
-      if (distance_cache.find(from_id) != distance_cache.end() &&
-          distance_cache[from_id].find(to_id) !=
-              distance_cache[from_id].end()) {
-        return distance_cache[from_id][to_id];
-      }
-    }
-
-    {
-      ScopedTimer timer(timing_stats, "compute_components_check");
-      if (components_computed == 0) {
-        computeComponents();
-      }
-    }
-
-    {
-      ScopedTimer timer(timing_stats, "check_connectivity");
-      if (component_id[from_id] != component_id[to_id]) {
-        distance_cache[from_id][to_id] = {-1, {}};
-        return {-1, {}};
-      }
-    }
-
-    if (0) {
-      {
-        ScopedTimer timer(timing_stats, "dijkstra_and_cache");
-        if (distance_cache.find(from_id) == distance_cache.end()) {
-          auto distances = dijkstraFromSource(from_id);
-          distance_cache[from_id] = distances;
-        }
-      }
-    } else {
-      {
-        ScopedTimer timer(timing_stats, "topo_sort");
-        if (!topo_sorted) {
-          for (int i = 0; i < components_computed; i++) {
-            topologicalSort(i);
-          }
-        }
-      }
-      if (distance_cache.find(from_id) == distance_cache.end()) {
-        {
-          ScopedTimer timer(timing_stats, "dag_init");
-          precomputePairsEfficient(from_id);
-        }
-        {
-          ScopedTimer timer(timing_stats, "dag_and_cache");
-          DAGFromSource(from_id);
-        }
-      }
-    }
-
-    {
-      ScopedTimer timer(timing_stats, "final_lookup");
-      auto &from_cache = distance_cache[from_id];
-      if (from_cache.find(to_id) != from_cache.end()) {
-        result = from_cache[to_id];
-      } else {
-        result = {-1, {}};
-      }
-      distance_cache[from_id][to_id] = result;
-    }
-    return result;
-  }
+  CacheResult queryShortestDistanceById(int from_id, int to_id);
 
   // 清空缓存（节省内存）
-  void clearCache() {
-    distance_cache.clear();
-    components_computed = false;
-    component_id.clear();
-  }
+  void clearCache();
 
   // 获取图的统计信息
-  void printStats() const {
-    std::cout << "Number of nodes: " << all_nodes.size() << std::endl;
-    std::cout << "Number of edges: ";
-    int edge_count = 0;
-    for (const auto &[node_id, neighbors] : adj_list) {
-      edge_count += neighbors.size();
-    }
-    std::cout << edge_count << std::endl;
-    std::cout << "Number of cached sources: " << distance_cache.size()
-              << std::endl;
-    std::cout << "String to int mappings: " << string_to_int.size()
-              << std::endl;
-  }
+  void printStats() const;
 
   // 获取所有节点名称
-  std::vector<std::string_view> getAllNodeNames() const {
-    std::vector<std::string_view> names;
-    for (int node_id : all_nodes) {
-      names.push_back(getNodeName(node_id));
-    }
-    return names;
-  }
+  std::vector<std::string_view> getAllNodeNames() const;
 
   // 获取所有节点ID
-  std::vector<int> getAllNodeIds() const {
-    std::vector<int> ids(all_nodes.begin(), all_nodes.end());
-    return ids;
-  }
+  std::vector<int> getAllNodeIds() const;
 };
 
 class pair_analyser_dij : public pair_analyser_csv {
