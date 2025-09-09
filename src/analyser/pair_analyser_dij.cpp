@@ -334,10 +334,10 @@ CacheResult SparseGraphShortestPath::queryShortestDistanceById(int from_id,
     std::unique_lock lock(cache_mutex);
     if (distance_cache.find(from_id) == distance_cache.end()) {
       lock.unlock();
-      // {
-      //   ScopedTimer timer(timing_stats, "dag_init");
-      //   precomputePairsEfficient(from_id);
-      // }
+      {
+        ScopedTimer timer(timing_stats, "dag_init");
+        precomputePairsEfficient(from_id);
+      }
       {
         ScopedTimer timer(timing_stats, "dag_and_cache");
         DAGFromSource(from_id);
@@ -620,26 +620,26 @@ void pair_analyser_dij::csv_match(
   std::vector<std::thread> threads;
   threads.reserve(num_threads);
 
-  std::unordered_set<std::string_view> arc_starts;
-  for (const auto &[arc_cell, arc_net] : arcs) {
-    arc_starts.insert(arc_cell->from_pin);
-  }
-
-  size_t chunk_size_start = (arc_starts.size() + num_threads - 1) / num_threads;
-  for (unsigned int t = 0; t < num_threads; ++t) {
-    size_t begin_idx = t * chunk_size_start;
-    size_t end_idx = std::min(begin_idx + chunk_size_start, arc_starts.size());
-    threads.emplace_back(&pair_analyser_dij::precompute_start, this, begin_idx,
-                         end_idx, std::ref(arc_starts), std::ref(rpt_pair));
-  }
-
-  for (auto &th : threads) {
-    if (th.joinable()) {
-      th.join();
-    }
-  }
-
-  threads.clear();
+  // std::unordered_set<std::string_view> arc_starts;
+  // for (const auto &[arc_cell, arc_net] : arcs) {
+  //   arc_starts.insert(arc_cell->from_pin);
+  // }
+  //
+  // size_t chunk_size_start = (arc_starts.size() + num_threads - 1) / num_threads;
+  // for (unsigned int t = 0; t < num_threads; ++t) {
+  //   size_t begin_idx = t * chunk_size_start;
+  //   size_t end_idx = std::min(begin_idx + chunk_size_start, arc_starts.size());
+  //   threads.emplace_back(&pair_analyser_dij::precompute_start, this, begin_idx,
+  //                        end_idx, std::ref(arc_starts), std::ref(rpt_pair));
+  // }
+  //
+  // for (auto &th : threads) {
+  //   if (th.joinable()) {
+  //     th.join();
+  //   }
+  // }
+  //
+  // threads.clear();
 
   std::vector<std::map<std::tuple<std::string, bool, std::string, bool>,
                        nlohmann::json>>
