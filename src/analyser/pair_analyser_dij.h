@@ -7,7 +7,6 @@
 #include <iostream>
 #include <mutex>
 #include <queue>
-#include <shared_mutex>
 #include <unordered_map>
 #include <unordered_set>
 #include <vector>
@@ -26,16 +25,19 @@ class ScopedTimer {
     auto duration =
         std::chrono::duration_cast<std::chrono::microseconds>(end - m_start)
             .count();
-    std::unique_lock lock(timer_mutex);
+    std::lock_guard<std::mutex> lock(get_timer_mutex());
     m_accum[m_name] += duration;
-    lock.unlock();
+  }
+
+  std::mutex &get_timer_mutex() {
+    static std::mutex timer_mutex;
+    return timer_mutex;
   }
 
  private:
   std::map<std::string, long long> &m_accum;
   std::string m_name;
   std::chrono::time_point<Clock> m_start;
-  std::shared_mutex timer_mutex;
 };
 
 class CacheResult {
@@ -79,16 +81,15 @@ class SparseGraphShortestPath {
   std::vector<std::unordered_map<int, std::unordered_map<int, int>>>
       predecessor_matrixs;  // 前驱矩阵
 
-  mutable std::shared_mutex graph_mutex;  // Protects adj_list, rev_adj_list
+  std::mutex graph_mutex;  // Protects adj_list, rev_adj_list
 
   // Cache for shortest paths - heavily read, written during Dijkstra
-  mutable std::shared_mutex cache_mutex;  // Support multiple concurrent readers
+  std::mutex cache_mutex;  // Support multiple concurrent readers
 
   // Node set and component info
-  mutable std::shared_mutex
-      component_mutex;  // Protects component-related state
+  std::mutex component_mutex;  // Protects component-related state
 
-  mutable std::shared_mutex precomp_mutex;  // Protects precomputation results
+  std::mutex precomp_mutex;  // Protects precomputation results
 
  public:
   // 构造函数，输入边的向量
@@ -151,6 +152,21 @@ class pair_analyser_dij : public pair_analyser_csv {
                  const std::unordered_map<std::string, std::shared_ptr<Pin>>
                      &csv_pin_db_value);
 
+  nlohmann::json create_pin_node(
+      const std::string &name, bool is_input, double incr_delay,
+      const std::unordered_map<std::string, std::shared_ptr<Pin>> &csv_pin_db);
+  void process_arc_segment(
+      int t, size_t begin_idx, size_t end_idx,
+      const absl::flat_hash_set<
+          std::tuple<std::shared_ptr<Arc>, std::shared_ptr<Arc>>> &arcs,
+      const std::vector<std::string> &rpt_pair,
+      const std::unordered_map<std::string, std::shared_ptr<Pin>>
+          &csv_pin_db_key,
+      const std::unordered_map<std::string, std::shared_ptr<Pin>>
+          &csv_pin_db_value,
+      std::vector<std::map<std::tuple<std::string, bool, std::string, bool>,
+                           nlohmann::json>>
+          thread_buffers);
   absl::flat_hash_map<std::string, std::shared_ptr<SparseGraphShortestPath>>
       _sparse_graph_ptrs;
 };
