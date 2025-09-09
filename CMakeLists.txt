@@ -3,7 +3,7 @@ project(cpp_parser)
 set(CMAKE_CXX_STANDARD 23)
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 
-if(NOT CMAKE_BUILD_TYPE)
+if(NOT CMAKE_BUILD_TYPE AND NOT ENABLE_TSAN)
   set(CMAKE_BUILD_TYPE RelWithDebInfo)
 endif()
 
@@ -13,6 +13,23 @@ set(CMAKE_CXX_FLAGS_RELEASE "-O3")
 # set(CMAKE_INCLUDE_CURRENT_DIR ON)
 # set(Boost_USE_STATIC_LIBS ON)
 set(ABSL_PROPAGATE_CXX_STD ON)
+
+option(ENABLE_TSAN "Enable ThreadSanitizer" OFF)
+
+if(ENABLE_TSAN)
+    # if(NOT CMAKE_CXX_COMPILER_ID MATCHES "Clang")
+    #     message(FATAL_ERROR "ThreadSanitizer requires Clang (not GCC or MSVC)")
+    # endif()
+
+    # Add TSan compile and link flags
+    add_compile_options(-fsanitize=thread -g -O1)
+    link_libraries(-fsanitize=thread)
+
+    # Disable inlining for better TSan reports (optional)
+    add_compile_options(-fno-inline)
+
+    message(STATUS "ThreadSanitizer (TSAN) enabled")
+endif()
 
 find_package(Boost REQUIRED iostreams)
 add_subdirectory(thirdparty/abseil-cpp)
@@ -26,7 +43,7 @@ file(GLOB_RECURSE sources ${PROJECT_SOURCE_DIR}/src/*.cpp)
 include_directories(${PROJECT_SOURCE_DIR}/src)
 
 add_executable(slack_tool ${sources})
-target_link_libraries(slack_tool -static-libgcc -static-libstdc++)
+# target_link_libraries(slack_tool -static-libgcc -static-libstdc++)
 target_link_libraries(slack_tool Boost::iostreams)
 target_link_libraries(slack_tool re2::re2)
 target_link_libraries(slack_tool argparse)

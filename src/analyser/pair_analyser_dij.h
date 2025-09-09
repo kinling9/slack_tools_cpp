@@ -7,6 +7,7 @@
 #include <iostream>
 #include <mutex>
 #include <queue>
+#include <shared_mutex>
 #include <unordered_map>
 #include <unordered_set>
 #include <vector>
@@ -84,12 +85,12 @@ class SparseGraphShortestPath {
   std::mutex graph_mutex;  // Protects adj_list, rev_adj_list
 
   // Cache for shortest paths - heavily read, written during Dijkstra
-  std::mutex cache_mutex;  // Support multiple concurrent readers
+  std::shared_mutex cache_mutex;  // Support multiple concurrent readers
 
   // Node set and component info
   std::mutex component_mutex;  // Protects component-related state
 
-  std::mutex precomp_mutex;  // Protects precomputation results
+  std::shared_mutex precomp_mutex;  // Protects precomputation results
 
  public:
   // 构造函数，输入边的向量
@@ -113,6 +114,8 @@ class SparseGraphShortestPath {
   void topologicalSort(int comp_id);
 
   void precomputePairsEfficient(int source);
+
+  void precomputePairsEfficient(const std::string_view &source);
 
   void DAGFromSource(int source_id);
 
@@ -155,6 +158,10 @@ class pair_analyser_dij : public pair_analyser_csv {
   nlohmann::json create_pin_node(
       const std::string &name, bool is_input, double incr_delay,
       const std::unordered_map<std::string, std::shared_ptr<Pin>> &csv_pin_db);
+
+  void precompute_start(size_t begin_idx, size_t end_idx,
+                        const std::unordered_set<std::string_view> &arc_starts,
+                        const std::vector<std::string> &rpt_pair);
   void process_arc_segment(
       int t, size_t begin_idx, size_t end_idx,
       const absl::flat_hash_set<

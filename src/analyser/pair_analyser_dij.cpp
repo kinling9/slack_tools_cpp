@@ -49,6 +49,22 @@ void SparseGraphShortestPath::buildGraph(
     all_nodes.insert(from_id);
     all_nodes.insert(to_id);
   }
+  {
+    static std::once_flag flag;
+    std::call_once(flag, [&]() {
+      ScopedTimer timer(timing_stats, "compute_components_check");
+      computeComponents();
+    });
+  }
+  {
+    static std::once_flag topo_sort_flag;
+    std::call_once(topo_sort_flag, [&]() {
+      ScopedTimer timer(timing_stats, "topo_sort");
+      for (int i = 0; i < components_computed; i++) {
+        topologicalSort(i);
+      }
+    });
+  }
 }
 
 void SparseGraphShortestPath::computeComponents() {
@@ -130,21 +146,27 @@ void SparseGraphShortestPath::topologicalSort(int comp_id) {
   topo_sorted = true;
 }
 
+void SparseGraphShortestPath::precomputePairsEfficient(
+    const std::string_view &source) {
+  ScopedTimer timer(timing_stats, "dag_init");
+  int source_id = getNodeId(source);
+  if (source_id == -1) {
+    return;
+  }
+  precomputePairsEfficient(source_id);
+}
+
 void SparseGraphShortestPath::precomputePairsEfficient(int source) {
   const int &comp_id = component_id[source];
   const auto &topological_order = graph_components[comp_id];
-  std::unique_lock lock(precomp_mutex);
-  auto &distance_matrix = distance_matrixs[comp_id];
-  auto &predecessor_matrix = predecessor_matrixs[comp_id];
-  std::unordered_map<int, double> &dist = distance_matrix[source];
-  std::unordered_map<int, int> &prev = predecessor_matrix[source];
+  std::unordered_map<int, double> dist;
+  std::unordered_map<int, int> prev;
   dist.clear();
   prev.clear();
   dist[source] = 0.0;
   auto source_it =
       std::find(topological_order.begin(), topological_order.end(), source);
   if (source_it == topological_order.end()) {
-    lock.unlock();
     return;
   }
   for (auto it = source_it; it != topological_order.end(); ++it) {
@@ -166,43 +188,41 @@ void SparseGraphShortestPath::precomputePairsEfficient(int source) {
       }
     }
   }
-  lock.unlock();
+  std::unique_lock lock(precomp_mutex);
+  distance_matrixs[comp_id][source] = std::move(dist);
+  predecessor_matrixs[comp_id][source] = std::move(prev);
 }
 
 void SparseGraphShortestPath::DAGFromSource(int source_id) {
-  std::unique_lock lock(cache_mutex);
-  std::unordered_map<int, CacheResult> &distances = distance_cache[source_id];
+  std::shared_lock precomp_lock(precomp_mutex);
+  std::unordered_map<int, CacheResult> distances;
   int comp_id = component_id[source_id];
   distances[source_id] = CacheResult(0, {});
-  lock.unlock();
-  {
-    std::unique_lock precomp_lock(precomp_mutex);
-    const auto &distance_matrix = distance_matrixs.at(comp_id);
-    const std::unordered_map<int, int> &previous =
-        predecessor_matrixs[comp_id][source_id];
-    ScopedTimer timer(timing_stats, "reconstruct_paths");
-    for (const auto &[sink_id, distance] : distance_matrix.at(source_id)) {
-      if (distance == std::numeric_limits<double>::infinity()) {
-        continue;
-      }
-      std::unique_lock lock(cache_mutex);
-      distances[sink_id] = CacheResult(distance, {});
-      lock.unlock();
+  const auto &distance_matrix = distance_matrixs.at(comp_id);
+  const std::unordered_map<int, int> &previous =
+      predecessor_matrixs[comp_id][source_id];
+  ScopedTimer timer(timing_stats, "reconstruct_paths");
+  for (const auto &[sink_id, distance] : distance_matrix.at(source_id)) {
+    if (distance == std::numeric_limits<double>::infinity()) {
       continue;
-      auto &path = distances[sink_id].path;
-      int current = sink_id;
-      while (current != source_id && current != -1 &&
-             previous.find(current) != previous.end()) {
-        path.push_back(getNodeName(current));
-        current = previous.at(current);
-      }
-      if (current == source_id) {
-        path.push_back(getNodeName(source_id));
-        std::reverse(path.begin(), path.end());
-      }
     }
-    precomp_lock.unlock();
+    distances[sink_id] = CacheResult(distance, {});
+    continue;
+    auto &path = distances[sink_id].path;
+    int current = sink_id;
+    while (current != source_id && current != -1 &&
+           previous.find(current) != previous.end()) {
+      path.push_back(getNodeName(current));
+      current = previous.at(current);
+    }
+    if (current == source_id) {
+      path.push_back(getNodeName(source_id));
+      std::reverse(path.begin(), path.end());
+    }
   }
+  precomp_lock.unlock();
+  std::unique_lock lock(cache_mutex);
+  distance_cache[source_id] = std::move(distances);
 }
 
 std::unordered_map<int, CacheResult>
@@ -272,8 +292,14 @@ CacheResult SparseGraphShortestPath::queryShortestDistanceById(int from_id,
   CacheResult result;
   {
     ScopedTimer timer(timing_stats, "check_node_existence");
-    if (all_nodes.find(from_id) == all_nodes.end() ||
-        all_nodes.find(to_id) == all_nodes.end()) {
+    if (all_nodes.find(from_id) == all_nodes.end()) {
+      fmt::print(stderr, "Debug: from_id {} does not exist in all_nodes\n",
+                 from_id);
+      return {-1, {}};
+    }
+    if (all_nodes.find(to_id) == all_nodes.end()) {
+      fmt::print(stderr, "Debug: to_id {} does not exist in all_nodes\n",
+                 to_id);
       return {-1, {}};
     }
   }
@@ -284,77 +310,53 @@ CacheResult SparseGraphShortestPath::queryShortestDistanceById(int from_id,
     }
   }
   {
-    ScopedTimer timer(timing_stats, "check_cache");
-    std::unique_lock lock(cache_mutex);
-    if (distance_cache.find(from_id) != distance_cache.end() &&
-        distance_cache.at(from_id).find(to_id) !=
-            distance_cache.at(from_id).end()) {
-      return distance_cache.at(from_id).at(to_id);
-    }
-  }
-  {
-    static std::once_flag flag;
-    std::call_once(flag, [&]() {
-      ScopedTimer timer(timing_stats, "compute_components_check");
-      computeComponents();
-    });
-  }
-  {
     ScopedTimer timer(timing_stats, "check_connectivity");
-    std::unique_lock lock(cache_mutex);
     if (component_id.at(from_id) != component_id.at(to_id)) {
-      distance_cache[from_id][to_id] = {-1, {}};
+      fmt::print(stderr,
+                 "Debug: from_id {} and to_id {} are in different components\n",
+                 from_id, to_id);
       return {-1, {}};
     }
-    lock.unlock();
   }
-  if (0) {
-    {
-      ScopedTimer timer(timing_stats, "dijkstra_and_cache");
-      std::unique_lock lock(cache_mutex);
-      if (distance_cache.find(from_id) == distance_cache.end()) {
-        auto distances = dijkstraFromSource(from_id);
-        distance_cache[from_id] = distances;
+  {
+    ScopedTimer timer(timing_stats, "check_cache");
+    std::shared_lock lock(cache_mutex);
+    const auto from_it = distance_cache.find(from_id);
+    if (from_it != distance_cache.end()) {
+      const auto to_it = from_it->second.find(to_id);
+      if (to_it != from_it->second.end()) {
+        // Cache hit
+        return to_it->second;
       }
     }
-  } else {
-    {
-      ScopedTimer timer(timing_stats, "topo_sort");
-      std::unique_lock lock(component_mutex);
-      if (!topo_sorted) {
-        for (int i = 0; i < components_computed; i++) {
-          topologicalSort(i);
-        }
-      }
+  }
+  {
+    std::unique_lock lock(cache_mutex);
+    if (distance_cache.find(from_id) == distance_cache.end()) {
       lock.unlock();
-    }
-    {
-      std::unique_lock lock(cache_mutex);
-      if (distance_cache.find(from_id) == distance_cache.end()) {
-        lock.unlock();
-        {
-          ScopedTimer timer(timing_stats, "dag_init");
-          precomputePairsEfficient(from_id);
-        }
-        {
-          ScopedTimer timer(timing_stats, "dag_and_cache");
-          DAGFromSource(from_id);
-        }
+      // {
+      //   ScopedTimer timer(timing_stats, "dag_init");
+      //   precomputePairsEfficient(from_id);
+      // }
+      {
+        ScopedTimer timer(timing_stats, "dag_and_cache");
+        DAGFromSource(from_id);
       }
     }
   }
   {
     ScopedTimer timer(timing_stats, "final_lookup");
-    std::unique_lock lock(cache_mutex);
+    std::shared_lock lock(cache_mutex);
     const auto &from_cache = distance_cache.at(from_id);
     if (from_cache.find(to_id) != from_cache.end()) {
       result = from_cache.at(to_id);
     } else {
-      fmt::print("Warning: No path from {} to {}\n", getNodeName(from_id),
-                 getNodeName(to_id));
+      fmt::print(stderr,
+                 "Warning: No path from {} ({}) to {} ({}), but no prior "
+                 "rejection found\n",
+                 getNodeName(from_id), from_id, getNodeName(to_id), to_id);
       result = {-1, {}};
     }
-    distance_cache[from_id][to_id] = result;
     lock.unlock();
   }
   return result;
@@ -451,6 +453,27 @@ nlohmann::json pair_analyser_dij::create_pin_node(
   return node;
 }
 
+void pair_analyser_dij::precompute_start(
+
+    size_t begin_idx, size_t end_idx,
+    const std::unordered_set<std::string_view> &arc_starts,
+    const std::vector<std::string> &rpt_pair) {
+  if (!_sparse_graph_ptrs.contains(rpt_pair[1])) {
+    fmt::print("No graph for type {}\n", rpt_pair[1]);
+    return;
+  }
+
+  auto it = arc_starts.begin();
+  std::advance(it, begin_idx);
+  auto end_it = arc_starts.begin();
+  std::advance(end_it, end_idx);
+
+  for (; it != end_it; ++it) {
+    const auto &pin_from = *it;
+    _sparse_graph_ptrs[rpt_pair[1]]->precomputePairsEfficient(pin_from);
+  }
+}
+
 void pair_analyser_dij::process_arc_segment(
     int t, size_t begin_idx, size_t end_idx,
     const absl::flat_hash_set<
@@ -462,6 +485,11 @@ void pair_analyser_dij::process_arc_segment(
     std::vector<std::map<std::tuple<std::string, bool, std::string, bool>,
                          nlohmann::json>>
         thread_buffers) {
+  if (!_sparse_graph_ptrs.contains(rpt_pair[1])) {
+    fmt::print("No graph for type {}\n", rpt_pair[1]);
+    return;
+  }
+
   auto it = arcs.begin();
   std::advance(it, begin_idx);
   auto end_it = arcs.begin();
@@ -469,17 +497,12 @@ void pair_analyser_dij::process_arc_segment(
 
   for (; it != end_it; ++it) {
     const auto &[arc_cell, arc_net] = *it;
-    auto pin_from = arc_cell->from_pin;
-    auto pin_inter = arc_cell->to_pin;
-    auto pin_to = arc_net->to_pin;
+    const auto &pin_from = arc_cell->from_pin;
+    const auto &pin_inter = arc_cell->to_pin;
+    const auto &pin_to = arc_net->to_pin;
     auto from = std::make_pair(pin_from, false);
     auto to = std::make_pair(pin_to, false);
     auto arc_tuple = std::make_tuple(pin_from, false, pin_to, false);
-
-    if (!_sparse_graph_ptrs.contains(rpt_pair[1])) {
-      fmt::print("No graph for type {}\n", rpt_pair[1]);
-      continue;
-    }
 
     auto connect_check = _sparse_graph_ptrs[rpt_pair[1]]->queryShortestDistance(
         pin_from, pin_to);
@@ -594,18 +617,38 @@ void pair_analyser_dij::csv_match(
 
   unsigned int num_threads =
       std::max(1u, std::min(8u, static_cast<unsigned int>(arcs.size())));
-
   std::vector<std::thread> threads;
+  threads.reserve(num_threads);
+
+  std::unordered_set<std::string_view> arc_starts;
+  for (const auto &[arc_cell, arc_net] : arcs) {
+    arc_starts.insert(arc_cell->from_pin);
+  }
+
+  size_t chunk_size_start = (arc_starts.size() + num_threads - 1) / num_threads;
+  for (unsigned int t = 0; t < num_threads; ++t) {
+    size_t begin_idx = t * chunk_size_start;
+    size_t end_idx = std::min(begin_idx + chunk_size_start, arc_starts.size());
+    threads.emplace_back(&pair_analyser_dij::precompute_start, this, begin_idx,
+                         end_idx, std::ref(arc_starts), std::ref(rpt_pair));
+  }
+
+  for (auto &th : threads) {
+    if (th.joinable()) {
+      th.join();
+    }
+  }
+
+  threads.clear();
+
   std::vector<std::map<std::tuple<std::string, bool, std::string, bool>,
                        nlohmann::json>>
       thread_buffers(num_threads);
+  size_t chunk_size_arc = (arcs.size() + num_threads - 1) / num_threads;
 
-  size_t chunk_size = (arcs.size() + num_threads - 1) / num_threads;
-
-  threads.reserve(num_threads);
   for (unsigned int t = 0; t < num_threads; ++t) {
-    size_t begin_idx = t * chunk_size;
-    size_t end_idx = std::min(begin_idx + chunk_size, arcs.size());
+    size_t begin_idx = t * chunk_size_arc;
+    size_t end_idx = std::min(begin_idx + chunk_size_arc, arcs.size());
 
     if (begin_idx >= arcs.size()) break;
 
