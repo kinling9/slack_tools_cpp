@@ -74,8 +74,9 @@ absl::flat_hash_set<std::string> analyser::check_valid(YAML::Node &rpts) {
     }
 
     if (rpt_vec.size() != _num_rpts) {
-      fmt::print(fmt::fg(fmt::color::red), "Invalid rpt_vec tuple: {}\n",
-                 fmt::join(rpt_vec, ", "));
+      fmt::print(fmt::fg(fmt::color::red),
+                 "Invalid rpt_vec tuple: {} with size {} != {}\n",
+                 fmt::join(rpt_vec, ", "), rpt_vec.size(), _num_rpts);
       continue;
     }
     if (!std::all_of(

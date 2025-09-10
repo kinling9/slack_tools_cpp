@@ -73,7 +73,7 @@ void csv_parser::parse(csv_type type, csv::CSVReader &ifs) {
       double setup_delay_rise = row["setup_delay_rise"].get<double>();
       double setup_delay_fall = row["setup_delay_fall"].get<double>();
       std::optional<int> fanout;
-      if (type == csv_type::NetArc) {
+      if (type == csv_type::NetArcFanout) {
         fanout = row["fanout"].get<int>();
       }
       Arc arc_obj{.from_pin = from_pin,

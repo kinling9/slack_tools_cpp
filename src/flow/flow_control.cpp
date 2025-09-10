@@ -12,6 +12,7 @@
 #include "analyser/fanout_analyser.h"
 #include "analyser/pair_analyser.h"
 #include "analyser/pair_analyser_csv.h"
+#include "analyser/pair_analyser_dij.h"
 #include "analyser/path_analyser.h"
 #include "parser/csv_parser.h"
 #include "parser/def_parser.h"
@@ -70,6 +71,8 @@ void flow_control::parse_yml(std::string yml_file) {
     _analyser = std::make_unique<pair_analyser>(config["configs"]);
   } else if (mode == "pair analyse csv") {
     _analyser = std::make_unique<pair_analyser_csv>(config["configs"]);
+  } else if (mode == "pair analyse dij") {
+    _analyser = std::make_unique<pair_analyser_dij>(config["configs"]);
   } else {
     throw std::system_error(
         errno, std::generic_category(),
@@ -117,26 +120,29 @@ void flow_control::parse_rpt(const YAML::Node& rpt, std::string key) {
                       "Cannot parse cell csv file {}, skip.", cell_csv_path));
       std::exit(1);
     }
-    fmt::print("Parsing net csv file {}\n", net_csv_path);
-    if (!parser->parse_file(csv_type::NetArc, net_csv_path)) {
-      throw std::system_error(
-          errno, std::generic_category(),
-          fmt::format(fmt::fg(fmt::color::red),
-                      "Cannot parse net csv file {}, skip.", net_csv_path));
-      std::exit(1);
-    }
+
+    auto parse_net_csv = [&](csv_type type) {
+      fmt::print("Parsing net csv file {}\n", net_csv_path);
+      if (!parser->parse_file(type, net_csv_path)) {
+        throw std::system_error(
+            errno, std::generic_category(),
+            fmt::format(fmt::fg(fmt::color::red),
+                        "Cannot parse net csv file {}, skip.", net_csv_path));
+      }
+    };
 
     if (rpt["at_csv"]) {
+      parse_net_csv(csv_type::NetArcFanout);
       auto at_csv_path = rpt["at_csv"].as<std::string>();
       fmt::print("Parsing pin at csv file {}\n", at_csv_path);
       if (!parser->parse_file(csv_type::PinAT, at_csv_path)) {
         throw std::system_error(
             errno, std::generic_category(),
             fmt::format(fmt::fg(fmt::color::red),
-                        "Cannot parse pin at csv file {}, skip.",
-                        net_csv_path));
-        std::exit(1);
+                        "Cannot parse pin at csv file {}, skip.", at_csv_path));
       }
+    } else {
+      parse_net_csv(csv_type::NetArc);
     }
     {
       std::lock_guard<std::mutex> lock(_dbs_mutex);

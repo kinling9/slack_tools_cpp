@@ -97,15 +97,22 @@ class basedb {
           loc_map);
   void add_arc(bool is_cell_arc, const std::shared_ptr<Arc>& arc) {
     if (is_cell_arc) {
-      cell_arcs[arc->to_pin][arc->from_pin] = arc;
+      cell_arcs_rev[arc->to_pin][arc->from_pin] = arc;
+      cell_arcs[arc->from_pin][arc->to_pin] = arc;
     } else {
       net_arcs[arc->from_pin][arc->to_pin] = arc;
     }
+    all_arcs.push_back(arc);
   }
   std::unordered_map<std::string,
                      std::unordered_map<std::string, std::shared_ptr<Arc>>>
   get_cell_arcs() {
     return cell_arcs;
+  }
+  std::unordered_map<std::string,
+                     std::unordered_map<std::string, std::shared_ptr<Arc>>>
+  get_cell_arcs_rev() {
+    return cell_arcs_rev;
   }
 
   std::unordered_map<std::string,
@@ -123,8 +130,12 @@ class basedb {
       cell_arcs;
   std::unordered_map<std::string,
                      std::unordered_map<std::string, std::shared_ptr<Arc>>>
+      cell_arcs_rev;
+  std::unordered_map<std::string,
+                     std::unordered_map<std::string, std::shared_ptr<Arc>>>
       net_arcs;
   std::unordered_map<std::string, std::shared_ptr<Pin>> pins;
+  std::vector<std::shared_ptr<Arc>> all_arcs;
 
   std::string type;
   std::string design;

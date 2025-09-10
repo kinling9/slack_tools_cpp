@@ -38,6 +38,9 @@ def build(docker: bool = False):
     else:
         run_cmd(f"cmake -S . -B {dir_build} -GNinja")
         run_cmd(f"cmake --build {dir_build} --config Release -j 8")
+        # run_cmd(
+        #     f"cmake -S . -B {dir_build_debug} -GNinja -DCMAKE_BUILD_TYPE=Debug -DENABLE_TSAN=ON"
+        # )
         run_cmd(f"cmake -S . -B {dir_build_debug} -GNinja -DCMAKE_BUILD_TYPE=Debug")
         run_cmd(f"cmake --build {dir_build_debug} --config Debug -j 8")
 

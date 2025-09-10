@@ -65,9 +65,12 @@ void pair_analyser_csv::csv_match(
         node["key"]["pins"].push_back(
             createPinNode(pin_inter, false, arc_cell->delay[0]));
         node["key"]["pins"].push_back(
-            createPinNode(pin_to, false, arc_net->delay[0]));
+            createPinNode(pin_to, true, arc_net->delay[0]));
         node["value"] =
             super_arc::to_json(value_path, arc_tuple, _enable_rise_fall);
+        if (arc_net->fanout.has_value()) {
+          node["key"]["fanout"] = arc_net->fanout.value();
+        }
 
         if (csv_pin_db.contains(pin_inter)) {
           node["key"]["slack"] =
@@ -86,7 +89,7 @@ void pair_analyser_csv::csv_match(
             locs.push_back({pin["location"][0].get<double>(),
                             pin["location"][1].get<double>()});
           }
-          if (!valid_location) {
+          if (valid_location) {
             node["key"]["length"] = manhattan_distance(locs);
             node["delta_length"] = node["key"]["length"].get<double>() -
                                    node["value"]["length"].get<double>();
@@ -113,7 +116,7 @@ void pair_analyser_csv::gen_arc_tuples(
     const std::shared_ptr<basedb> &db,
     absl::flat_hash_set<std::tuple<std::shared_ptr<Arc>, std::shared_ptr<Arc>>>
         &arcs) {
-  for (const auto &[cell_to, cell_arcs] : db->cell_arcs) {
+  for (const auto &[cell_to, cell_arcs] : db->get_cell_arcs_rev()) {
     if (db->net_arcs.contains(cell_to)) {
       auto &net_arc_map = db->net_arcs.at(cell_to);
       if (net_arc_map.empty()) {

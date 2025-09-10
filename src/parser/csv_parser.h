@@ -6,6 +6,7 @@
 enum class csv_type {
   CellArc,
   NetArc,
+  NetArcFanout,
   PinAT,
 };
 
