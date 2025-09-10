@@ -48,7 +48,6 @@ def generate_yaml_content(results: list, output_dir: str = "output"):
                     if csv_key not in csv_path:
                         csv_path[csv_key] = {}
                     csv_path[csv_key][csv_type] = v
-                    tmp_tuple = []
                     if len(csv_path) > 1:
                         arc_yaml["mode"] = "pair analyse dij"
                     else:
