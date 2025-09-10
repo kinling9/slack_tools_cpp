@@ -146,14 +146,19 @@ void SparseGraphShortestPath::topologicalSort(int comp_id) {
   topo_sorted = true;
 }
 
-void SparseGraphShortestPath::precomputePairsEfficient(
-    const std::string_view &source) {
-  ScopedTimer timer(timing_stats, "dag_init");
+void SparseGraphShortestPath::precompute(const std::string_view &source) {
   int source_id = getNodeId(source);
   if (source_id == -1) {
     return;
   }
-  precomputePairsEfficient(source_id);
+  {
+    ScopedTimer timer(timing_stats, "dag_init");
+    precomputePairsEfficient(source_id);
+  }
+  {
+    ScopedTimer timer(timing_stats, "dag_and_cache");
+    collect_distance(source_id);
+  }
 }
 
 void SparseGraphShortestPath::precomputePairsEfficient(int source) {
@@ -193,15 +198,32 @@ void SparseGraphShortestPath::precomputePairsEfficient(int source) {
   predecessor_matrixs[comp_id][source] = std::move(prev);
 }
 
-void SparseGraphShortestPath::DAGFromSource(int source_id) {
-  std::shared_lock precomp_lock(precomp_mutex);
+void SparseGraphShortestPath::build_path(int source_id, int sink_id,
+                                         std::vector<std::string_view> &path) {
+  path.clear();
+  int comp_id = component_id[source_id];
+  const auto &previous = predecessor_matrixs[comp_id][source_id];
+  int current = sink_id;
+  while (current != source_id && current != -1 &&
+         previous.find(current) != previous.end()) {
+    path.push_back(getNodeName(current));
+    current = previous.at(current);
+  }
+  if (current == source_id) {
+    path.push_back(getNodeName(source_id));
+    std::reverse(path.begin(), path.end());
+  } else {
+    path.clear();
+  }
+}
+
+void SparseGraphShortestPath::collect_distance(int source_id) {
   std::unordered_map<int, CacheResult> distances;
   int comp_id = component_id[source_id];
   distances[source_id] = CacheResult(0, {});
   const auto &distance_matrix = distance_matrixs.at(comp_id);
   const std::unordered_map<int, int> &previous =
       predecessor_matrixs[comp_id][source_id];
-  ScopedTimer timer(timing_stats, "reconstruct_paths");
   for (const auto &[sink_id, distance] : distance_matrix.at(source_id)) {
     if (distance == std::numeric_limits<double>::infinity()) {
       continue;
@@ -220,7 +242,6 @@ void SparseGraphShortestPath::DAGFromSource(int source_id) {
       std::reverse(path.begin(), path.end());
     }
   }
-  precomp_lock.unlock();
   std::unique_lock lock(cache_mutex);
   distance_cache[source_id] = std::move(distances);
 }
@@ -290,24 +311,17 @@ CacheResult SparseGraphShortestPath::queryShortestDistance(
 CacheResult SparseGraphShortestPath::queryShortestDistanceById(int from_id,
                                                                int to_id) {
   CacheResult result;
-  {
-    ScopedTimer timer(timing_stats, "check_node_existence");
-    if (all_nodes.find(from_id) == all_nodes.end()) {
-      fmt::print(stderr, "Debug: from_id {} does not exist in all_nodes\n",
-                 from_id);
-      return {-1, {}};
-    }
-    if (all_nodes.find(to_id) == all_nodes.end()) {
-      fmt::print(stderr, "Debug: to_id {} does not exist in all_nodes\n",
-                 to_id);
-      return {-1, {}};
-    }
+  if (all_nodes.find(from_id) == all_nodes.end()) {
+    fmt::print(stderr, "Debug: from_id {} does not exist in all_nodes\n",
+               from_id);
+    return {-1, {}};
   }
-  {
-    ScopedTimer timer(timing_stats, "check_self_loop");
-    if (from_id == to_id) {
-      return {0, {getNodeName(from_id)}};
-    }
+  if (all_nodes.find(to_id) == all_nodes.end()) {
+    fmt::print(stderr, "Debug: to_id {} does not exist in all_nodes\n", to_id);
+    return {-1, {}};
+  }
+  if (from_id == to_id) {
+    return {0, {getNodeName(from_id)}};
   }
   {
     ScopedTimer timer(timing_stats, "check_connectivity");
@@ -326,38 +340,17 @@ CacheResult SparseGraphShortestPath::queryShortestDistanceById(int from_id,
       const auto to_it = from_it->second.find(to_id);
       if (to_it != from_it->second.end()) {
         // Cache hit
-        return to_it->second;
+        std::vector<std::string_view> path;
+        build_path(from_id, to_id, path);
+        return {to_it->second.distance, path};
+      } else {
+        fmt::print(stderr,
+                   "Warning: No path from {} ({}) to {} ({}), but no prior "
+                   "rejection found\n",
+                   getNodeName(from_id), from_id, getNodeName(to_id), to_id);
+        result = {-1, {}};
       }
     }
-  }
-  {
-    std::unique_lock lock(cache_mutex);
-    if (distance_cache.find(from_id) == distance_cache.end()) {
-      lock.unlock();
-      // {
-      //   ScopedTimer timer(timing_stats, "dag_init");
-      //   precomputePairsEfficient(from_id);
-      // }
-      {
-        ScopedTimer timer(timing_stats, "dag_and_cache");
-        DAGFromSource(from_id);
-      }
-    }
-  }
-  {
-    ScopedTimer timer(timing_stats, "final_lookup");
-    std::shared_lock lock(cache_mutex);
-    const auto &from_cache = distance_cache.at(from_id);
-    if (from_cache.find(to_id) != from_cache.end()) {
-      result = from_cache.at(to_id);
-    } else {
-      fmt::print(stderr,
-                 "Warning: No path from {} ({}) to {} ({}), but no prior "
-                 "rejection found\n",
-                 getNodeName(from_id), from_id, getNodeName(to_id), to_id);
-      result = {-1, {}};
-    }
-    lock.unlock();
   }
   return result;
 }
@@ -470,7 +463,7 @@ void pair_analyser_dij::precompute_start(
 
   for (; it != end_it; ++it) {
     const auto &pin_from = *it;
-    _sparse_graph_ptrs[rpt_pair[1]]->precomputePairsEfficient(pin_from);
+    _sparse_graph_ptrs[rpt_pair[1]]->precompute(pin_from);
   }
 }
 
@@ -483,8 +476,7 @@ void pair_analyser_dij::process_arc_segment(
     const std::unordered_map<std::string, std::shared_ptr<Pin>>
         &csv_pin_db_value,
     std::vector<std::map<std::tuple<std::string, bool, std::string, bool>,
-                         nlohmann::json>>
-        thread_buffers) {
+                         nlohmann::json>> &thread_buffers) {
   if (!_sparse_graph_ptrs.contains(rpt_pair[1])) {
     fmt::print("No graph for type {}\n", rpt_pair[1]);
     return;

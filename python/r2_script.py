@@ -63,38 +63,36 @@ if __name__ == "__main__":
     endpoint_yaml_file = yaml_files[1]
 
     with open(endpoint_yaml_file) as f:
-        data = yaml.safe_load(f)
-    output_dir = data["configs"]["output_dir"]
-    analyse_tuples = data["configs"]["analyse_tuples"]
+        end_data = yaml.safe_load(f)
+    output_dir = end_data["configs"]["output_dir"]
+    analyse_tuples = end_data["configs"]["analyse_tuples"]
 
-    for pair in analyse_tuples:
-        name = "-".join(pair)
+    with open(arc_yaml_file) as f:
+        arc_data = yaml.safe_load(f)
+    arc_tuples = arc_data["configs"]["analyse_tuples"]
+
+    for i in range(len(analyse_tuples)):
+        end_pair = analyse_tuples[i]
+        arc_pair = arc_tuples[i]
+        end_name = "-".join(end_pair)
         sub_df_end = plot_correlation.plot_text(
             [
-                f"{output_dir}/{name}_scatter_0.txt",
-                f"{output_dir}/{name}_scatter_1.txt",
+                f"{output_dir}/{end_name}_scatter_0.txt",
+                f"{output_dir}/{end_name}_scatter_1.txt",
             ],
-            f"{output_dir}/{name}",
-            f"{pair[0]}",
-            f"{pair[1]}",
+            f"{output_dir}/{end_name}",
+            f"{end_pair[0]}",
+            f"{end_pair[1]}",
         )
-        if os.path.exists(f"{output_dir}/{name}.json"):
-            sub_df_arc = plot_correlation.plot_correlation(
-                f"{output_dir}/{name}.json",
-                f"{output_dir}/{name}",
-                f"{pair[0]}",
-                f"{pair[1]}",
-            )
-        else:
-            pair[0] = re.sub(r"_[^_]+$", "_csv", pair[0])
-            name = "-".join(pair)
-            sub_df_arc = plot_correlation.plot_correlation(
-                f"{output_dir}/{name}.json",
-                f"{output_dir}/{name}",
-                f"{pair[0]}",
-                f"{pair[1]}",
-            )
-            sub_df_arc["name"] = sub_df_end["name"]
+        arc_name = "-".join(arc_pair)
+        print(f"Processing {arc_name} and {end_name}")
+        sub_df_arc = plot_correlation.plot_correlation(
+            f"{output_dir}/{arc_name}.json",
+            f"{output_dir}/{arc_name}",
+            f"{arc_pair[0]}",
+            f"{arc_pair[1]}",
+        )
+        sub_df_arc["name"] = sub_df_end["name"]
 
         # combine the two dataframes and remove the duplicate columns
         sub_df = pd.merge(
@@ -102,7 +100,7 @@ if __name__ == "__main__":
             sub_df_end,
         )
         mae, maxe = filter_net.sort_and_convert(
-            f"{output_dir}/{name}.json", f"{output_dir}/{name}.filter.csv", 100
+            f"{output_dir}/{arc_name}.json", f"{output_dir}/{arc_name}.filter.csv", 100
         )
         sub_df["mae"] = mae
         sub_df["maxe"] = maxe

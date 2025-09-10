@@ -115,9 +115,12 @@ class SparseGraphShortestPath {
 
   void precomputePairsEfficient(int source);
 
-  void precomputePairsEfficient(const std::string_view &source);
+  void precompute(const std::string_view &source);
 
-  void DAGFromSource(int source_id);
+  void collect_distance(int source_id);
+
+  void build_path(int source_id, int sink_id,
+                  std::vector<std::string_view> &path);
 
   // Dijkstra算法计算从source到所有可达节点的最短距离和路径
   std::unordered_map<int, CacheResult> dijkstraFromSource(int source_id);
@@ -172,8 +175,7 @@ class pair_analyser_dij : public pair_analyser_csv {
       const std::unordered_map<std::string, std::shared_ptr<Pin>>
           &csv_pin_db_value,
       std::vector<std::map<std::tuple<std::string, bool, std::string, bool>,
-                           nlohmann::json>>
-          thread_buffers);
+                           nlohmann::json>> &thread_buffers);
   absl::flat_hash_map<std::string, std::shared_ptr<SparseGraphShortestPath>>
       _sparse_graph_ptrs;
 };

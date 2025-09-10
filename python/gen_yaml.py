@@ -48,6 +48,18 @@ def generate_yaml_content(results: list, output_dir: str = "output"):
                     if csv_key not in csv_path:
                         csv_path[csv_key] = {}
                     csv_path[csv_key][csv_type] = v
+                    tmp_tuple = []
+                    if len(csv_path) > 1:
+                        arc_yaml["mode"] = "pair analyse dij"
+                    else:
+                        arc_yaml["mode"] = "pair analyse csv"
+                    for k, v in csv_path.items():
+                        csv_entry = {f"{k}_csv": v for k, v in v.items()}
+                        csv_entry["type"] = "csv"
+                        arc_yaml["rpts"][f"{short}_{k}_csv"] = csv_entry
+                        arc_yaml["configs"]["enable_rise_fall"] = False
+                    if f"{short}_{k}_csv" not in analyse_tuple:
+                        analyse_tuple.append(f"{short}_{k}_csv")
                 else:
                     print(f"Unknown CSV key: {k}")
 
@@ -57,20 +69,20 @@ def generate_yaml_content(results: list, output_dir: str = "output"):
                     "type": "leda",
                 }
                 analyse_tuple.append(f"{short}_{k}")
-        print(csv_path)
-        if csv_path:
-            tmp_tuple = []
-            if len(csv_path) > 1:
-                arc_yaml["mode"] = "pair analyse dij"
-            else:
-                arc_yaml["mode"] = "pair analyse csv"
-            for k, v in csv_path.items():
-                csv_entry = {f"{k}_csv": v for k, v in v.items()}
-                csv_entry["type"] = "csv"
-                arc_yaml["rpts"][f"{k}_{short}_csv"] = csv_entry
-                arc_yaml["configs"]["enable_rise_fall"] = False
-                tmp_tuple.append(f"{k}_{short}_csv")
-            analyse_tuple.extend(tmp_tuple)
+        # print(csv_path)
+        # if csv_path:
+        #     tmp_tuple = []
+        #     if len(csv_path) > 1:
+        #         arc_yaml["mode"] = "pair analyse dij"
+        #     else:
+        #         arc_yaml["mode"] = "pair analyse csv"
+        #     for k, v in csv_path.items():
+        #         csv_entry = {f"{k}_csv": v for k, v in v.items()}
+        #         csv_entry["type"] = "csv"
+        #         arc_yaml["rpts"][f"{short}_{k}_csv"] = csv_entry
+        #         arc_yaml["configs"]["enable_rise_fall"] = False
+        #         tmp_tuple.append(f"{short}_{k}_csv")
+        #     analyse_tuple.extend(tmp_tuple)
         arc_yaml["configs"]["analyse_tuples"].append(analyse_tuple)
         analyse_tuple = []
         for k, v in result["results"]["endpoint"].items():
