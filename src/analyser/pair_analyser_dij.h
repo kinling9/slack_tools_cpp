@@ -67,7 +67,6 @@ class SparseGraphShortestPath {
   // 连通分量信息
   std::unordered_map<int, int> component_id;  // node_id -> component_id
   int components_computed = 0;
-  bool topo_sorted = false;
 
   // String和int的双向映射
   std::unordered_map<std::string_view, int> string_to_int;  // string -> int
@@ -88,7 +87,7 @@ class SparseGraphShortestPath {
   std::shared_mutex cache_mutex;  // Support multiple concurrent readers
 
   // Node set and component info
-  std::mutex component_mutex;  // Protects component-related state
+  std::shared_mutex component_mutex;  // Protects component-related state
 
   std::shared_mutex precomp_mutex;  // Protects precomputation results
 
@@ -110,6 +109,8 @@ class SparseGraphShortestPath {
 
   // 计算连通分量（用于快速判断两点是否连通）
   void computeComponents();
+
+  void allocate_matrix(const std::unordered_set<std::string_view> names);
 
   void topologicalSort(int comp_id);
 

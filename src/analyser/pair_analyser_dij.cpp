@@ -50,20 +50,60 @@ void SparseGraphShortestPath::buildGraph(
     all_nodes.insert(to_id);
   }
   {
-    static std::once_flag flag;
-    std::call_once(flag, [&]() {
-      ScopedTimer timer(timing_stats, "compute_components_check");
-      computeComponents();
-    });
+    ScopedTimer timer(timing_stats, "compute_components_check");
+    computeComponents();
   }
   {
-    static std::once_flag topo_sort_flag;
-    std::call_once(topo_sort_flag, [&]() {
-      ScopedTimer timer(timing_stats, "topo_sort");
-      for (int i = 0; i < components_computed; i++) {
-        topologicalSort(i);
+    ScopedTimer timer(timing_stats, "topo_sort");
+
+    const int num_threads = 8;
+    std::vector<std::thread> threads;
+    threads.reserve(num_threads);
+
+    // Calculate work distribution
+    const int work_per_thread = components_computed / num_threads;
+    const int remainder = components_computed % num_threads;
+
+    int start_idx = 0;
+    for (int t = 0; t < num_threads; ++t) {
+      // Distribute remainder work among first few threads
+      int end_idx = start_idx + work_per_thread + (t < remainder ? 1 : 0);
+
+      // Launch thread for this work chunk
+      threads.emplace_back([start_idx, end_idx, this]() {
+        for (int i = start_idx; i < end_idx; ++i) {
+          fmt::print("start comp {}, total comp {}\n", i, components_computed);
+          topologicalSort(i);
+        }
+      });
+
+      start_idx = end_idx;
+    }
+
+    // Wait for all threads to complete
+    for (auto &thread : threads) {
+      if (thread.joinable()) {
+        thread.join();
       }
-    });
+    }
+  }
+}
+
+void SparseGraphShortestPath::allocate_matrix(
+    const std::unordered_set<std::string_view> names) {
+  std::vector<int> comp_id_nums(components_computed, 0);
+  for (const auto &node_name : names) {
+    int node_id = getNodeId(node_name);
+    if (node_id == -1) {
+      continue;
+    }
+    int comp_id = component_id[node_id];
+    comp_id_nums[comp_id]++;
+  }
+  for (int i = 0; i < components_computed; ++i) {
+    if (comp_id_nums[i] == 0) continue;
+    distance_matrixs[i].reserve(comp_id_nums[i]);
+    predecessor_matrixs[i].reserve(comp_id_nums[i]);
   }
 }
 
@@ -117,7 +157,9 @@ void SparseGraphShortestPath::topologicalSort(int comp_id) {
   std::unordered_map<int, int> in_degree;
   std::queue<int> q;
   std::vector<int> result;
-  const auto &nodes = graph_components[comp_id];
+  std::unique_lock lock(component_mutex);
+  const auto nodes = std::move(graph_components[comp_id]);
+  lock.unlock();
   for (const auto &node : nodes) {
     in_degree[node] = 0;
   }
@@ -142,8 +184,8 @@ void SparseGraphShortestPath::topologicalSort(int comp_id) {
       }
     }
   }
-  graph_components[comp_id] = result;
-  topo_sorted = true;
+  lock.lock();
+  graph_components[comp_id] = std::move(result);
 }
 
 void SparseGraphShortestPath::precompute(const std::string_view &source) {
@@ -221,6 +263,7 @@ void SparseGraphShortestPath::collect_distance(int source_id) {
   std::unordered_map<int, CacheResult> distances;
   int comp_id = component_id[source_id];
   distances[source_id] = CacheResult(0, {});
+  std::shared_lock precomp_lock(precomp_mutex);
   const auto &distance_matrix = distance_matrixs.at(comp_id);
   const std::unordered_map<int, int> &previous =
       predecessor_matrixs[comp_id][source_id];
@@ -242,7 +285,7 @@ void SparseGraphShortestPath::collect_distance(int source_id) {
       std::reverse(path.begin(), path.end());
     }
   }
-  std::unique_lock lock(cache_mutex);
+  std::unique_lock cache_lock(cache_mutex);
   distance_cache[source_id] = std::move(distances);
 }
 
@@ -616,6 +659,8 @@ void pair_analyser_dij::csv_match(
   for (const auto &[arc_cell, arc_net] : arcs) {
     arc_starts.insert(arc_cell->from_pin);
   }
+
+  _sparse_graph_ptrs[rpt_pair[1]]->allocate_matrix(arc_starts);
 
   size_t chunk_size_start = (arc_starts.size() + num_threads - 1) / num_threads;
   for (unsigned int t = 0; t < num_threads; ++t) {

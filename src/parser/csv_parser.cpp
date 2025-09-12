@@ -14,14 +14,9 @@ bool csv_parser::parse_file(csv_type type, const std::string &filename) {
   format.trim({' ', '\t'});
   if (!isgz(filename)) {
     file.close();
-    std::ifstream simple_file(filename);
-
-    if (!simple_file.is_open()) {
-      return false;
-    }
-    csv::CSVReader ifs(simple_file, format);
+    // bug in redirect stream to csv reader
+    csv::CSVReader ifs(filename, format);
     parse(type, ifs);
-    simple_file.close();
   } else {
     // boost::iostreams::filtering_streambuf<boost::iostreams::input> inbuf;
     // inbuf.push(boost::iostreams::gzip_decompressor());
