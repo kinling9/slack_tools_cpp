@@ -44,8 +44,9 @@ void SparseGraphShortestPath::buildGraph(
   for (const auto &edge : edges) {
     int from_id = getOrCreateNodeId(edge->from_pin);
     int to_id = getOrCreateNodeId(edge->to_pin);
-    adj_list[from_id].emplace_back(to_id, edge->delay[0]);
-    rev_adj_list[to_id].emplace_back(from_id, edge->delay[0]);
+    double max_delay = std::max(edge->delay[0], edge->delay[1]);
+    adj_list[from_id].emplace_back(to_id, max_delay);
+    rev_adj_list[to_id].emplace_back(from_id, max_delay);
     all_nodes.insert(from_id);
     all_nodes.insert(to_id);
   }
@@ -546,24 +547,23 @@ void pair_analyser_dij::process_arc_segment(
       continue;
     }
 
+    auto max_cell_delay = std::max(arc_cell->delay[0], arc_cell->delay[1]);
+    auto max_net_delay = std::max(arc_net->delay[0], arc_net->delay[1]);
+
     nlohmann::json node = {
         {"type", "pair arc"},
         {"from",
          fmt::format("{} {}", from.first, from.second ? "(rise)" : "(fall)")},
         {"to", fmt::format("{} {}", to.first, to.second ? "(rise)" : "(fall)")},
         {"key",
-         {{"pins", nlohmann::json::array()},
-          {"delay", arc_cell->delay[0] + arc_net->delay[0]}}},
+         {{"pins",
+           {create_pin_node(pin_from, true, 0, csv_pin_db_key),
+            create_pin_node(pin_inter, false, max_cell_delay, csv_pin_db_key),
+            create_pin_node(pin_to, true, max_net_delay, csv_pin_db_key)}},
+          {"delay", max_cell_delay + max_net_delay}}},
         {"value",
          {{"pins", nlohmann::json::array()},
           {"delay", connect_check.distance}}}};
-
-    node["key"]["pins"].push_back(
-        create_pin_node(pin_from, true, 0, csv_pin_db_key));
-    node["key"]["pins"].push_back(
-        create_pin_node(pin_inter, false, arc_cell->delay[0], csv_pin_db_key));
-    node["key"]["pins"].push_back(
-        create_pin_node(pin_to, true, arc_net->delay[0], csv_pin_db_key));
 
     node["value"]["pins"].push_back(
         create_pin_node(pin_from, true, 0, csv_pin_db_value));
