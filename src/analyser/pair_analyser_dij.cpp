@@ -524,7 +524,6 @@ nlohmann::json pair_analyser_dij::create_pin_node(
 }
 
 void pair_analyser_dij::precompute_start(
-
     size_t begin_idx, size_t end_idx,
     const std::unordered_set<std::string_view> &arc_starts,
     const std::vector<std::string> &rpt_pair) {
