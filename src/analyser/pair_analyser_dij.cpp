@@ -73,7 +73,7 @@ void SparseGraphShortestPath::buildGraph(
       // Launch thread for this work chunk
       threads.emplace_back([start_idx, end_idx, this]() {
         for (int i = start_idx; i < end_idx; ++i) {
-          fmt::print("start comp {}, total comp {}\n", i, components_computed);
+          // fmt::print("start comp {}, total comp {}\n", i, components_computed);
           topologicalSort(i);
         }
       });
@@ -155,36 +155,67 @@ void SparseGraphShortestPath::computeComponents() {
 }
 
 void SparseGraphShortestPath::topologicalSort(int comp_id) {
-  std::unordered_map<int, int> in_degree;
-  std::queue<int> q;
-  std::vector<int> result;
   std::unique_lock lock(component_mutex);
   const auto nodes = std::move(graph_components[comp_id]);
   lock.unlock();
-  for (const auto &node : nodes) {
+  const size_t node_count = nodes.size();
+
+  // Early exit for trivial cases
+  if (node_count <= 1) {
+    return;
+  }
+
+  // Otherwise, reserve space for better performance
+  std::unordered_map<int, int> in_degree;
+  in_degree.reserve(node_count);
+
+  // Initialize in-degrees
+  for (int node : nodes) {
     in_degree[node] = 0;
   }
-  for (const auto &node : adj_list) {
-    for (const auto &neighbor : node.second) {
-      in_degree[neighbor.first]++;
-    }
-  }
-  for (const auto &node : in_degree) {
-    if (node.second == 0) {
-      q.push(node.first);
-    }
-  }
-  while (!q.empty()) {
-    int u = q.front();
-    q.pop();
-    result.push_back(u);
-    for (const auto &neighbor : adj_list[u]) {
-      in_degree[neighbor.first]--;
-      if (in_degree[neighbor.first] == 0) {
-        q.push(neighbor.first);
+
+  // Calculate in-degrees
+  for (int node : nodes) {
+    auto it = adj_list.find(node);
+    if (it != adj_list.end()) {
+      for (const auto &neighbor : it->second) {
+        in_degree[neighbor.first]++;
       }
     }
   }
+
+  // Use vector as queue for better cache performance
+  std::vector<int> queue;
+  queue.reserve(node_count);
+  std::vector<int> result;
+  result.reserve(node_count);
+
+  // Find all nodes with in-degree 0
+  for (const auto &[node, degree] : in_degree) {
+    if (degree == 0) {
+      queue.push_back(node);
+    }
+  }
+
+  size_t queue_pos = 0;
+
+  // Process nodes
+  while (queue_pos < queue.size()) {
+    int u = queue[queue_pos++];
+    result.push_back(u);
+
+    auto it = adj_list.find(u);
+    if (it != adj_list.end()) {
+      for (const auto &neighbor : it->second) {
+        int v = neighbor.first;
+        if (--in_degree[v] == 0) {
+          queue.push_back(v);
+        }
+      }
+    }
+  }
+
+  // Update the component with sorted result
   lock.lock();
   graph_components[comp_id] = std::move(result);
 }
@@ -207,10 +238,12 @@ void SparseGraphShortestPath::precompute(const std::string_view &source) {
 void SparseGraphShortestPath::precomputePairsEfficient(int source) {
   const int &comp_id = component_id[source];
   const auto &topological_order = graph_components[comp_id];
+  // 预分配容器大小，减少rehash
+  const size_t est_size = topological_order.size();
   std::unordered_map<int, double> dist;
   std::unordered_map<int, int> prev;
-  dist.clear();
-  prev.clear();
+  dist.reserve(est_size);
+  prev.reserve(est_size);
   dist[source] = 0.0;
   auto source_it =
       std::find(topological_order.begin(), topological_order.end(), source);
