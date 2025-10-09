@@ -76,6 +76,8 @@ class SparseGraphShortestPath {
  public:
   std::map<std::string, long long> timing_stats;
   std::vector<std::vector<int>> graph_components;
+  std::vector<std::unordered_map<int, int>> topological_orders;
+  std::vector<int> graph_sizes;
   std::vector<std::unordered_map<int, std::unordered_map<int, double>>>
       distance_matrixs;  // 距离矩阵
   std::vector<std::unordered_map<int, std::unordered_map<int, int>>>
@@ -132,6 +134,10 @@ class SparseGraphShortestPath {
 
   // 查询两点间最短距离 (int接口)
   CacheResult queryShortestDistanceById(int from_id, int to_id);
+  CacheResult dijkstra_topo(int from_id, int to_id, int comp_id);
+  CacheResult reconstruct_path(int from_id, int to_id,
+                               const std::unordered_map<int, int> &parent,
+                               double distance);
 
   // 清空缓存（节省内存）
   void clearCache();

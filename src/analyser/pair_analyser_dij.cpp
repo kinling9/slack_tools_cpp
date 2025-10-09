@@ -151,6 +151,14 @@ void SparseGraphShortestPath::computeComponents() {
   std::unique_lock lock(precomp_mutex);
   distance_matrixs.resize(components_computed);
   predecessor_matrixs.resize(components_computed);
+  graph_sizes.reserve(components_computed);
+  topological_orders.resize(components_computed);
+  for (const auto &nodes : graph_components) {
+    graph_sizes.push_back(nodes.size());
+  }
+  for (int i = 0; i < components_computed; ++i) {
+    topological_orders[i].reserve(graph_sizes[i]);
+  }
   lock.unlock();
 }
 
@@ -218,6 +226,10 @@ void SparseGraphShortestPath::topologicalSort(int comp_id) {
   // Update the component with sorted result
   lock.lock();
   graph_components[comp_id] = std::move(result);
+  for (size_t i = 0; i < graph_components[comp_id].size(); ++i) {
+    int node = graph_components[comp_id][i];
+    topological_orders[comp_id][node] = i;
+  }
 }
 
 void SparseGraphShortestPath::precompute(const std::string_view &source) {
@@ -409,27 +421,104 @@ CacheResult SparseGraphShortestPath::queryShortestDistanceById(int from_id,
       return {-1, {}};
     }
   }
+  // {
+  //   ScopedTimer timer(timing_stats, "check_cache");
+  //   std::shared_lock lock(cache_mutex);
+  //   const auto from_it = distance_cache.find(from_id);
+  //   if (from_it != distance_cache.end()) {
+  //     const auto to_it = from_it->second.find(to_id);
+  //     if (to_it != from_it->second.end()) {
+  //       // Cache hit
+  //       std::vector<std::string_view> path;
+  //       build_path(from_id, to_id, path);
+  //       return {to_it->second.distance, path};
+  //     } else {
+  //       fmt::print(stderr,
+  //                  "Warning: No path from {} ({}) to {} ({}), but no prior "
+  //                  "rejection found\n",
+  //                  getNodeName(from_id), from_id, getNodeName(to_id), to_id);
+  //       result = {-1, {}};
+  //     }
+  //   }
+  // }
   {
-    ScopedTimer timer(timing_stats, "check_cache");
-    std::shared_lock lock(cache_mutex);
-    const auto from_it = distance_cache.find(from_id);
-    if (from_it != distance_cache.end()) {
-      const auto to_it = from_it->second.find(to_id);
-      if (to_it != from_it->second.end()) {
-        // Cache hit
-        std::vector<std::string_view> path;
-        build_path(from_id, to_id, path);
-        return {to_it->second.distance, path};
-      } else {
-        fmt::print(stderr,
-                   "Warning: No path from {} ({}) to {} ({}), but no prior "
-                   "rejection found\n",
-                   getNodeName(from_id), from_id, getNodeName(to_id), to_id);
-        result = {-1, {}};
+    ScopedTimer timer(timing_stats, "dijkstra_call");
+    result = dijkstra_topo(from_id, to_id, component_id.at(from_id));
+  }
+  return result;
+}
+
+CacheResult SparseGraphShortestPath::dijkstra_topo(int from_id, int to_id,
+                                                   int comp_id) {
+  using namespace std;
+  // 优先队列：pair<distance, node>
+  priority_queue<pair<double, int>, vector<pair<double, int>>,
+                 greater<pair<double, int>>>
+      pq;
+
+  int n_nodes = graph_sizes[comp_id];
+  vector<double> dist(n_nodes, numeric_limits<double>::infinity());
+  unordered_map<int, int> parent;
+  parent.reserve(n_nodes);
+  vector<bool> visited(n_nodes, false);
+
+  dist[from_id] = 0.0;
+  pq.push({0.0, from_id});
+
+  int to_id_pos = topological_orders[comp_id].at(to_id);
+
+  while (!pq.empty()) {
+    auto [d, u] = pq.top();
+    pq.pop();
+
+    if (visited[u]) continue;
+    visited[u] = true;
+
+    // 找到目标
+    if (u == to_id) {
+      return reconstruct_path(from_id, to_id, parent, d);
+    }
+
+    // 拓扑序剪枝：只扩展位置在to_id之前的节点
+    if (topological_orders[comp_id].at(u) >= to_id_pos) continue;
+
+    // 遍历出边
+    for (const auto &[v, w] : adj_list[u]) {
+      // 只考虑拓扑序小于等于to_id的节点
+      if (topological_orders[comp_id].at(v) > to_id_pos) continue;
+
+      double new_dist = d + w;
+      if (new_dist < dist[v]) {
+        dist[v] = new_dist;
+        parent[v] = u;
+        pq.push({new_dist, v});
       }
     }
   }
-  return result;
+
+  return CacheResult();  // 不可达
+}
+
+CacheResult SparseGraphShortestPath::reconstruct_path(
+    int from_id, int to_id, const std::unordered_map<int, int> &previous,
+    double distance) {
+  CacheResult cache_result(distance, {});
+  if (to_id == from_id) {
+    cache_result.path = {getNodeName(from_id)};
+    return cache_result;
+  }
+  std::vector<std::string_view> path;
+  int current = to_id;
+  while (current != from_id && previous.find(current) != previous.end()) {
+    path.push_back(getNodeName(current));
+    current = previous.at(current);
+  }
+  if (current == from_id) {
+    path.push_back(getNodeName(from_id));
+    std::reverse(path.begin(), path.end());
+    cache_result.path = path;
+  }
+  return cache_result;
 }
 
 void SparseGraphShortestPath::clearCache() {
@@ -692,23 +781,23 @@ void pair_analyser_dij::csv_match(
     arc_starts.insert(arc_cell->from_pin);
   }
 
-  _sparse_graph_ptrs[rpt_pair[1]]->allocate_matrix(arc_starts);
-
-  size_t chunk_size_start = (arc_starts.size() + num_threads - 1) / num_threads;
-  for (unsigned int t = 0; t < num_threads; ++t) {
-    size_t begin_idx = t * chunk_size_start;
-    size_t end_idx = std::min(begin_idx + chunk_size_start, arc_starts.size());
-    threads.emplace_back(&pair_analyser_dij::precompute_start, this, begin_idx,
-                         end_idx, std::ref(arc_starts), std::ref(rpt_pair));
-  }
-
-  for (auto &th : threads) {
-    if (th.joinable()) {
-      th.join();
-    }
-  }
-
-  threads.clear();
+  // _sparse_graph_ptrs[rpt_pair[1]]->allocate_matrix(arc_starts);
+  //
+  // size_t chunk_size_start = (arc_starts.size() + num_threads - 1) / num_threads;
+  // for (unsigned int t = 0; t < num_threads; ++t) {
+  //   size_t begin_idx = t * chunk_size_start;
+  //   size_t end_idx = std::min(begin_idx + chunk_size_start, arc_starts.size());
+  //   threads.emplace_back(&pair_analyser_dij::precompute_start, this, begin_idx,
+  //                        end_idx, std::ref(arc_starts), std::ref(rpt_pair));
+  // }
+  //
+  // for (auto &th : threads) {
+  //   if (th.joinable()) {
+  //     th.join();
+  //   }
+  // }
+  //
+  // threads.clear();
 
   std::vector<std::map<std::tuple<std::string, bool, std::string, bool>,
                        nlohmann::json>>
