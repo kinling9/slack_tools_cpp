@@ -104,22 +104,6 @@ class basedb {
     }
     all_arcs.push_back(arc);
   }
-  std::unordered_map<std::string,
-                     std::unordered_map<std::string, std::shared_ptr<Arc>>>
-  get_cell_arcs() {
-    return cell_arcs;
-  }
-  std::unordered_map<std::string,
-                     std::unordered_map<std::string, std::shared_ptr<Arc>>>
-  get_cell_arcs_rev() {
-    return cell_arcs_rev;
-  }
-
-  std::unordered_map<std::string,
-                     std::unordered_map<std::string, std::shared_ptr<Arc>>>
-  get_net_arcs() {
-    return net_arcs;
-  }
 
  public:
   std::vector<std::shared_ptr<Path>> paths;

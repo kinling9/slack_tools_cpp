@@ -58,14 +58,11 @@ class SparseGraphShortestPath {
   std::unordered_map<int, std::vector<std::pair<int, double>>>
       rev_adj_list;  // {node_id: [(neighbor_id, dist)]}
 
-  // 缓存已计算的最短距离，使用两级哈希表
-  std::unordered_map<int, std::unordered_map<int, CacheResult>> distance_cache;
-
   // 存储所有节点ID
   std::unordered_set<int> all_nodes;
 
   // 连通分量信息
-  std::unordered_map<int, int> component_id;  // node_id -> component_id
+  std::vector<int> component_id;  // node_id -> component_id
   int components_computed = 0;
 
   // String和int的双向映射
@@ -76,15 +73,10 @@ class SparseGraphShortestPath {
  public:
   std::map<std::string, long long> timing_stats;
   std::vector<std::vector<int>> graph_components;
-  std::vector<std::unordered_map<int, std::unordered_map<int, double>>>
-      distance_matrixs;  // 距离矩阵
-  std::vector<std::unordered_map<int, std::unordered_map<int, int>>>
-      predecessor_matrixs;  // 前驱矩阵
+  std::vector<std::unordered_map<int, int>> topological_orders;
+  std::vector<int> graph_sizes;
 
   std::mutex graph_mutex;  // Protects adj_list, rev_adj_list
-
-  // Cache for shortest paths - heavily read, written during Dijkstra
-  std::shared_mutex cache_mutex;  // Support multiple concurrent readers
 
   // Node set and component info
   std::shared_mutex component_mutex;  // Protects component-related state
@@ -110,21 +102,7 @@ class SparseGraphShortestPath {
   // 计算连通分量（用于快速判断两点是否连通）
   void computeComponents();
 
-  void allocate_matrix(const std::unordered_set<std::string_view> names);
-
   void topologicalSort(int comp_id);
-
-  void precomputePairsEfficient(int source);
-
-  void precompute(const std::string_view &source);
-
-  void collect_distance(int source_id);
-
-  void build_path(int source_id, int sink_id,
-                  std::vector<std::string_view> &path);
-
-  // Dijkstra算法计算从source到所有可达节点的最短距离和路径
-  std::unordered_map<int, CacheResult> dijkstraFromSource(int source_id);
 
   // 查询两点间最短距离 (string接口)
   CacheResult queryShortestDistance(const std::string_view &from,
@@ -132,18 +110,13 @@ class SparseGraphShortestPath {
 
   // 查询两点间最短距离 (int接口)
   CacheResult queryShortestDistanceById(int from_id, int to_id);
-
-  // 清空缓存（节省内存）
-  void clearCache();
+  CacheResult dijkstra_topo(int from_id, int to_id, int comp_id) const;
+  CacheResult reconstruct_path(int from_id, int to_id,
+                               const std::unordered_map<int, int> &parent,
+                               double distance) const;
 
   // 获取图的统计信息
   void printStats() const;
-
-  // 获取所有节点名称
-  std::vector<std::string_view> getAllNodeNames() const;
-
-  // 获取所有节点ID
-  std::vector<int> getAllNodeIds() const;
 };
 
 class pair_analyser_dij : public pair_analyser_csv {
@@ -163,9 +136,6 @@ class pair_analyser_dij : public pair_analyser_csv {
       const std::string &name, bool is_input, double incr_delay,
       const std::unordered_map<std::string, std::shared_ptr<Pin>> &csv_pin_db);
 
-  void precompute_start(size_t begin_idx, size_t end_idx,
-                        const std::unordered_set<std::string_view> &arc_starts,
-                        const std::vector<std::string> &rpt_pair);
   void process_arc_segment(
       int t, size_t begin_idx, size_t end_idx,
       const absl::flat_hash_set<
