@@ -50,6 +50,7 @@ void SparseGraphShortestPath::buildGraph(
     all_nodes.insert(from_id);
     all_nodes.insert(to_id);
   }
+  component_id.resize(all_nodes.size(), 0);
   {
     ScopedTimer timer(timing_stats, "compute_components_check");
     computeComponents();
@@ -149,8 +150,8 @@ void SparseGraphShortestPath::computeComponents() {
   }
   components_computed = comp_id;
   std::unique_lock lock(precomp_mutex);
-  distance_matrixs.resize(components_computed);
-  predecessor_matrixs.resize(components_computed);
+  // distance_matrixs.resize(components_computed);
+  // predecessor_matrixs.resize(components_computed);
   graph_sizes.reserve(components_computed);
   topological_orders.resize(components_computed);
   for (const auto &nodes : graph_components) {
@@ -457,10 +458,17 @@ CacheResult SparseGraphShortestPath::dijkstra_topo(int from_id, int to_id,
       pq;
 
   int n_nodes = graph_sizes[comp_id];
-  vector<double> dist(n_nodes, numeric_limits<double>::infinity());
+  unordered_map<int, double> dist;
   unordered_map<int, int> parent;
-  parent.reserve(n_nodes);
-  vector<bool> visited(n_nodes, false);
+  unordered_map<int, bool> visited;
+
+  constexpr int bucket_size = 64;
+  parent.reserve(bucket_size);
+  dist.reserve(bucket_size);
+  visited.reserve(bucket_size);
+  // parent.reserve(std::max(16, n_nodes / 16));
+  // dist.reserve(std::max(16, n_nodes / 16));
+  // visited.reserve(std::max(16, n_nodes / 16));
 
   dist[from_id] = 0.0;
   pq.push({0.0, from_id});
@@ -471,7 +479,7 @@ CacheResult SparseGraphShortestPath::dijkstra_topo(int from_id, int to_id,
     auto [d, u] = pq.top();
     pq.pop();
 
-    if (visited[u]) continue;
+    if (visited.find(u) != visited.end() || visited[u]) continue;
     visited[u] = true;
 
     // 找到目标
@@ -488,7 +496,7 @@ CacheResult SparseGraphShortestPath::dijkstra_topo(int from_id, int to_id,
       if (topological_orders[comp_id].at(v) > to_id_pos) continue;
 
       double new_dist = d + w;
-      if (new_dist < dist[v]) {
+      if (dist.find(v) == dist.end() || new_dist < dist[v]) {
         dist[v] = new_dist;
         parent[v] = u;
         pq.push({new_dist, v});
@@ -496,7 +504,7 @@ CacheResult SparseGraphShortestPath::dijkstra_topo(int from_id, int to_id,
     }
   }
 
-  return CacheResult();  // 不可达
+  return CacheResult(-1, {});  // 不可达
 }
 
 CacheResult SparseGraphShortestPath::reconstruct_path(
@@ -781,24 +789,6 @@ void pair_analyser_dij::csv_match(
     arc_starts.insert(arc_cell->from_pin);
   }
 
-  // _sparse_graph_ptrs[rpt_pair[1]]->allocate_matrix(arc_starts);
-  //
-  // size_t chunk_size_start = (arc_starts.size() + num_threads - 1) / num_threads;
-  // for (unsigned int t = 0; t < num_threads; ++t) {
-  //   size_t begin_idx = t * chunk_size_start;
-  //   size_t end_idx = std::min(begin_idx + chunk_size_start, arc_starts.size());
-  //   threads.emplace_back(&pair_analyser_dij::precompute_start, this, begin_idx,
-  //                        end_idx, std::ref(arc_starts), std::ref(rpt_pair));
-  // }
-  //
-  // for (auto &th : threads) {
-  //   if (th.joinable()) {
-  //     th.join();
-  //   }
-  // }
-  //
-  // threads.clear();
-
   std::vector<std::map<std::tuple<std::string, bool, std::string, bool>,
                        nlohmann::json>>
       thread_buffers(num_threads);
@@ -840,4 +830,5 @@ void pair_analyser_dij::csv_match(
 
   std::string cmp_name = fmt::format("{}", fmt::join(rpt_pair, "-"));
   fmt::print(_arcs_writers[cmp_name]->out_file, "{}", arc_node.dump(2));
+  fmt::print("Wrote {} arc pairs to {}\n", arc_node.size(), cmp_name);
 }

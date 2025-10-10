@@ -65,7 +65,7 @@ class SparseGraphShortestPath {
   std::unordered_set<int> all_nodes;
 
   // 连通分量信息
-  std::unordered_map<int, int> component_id;  // node_id -> component_id
+  std::vector<int> component_id;  // node_id -> component_id
   int components_computed = 0;
 
   // String和int的双向映射
