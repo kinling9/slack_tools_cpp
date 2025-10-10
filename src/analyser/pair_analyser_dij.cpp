@@ -471,15 +471,17 @@ CacheResult SparseGraphShortestPath::dijkstra_topo(int from_id, int to_id,
     if (topological_orders.at(comp_id).at(u) >= to_id_pos) continue;
 
     // 遍历出边
-    for (const auto &[v, w] : adj_list.at(u)) {
-      // 只考虑拓扑序小于等于to_id的节点
-      if (topological_orders.at(comp_id).at(v) > to_id_pos) continue;
+    if (adj_list.find(u) != adj_list.end()) {
+      for (const auto &[v, w] : adj_list.at(u)) {
+        // 只考虑拓扑序小于等于to_id的节点
+        if (topological_orders.at(comp_id).at(v) > to_id_pos) continue;
 
-      double new_dist = d + w;
-      if (dist.find(v) == dist.end() || new_dist < dist[v]) {
-        dist[v] = new_dist;
-        parent[v] = u;
-        pq.push({new_dist, v});
+        double new_dist = d + w;
+        if (dist.find(v) == dist.end() || new_dist < dist[v]) {
+          dist[v] = new_dist;
+          parent[v] = u;
+          pq.push({new_dist, v});
+        }
       }
     }
   }
