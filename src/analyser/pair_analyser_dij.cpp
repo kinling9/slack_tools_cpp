@@ -422,26 +422,6 @@ CacheResult SparseGraphShortestPath::queryShortestDistanceById(int from_id,
       return {-1, {}};
     }
   }
-  // {
-  //   ScopedTimer timer(timing_stats, "check_cache");
-  //   std::shared_lock lock(cache_mutex);
-  //   const auto from_it = distance_cache.find(from_id);
-  //   if (from_it != distance_cache.end()) {
-  //     const auto to_it = from_it->second.find(to_id);
-  //     if (to_it != from_it->second.end()) {
-  //       // Cache hit
-  //       std::vector<std::string_view> path;
-  //       build_path(from_id, to_id, path);
-  //       return {to_it->second.distance, path};
-  //     } else {
-  //       fmt::print(stderr,
-  //                  "Warning: No path from {} ({}) to {} ({}), but no prior "
-  //                  "rejection found\n",
-  //                  getNodeName(from_id), from_id, getNodeName(to_id), to_id);
-  //       result = {-1, {}};
-  //     }
-  //   }
-  // }
   {
     ScopedTimer timer(timing_stats, "dijkstra_call");
     result = dijkstra_topo(from_id, to_id, component_id.at(from_id));
@@ -569,10 +549,8 @@ void pair_analyser_dij::analyse() {
     _rf_checker.set_enable_rise_fall(true);
   }
   open_writers();
-  // std::vector<std::thread> threads;
   fmt::print("Analyse tuples: {}\n", fmt::join(_analyse_tuples, ", "));
   for (const auto &rpt_pair : _analyse_tuples) {
-    // threads.emplace_back([this, rpt_pair]() {
     std::string cmp_name = fmt::format("{}", fmt::join(rpt_pair, "-"));
     absl::flat_hash_set<std::tuple<std::shared_ptr<Arc>, std::shared_ptr<Arc>>>
         arcs;
@@ -581,11 +559,6 @@ void pair_analyser_dij::analyse() {
     csv_match(rpt_pair, arcs, _dbs.at(rpt_pair[0])->pins,
               _dbs.at(rpt_pair[1])->pins);
   }
-  // for (auto &t : threads) {
-  //   if (t.joinable()) {
-  //     t.join();
-  //   }
-  // }
 }
 
 void pair_analyser_dij::init_graph(const std::shared_ptr<basedb> &db,
@@ -602,17 +575,16 @@ void pair_analyser_dij::init_graph(const std::shared_ptr<basedb> &db,
 nlohmann::json pair_analyser_dij::create_pin_node(
     const std::string &name, bool is_input, double incr_delay,
     const std::unordered_map<std::string, std::shared_ptr<Pin>> &csv_pin_db) {
-  auto node = nlohmann::json{{"name", name},
-                             {"is_input", is_input},
-                             {"incr_delay", incr_delay},
-                             {"rf", false}};
+  nlohmann::json node;
+  node["name"] = name;
+  node["is_input"] = is_input;
+  node["incr_delay"] = incr_delay;
+  node["rf"] = false;
   if (!csv_pin_db.empty()) {
-    auto pin_it = csv_pin_db.find(name);
-    if (pin_it != csv_pin_db.end()) {
-      auto pin = pin_it->second;
+    if (auto pin_it = csv_pin_db.find(name); pin_it != csv_pin_db.end()) {
+      const auto &pin = pin_it->second;
       node["path_delay"] = pin->path_delay;
-      node["location"] =
-          nlohmann::json::array({pin->location.first, pin->location.second});
+      node["location"] = {pin->location.first, pin->location.second};
       node["trans"] = pin->trans;
       node["cap"] = pin->cap.value_or(0.);
     }
@@ -679,20 +651,28 @@ void pair_analyser_dij::process_arc_segment(
     auto max_cell_delay = std::max(arc_cell->delay[0], arc_cell->delay[1]);
     auto max_net_delay = std::max(arc_net->delay[0], arc_net->delay[1]);
 
-    nlohmann::json node = {
-        {"type", "pair arc"},
-        {"from",
-         fmt::format("{} {}", from.first, from.second ? "(rise)" : "(fall)")},
-        {"to", fmt::format("{} {}", to.first, to.second ? "(rise)" : "(fall)")},
-        {"key",
-         {{"pins",
-           {create_pin_node(pin_from, true, 0, csv_pin_db_key),
-            create_pin_node(pin_inter, false, max_cell_delay, csv_pin_db_key),
-            create_pin_node(pin_to, true, max_net_delay, csv_pin_db_key)}},
-          {"delay", max_cell_delay + max_net_delay}}},
-        {"value",
-         {{"pins", nlohmann::json::array()},
-          {"delay", connect_check.distance}}}};
+    nlohmann::json node;
+    node["type"] = "pair arc";
+    node["from"] =
+        fmt::format("{} {}", from.first, from.second ? "(rise)" : "(fall)");
+    node["to"] =
+        fmt::format("{} {}", to.first, to.second ? "(rise)" : "(fall)");
+
+    // Pre-calculate delay
+    const double total_delay = max_cell_delay + max_net_delay;
+
+    // Build key section
+    nlohmann::json key_pins = nlohmann::json::array();
+    key_pins.push_back(create_pin_node(pin_from, true, 0, csv_pin_db_key));
+    key_pins.push_back(
+        create_pin_node(pin_inter, false, max_cell_delay, csv_pin_db_key));
+    key_pins.push_back(
+        create_pin_node(pin_to, true, max_net_delay, csv_pin_db_key));
+
+    node["key"] = {{"pins", std::move(key_pins)}, {"delay", total_delay}};
+
+    node["value"] = {{"pins", nlohmann::json::array()},
+                     {"delay", connect_check.distance}};
 
     node["value"]["pins"].push_back(
         create_pin_node(pin_from, true, 0, csv_pin_db_value));
@@ -703,9 +683,9 @@ void pair_analyser_dij::process_arc_segment(
       const auto &[mid_from_view, mid_to_view] = pin_tuple;
       std::string mid_from = std::string(mid_from_view);
       std::string mid_to = std::string(mid_to_view);
-      std::shared_ptr<Arc> mid_arc = is_cell_arc
-                                         ? value_db->cell_arcs[mid_from][mid_to]
-                                         : value_db->net_arcs[mid_from][mid_to];
+      std::shared_ptr<Arc> &mid_arc =
+          is_cell_arc ? value_db->cell_arcs[mid_from][mid_to]
+                      : value_db->net_arcs[mid_from][mid_to];
       is_cell_arc = !is_cell_arc;
       node["value"]["pins"].push_back(create_pin_node(
           mid_to, !is_cell_arc, mid_arc->delay[0], csv_pin_db_value));
@@ -812,6 +792,9 @@ void pair_analyser_dij::csv_match(
       th.join();
     }
   }
+
+  // process_arc_segment(0, 0, arcs.size(), arcs, rpt_pair, csv_pin_db_key,
+  //                     csv_pin_db_value, thread_buffers);
 
   // Merge results
   for (auto &buffer : thread_buffers) {

@@ -116,7 +116,7 @@ void pair_analyser_csv::gen_arc_tuples(
     const std::shared_ptr<basedb> &db,
     absl::flat_hash_set<std::tuple<std::shared_ptr<Arc>, std::shared_ptr<Arc>>>
         &arcs) {
-  for (const auto &[cell_to, cell_arcs] : db->get_cell_arcs_rev()) {
+  for (const auto &[cell_to, cell_arcs] : db->cell_arcs_rev) {
     if (db->net_arcs.contains(cell_to)) {
       auto &net_arc_map = db->net_arcs.at(cell_to);
       if (net_arc_map.empty()) {
