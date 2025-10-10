@@ -134,10 +134,10 @@ class SparseGraphShortestPath {
 
   // 查询两点间最短距离 (int接口)
   CacheResult queryShortestDistanceById(int from_id, int to_id);
-  CacheResult dijkstra_topo(int from_id, int to_id, int comp_id);
+  CacheResult dijkstra_topo(int from_id, int to_id, int comp_id) const;
   CacheResult reconstruct_path(int from_id, int to_id,
                                const std::unordered_map<int, int> &parent,
-                               double distance);
+                               double distance) const;
 
   // 清空缓存（节省内存）
   void clearCache();

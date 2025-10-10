@@ -430,14 +430,14 @@ CacheResult SparseGraphShortestPath::queryShortestDistanceById(int from_id,
 }
 
 CacheResult SparseGraphShortestPath::dijkstra_topo(int from_id, int to_id,
-                                                   int comp_id) {
+                                                   int comp_id) const {
   using namespace std;
   // 优先队列：pair<distance, node>
   priority_queue<pair<double, int>, vector<pair<double, int>>,
                  greater<pair<double, int>>>
       pq;
 
-  int n_nodes = graph_sizes[comp_id];
+  // int n_nodes = graph_sizes.at(comp_id);
   unordered_map<int, double> dist;
   unordered_map<int, int> parent;
   unordered_map<int, bool> visited;
@@ -453,7 +453,7 @@ CacheResult SparseGraphShortestPath::dijkstra_topo(int from_id, int to_id,
   dist[from_id] = 0.0;
   pq.push({0.0, from_id});
 
-  int to_id_pos = topological_orders[comp_id].at(to_id);
+  int to_id_pos = topological_orders.at(comp_id).at(to_id);
 
   while (!pq.empty()) {
     auto [d, u] = pq.top();
@@ -468,12 +468,12 @@ CacheResult SparseGraphShortestPath::dijkstra_topo(int from_id, int to_id,
     }
 
     // 拓扑序剪枝：只扩展位置在to_id之前的节点
-    if (topological_orders[comp_id].at(u) >= to_id_pos) continue;
+    if (topological_orders.at(comp_id).at(u) >= to_id_pos) continue;
 
     // 遍历出边
-    for (const auto &[v, w] : adj_list[u]) {
+    for (const auto &[v, w] : adj_list.at(u)) {
       // 只考虑拓扑序小于等于to_id的节点
-      if (topological_orders[comp_id].at(v) > to_id_pos) continue;
+      if (topological_orders.at(comp_id).at(v) > to_id_pos) continue;
 
       double new_dist = d + w;
       if (dist.find(v) == dist.end() || new_dist < dist[v]) {
@@ -489,7 +489,7 @@ CacheResult SparseGraphShortestPath::dijkstra_topo(int from_id, int to_id,
 
 CacheResult SparseGraphShortestPath::reconstruct_path(
     int from_id, int to_id, const std::unordered_map<int, int> &previous,
-    double distance) {
+    double distance) const {
   CacheResult cache_result(distance, {});
   if (to_id == from_id) {
     cache_result.path = {getNodeName(from_id)};
