@@ -3,11 +3,9 @@
 #include <fmt/ranges.h>
 
 #include <algorithm>
-#include <queue>
 #include <thread>
 
 #include "utils/cache_result.h"
-#include "utils/scoped_timer.h"
 #include "utils/utils.h"
 
 void pair_analyser_dij::analyse() {
