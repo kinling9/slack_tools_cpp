@@ -7,6 +7,7 @@
 #include <syncstream>
 #include <thread>
 
+#include "utils/scoped_timer.h"
 #include "utils/utils.h"
 
 SparseGraphShortestPath::SparseGraphShortestPath(

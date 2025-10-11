@@ -14,33 +14,6 @@
 
 #include "pair_analyser_csv.h"
 
-class ScopedTimer {
- public:
-  using Clock = std::chrono::high_resolution_clock;
-
-  ScopedTimer(std::map<std::string, long long> &accum, const std::string &name)
-      : m_accum(accum), m_name(name), m_start(Clock::now()) {}
-
-  ~ScopedTimer() {
-    auto end = Clock::now();
-    auto duration =
-        std::chrono::duration_cast<std::chrono::microseconds>(end - m_start)
-            .count();
-    std::lock_guard<std::mutex> lock(get_timer_mutex());
-    m_accum[m_name] += duration;
-  }
-
-  std::mutex &get_timer_mutex() {
-    static std::mutex timer_mutex;
-    return timer_mutex;
-  }
-
- private:
-  std::map<std::string, long long> &m_accum;
-  std::string m_name;
-  std::chrono::time_point<Clock> m_start;
-};
-
 class CacheResult {
  public:
   double distance;
@@ -71,7 +44,7 @@ class SparseGraphShortestPath {
   int next_node_id = 0;
 
  public:
-  std::map<std::string, long long> timing_stats;
+  std::unordered_map<std::string, long long> timing_stats;
   std::vector<std::vector<int>> graph_components;
   std::vector<std::unordered_map<int, int>> topological_orders;
   std::vector<int> graph_sizes;

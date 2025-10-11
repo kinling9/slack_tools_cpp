@@ -2,6 +2,7 @@
 
 #include <chrono>
 #include <mutex>
+#include <string>
 #include <unordered_map>
 
 class ScopedTimer {
