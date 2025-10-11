@@ -5,15 +5,15 @@
 #include <string>
 #include <unordered_map>
 
-class ScopedTimer {
+class scoped_timer {
  public:
   using Clock = std::chrono::high_resolution_clock;
 
-  ScopedTimer(std::unordered_map<std::string, long long> &accum,
-              const std::string &name)
+  scoped_timer(std::unordered_map<std::string, long long> &accum,
+               const std::string &name)
       : m_accum(accum), m_name(name), m_start(Clock::now()) {}
 
-  ~ScopedTimer() {
+  ~scoped_timer() {
     auto end = Clock::now();
     auto duration =
         std::chrono::duration_cast<std::chrono::microseconds>(end - m_start)
