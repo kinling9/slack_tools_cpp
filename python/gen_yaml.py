@@ -49,7 +49,7 @@ def generate_yaml_content(results: list, output_dir: str = "output"):
                         csv_path[csv_key] = {}
                     csv_path[csv_key][csv_type] = v
                     if len(csv_path) > 1:
-                        arc_yaml["mode"] = "pair analyse dij"
+                        arc_yaml["mode"] = "pair analyse graph"
                     else:
                         arc_yaml["mode"] = "pair analyse csv"
                     for k, v in csv_path.items():

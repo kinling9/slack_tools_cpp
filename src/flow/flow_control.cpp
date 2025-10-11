@@ -12,7 +12,7 @@
 #include "analyser/fanout_analyser.h"
 #include "analyser/pair_analyser.h"
 #include "analyser/pair_analyser_csv.h"
-#include "analyser/pair_analyser_dij.h"
+#include "analyser/pair_analyser_graph.h"
 #include "analyser/path_analyser.h"
 #include "parser/csv_parser.h"
 #include "parser/def_parser.h"
@@ -71,8 +71,8 @@ void flow_control::parse_yml(std::string yml_file) {
     _analyser = std::make_unique<pair_analyser>(config["configs"]);
   } else if (mode == "pair analyse csv") {
     _analyser = std::make_unique<pair_analyser_csv>(config["configs"]);
-  } else if (mode == "pair analyse dij") {
-    _analyser = std::make_unique<pair_analyser_dij>(config["configs"]);
+  } else if (mode == "pair analyse graph") {
+    _analyser = std::make_unique<pair_analyser_graph>(config["configs"]);
   } else {
     throw std::system_error(
         errno, std::generic_category(),

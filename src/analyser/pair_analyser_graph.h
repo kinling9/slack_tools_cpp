@@ -7,9 +7,9 @@
 #include "pair_analyser_csv.h"
 #include "utils/sparse_graph_shortest_path.h"
 
-class pair_analyser_dij : public pair_analyser_csv {
+class pair_analyser_graph : public pair_analyser_csv {
  public:
-  pair_analyser_dij(const YAML::Node &configs) : pair_analyser_csv(configs){};
+  pair_analyser_graph(const YAML::Node &configs) : pair_analyser_csv(configs){};
   void analyse() override;
   void init_graph(const std::shared_ptr<basedb> &db, std::string name);
   void csv_match(const std::vector<std::string> &rpt_pair,
