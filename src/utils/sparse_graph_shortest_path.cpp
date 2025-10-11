@@ -9,49 +9,49 @@
 
 sparse_graph_shortest_path::sparse_graph_shortest_path(
     const std::vector<std::shared_ptr<Arc>> &edges) {
-  buildGraph(edges);
+  build_graph(edges);
 }
 
-int sparse_graph_shortest_path::getOrCreateNodeId(
+int sparse_graph_shortest_path::get_or_create_node_id(
     const std::string_view &node_name) {
-  auto it = string_to_int.find(node_name);
-  if (it != string_to_int.end()) {
+  auto it = _string_to_int.find(node_name);
+  if (it != _string_to_int.end()) {
     return it->second;
   }
-  int node_id = next_node_id++;
-  string_to_int[node_name] = node_id;
-  int_to_string.push_back(node_name);
+  int node_id = _next_node_id++;
+  _string_to_int[node_name] = node_id;
+  _int_to_string.push_back(node_name);
   return node_id;
 }
 
-std::string_view sparse_graph_shortest_path::getNodeName(int node_id) const {
-  if (node_id >= 0 && node_id < static_cast<int>(int_to_string.size())) {
-    return int_to_string[node_id];
+std::string_view sparse_graph_shortest_path::get_node_name(int node_id) const {
+  if (node_id >= 0 && node_id < static_cast<int>(_int_to_string.size())) {
+    return _int_to_string[node_id];
   }
   return "";
 }
 
-int sparse_graph_shortest_path::getNodeId(
+int sparse_graph_shortest_path::get_node_id(
     const std::string_view &node_name) const {
-  auto it = string_to_int.find(node_name);
-  return (it != string_to_int.end()) ? it->second : -1;
+  auto it = _string_to_int.find(node_name);
+  return (it != _string_to_int.end()) ? it->second : -1;
 }
 
-void sparse_graph_shortest_path::buildGraph(
+void sparse_graph_shortest_path::build_graph(
     const std::vector<std::shared_ptr<Arc>> &edges) {
   for (const auto &edge : edges) {
-    int from_id = getOrCreateNodeId(edge->from_pin);
-    int to_id = getOrCreateNodeId(edge->to_pin);
+    int from_id = get_or_create_node_id(edge->from_pin);
+    int to_id = get_or_create_node_id(edge->to_pin);
     double max_delay = std::max(edge->delay[0], edge->delay[1]);
-    adj_list[from_id].emplace_back(to_id, max_delay);
-    rev_adj_list[to_id].emplace_back(from_id, max_delay);
-    all_nodes.insert(from_id);
-    all_nodes.insert(to_id);
+    _adj_list[from_id].emplace_back(to_id, max_delay);
+    _rev_adj_list[to_id].emplace_back(from_id, max_delay);
+    _all_nodes.insert(from_id);
+    _all_nodes.insert(to_id);
   }
-  component_id.resize(all_nodes.size(), 0);
+  _component_id.resize(_all_nodes.size(), 0);
   {
     scoped_timer timer(timing_stats, "compute_components_check");
-    computeComponents();
+    compute_components();
   }
   {
     scoped_timer timer(timing_stats, "topo_sort");
@@ -61,8 +61,8 @@ void sparse_graph_shortest_path::buildGraph(
     threads.reserve(num_threads);
 
     // Calculate work distribution
-    const int work_per_thread = components_computed / num_threads;
-    const int remainder = components_computed % num_threads;
+    const int work_per_thread = _components_computed / num_threads;
+    const int remainder = _components_computed % num_threads;
 
     int start_idx = 0;
     for (int t = 0; t < num_threads; ++t) {
@@ -73,7 +73,7 @@ void sparse_graph_shortest_path::buildGraph(
       threads.emplace_back([start_idx, end_idx, this]() {
         for (int i = start_idx; i < end_idx; ++i) {
           // fmt::print("start comp {}, total comp {}\n", i, components_computed);
-          topologicalSort(i);
+          topological_sort(i);
         }
       });
 
@@ -89,37 +89,37 @@ void sparse_graph_shortest_path::buildGraph(
   }
 }
 
-void sparse_graph_shortest_path::computeComponents() {
-  if (components_computed != 0) return;
+void sparse_graph_shortest_path::compute_components() {
+  if (_components_computed != 0) return;
   std::unordered_set<int> visited;
   int comp_id = 0;
-  for (int node_id : all_nodes) {
+  for (int node_id : _all_nodes) {
     if (visited.find(node_id) == visited.end()) {
-      graph_components.resize(comp_id + 1);
+      _graph_components.resize(comp_id + 1);
       std::queue<int> q;
       q.push(node_id);
       visited.insert(node_id);
-      component_id[node_id] = comp_id;
-      graph_components[comp_id].push_back(node_id);
+      _component_id[node_id] = comp_id;
+      _graph_components[comp_id].push_back(node_id);
       while (!q.empty()) {
         int curr = q.front();
         q.pop();
-        if (adj_list.find(curr) != adj_list.end()) {
-          for (auto &[neighbor_id, _] : adj_list[curr]) {
+        if (_adj_list.find(curr) != _adj_list.end()) {
+          for (auto &[neighbor_id, _] : _adj_list[curr]) {
             if (visited.find(neighbor_id) == visited.end()) {
               visited.insert(neighbor_id);
-              component_id[neighbor_id] = comp_id;
-              graph_components[comp_id].push_back(neighbor_id);
+              _component_id[neighbor_id] = comp_id;
+              _graph_components[comp_id].push_back(neighbor_id);
               q.push(neighbor_id);
             }
           }
         }
-        if (rev_adj_list.find(curr) != adj_list.end()) {
-          for (auto &[neighbor_id, _] : rev_adj_list[curr]) {
+        if (_rev_adj_list.find(curr) != _adj_list.end()) {
+          for (auto &[neighbor_id, _] : _rev_adj_list[curr]) {
             if (visited.find(neighbor_id) == visited.end()) {
               visited.insert(neighbor_id);
-              component_id[neighbor_id] = comp_id;
-              graph_components[comp_id].push_back(neighbor_id);
+              _component_id[neighbor_id] = comp_id;
+              _graph_components[comp_id].push_back(neighbor_id);
               q.push(neighbor_id);
             }
           }
@@ -128,20 +128,20 @@ void sparse_graph_shortest_path::computeComponents() {
       comp_id++;
     }
   }
-  components_computed = comp_id;
-  graph_sizes.reserve(components_computed);
-  topological_orders.resize(components_computed);
-  for (const auto &nodes : graph_components) {
-    graph_sizes.push_back(nodes.size());
+  _components_computed = comp_id;
+  _graph_sizes.reserve(_components_computed);
+  _topological_orders.resize(_components_computed);
+  for (const auto &nodes : _graph_components) {
+    _graph_sizes.push_back(nodes.size());
   }
-  for (int i = 0; i < components_computed; ++i) {
-    topological_orders[i].reserve(graph_sizes[i]);
+  for (int i = 0; i < _components_computed; ++i) {
+    _topological_orders[i].reserve(_graph_sizes[i]);
   }
 }
 
-void sparse_graph_shortest_path::topologicalSort(int comp_id) {
-  std::unique_lock lock(component_mutex);
-  const auto nodes = std::move(graph_components[comp_id]);
+void sparse_graph_shortest_path::topological_sort(int comp_id) {
+  std::unique_lock lock(_component_mutex);
+  const auto nodes = std::move(_graph_components[comp_id]);
   lock.unlock();
   const size_t node_count = nodes.size();
 
@@ -161,8 +161,8 @@ void sparse_graph_shortest_path::topologicalSort(int comp_id) {
 
   // Calculate in-degrees
   for (int node : nodes) {
-    auto it = adj_list.find(node);
-    if (it != adj_list.end()) {
+    auto it = _adj_list.find(node);
+    if (it != _adj_list.end()) {
       for (const auto &neighbor : it->second) {
         in_degree[neighbor.first]++;
       }
@@ -189,8 +189,8 @@ void sparse_graph_shortest_path::topologicalSort(int comp_id) {
     int u = queue[queue_pos++];
     result.push_back(u);
 
-    auto it = adj_list.find(u);
-    if (it != adj_list.end()) {
+    auto it = _adj_list.find(u);
+    if (it != _adj_list.end()) {
       for (const auto &neighbor : it->second) {
         int v = neighbor.first;
         if (--in_degree[v] == 0) {
@@ -202,41 +202,41 @@ void sparse_graph_shortest_path::topologicalSort(int comp_id) {
 
   // Update the component with sorted result
   lock.lock();
-  graph_components[comp_id] = std::move(result);
-  for (size_t i = 0; i < graph_components[comp_id].size(); ++i) {
-    int node = graph_components[comp_id][i];
-    topological_orders[comp_id][node] = i;
+  _graph_components[comp_id] = std::move(result);
+  for (size_t i = 0; i < _graph_components[comp_id].size(); ++i) {
+    int node = _graph_components[comp_id][i];
+    _topological_orders[comp_id][node] = i;
   }
 }
 
-cache_result sparse_graph_shortest_path::queryShortestDistance(
+cache_result sparse_graph_shortest_path::query_shortest_distance(
     const std::string_view &from, const std::string_view &to) {
-  int from_id = getNodeId(from);
-  int to_id = getNodeId(to);
+  int from_id = get_node_id(from);
+  int to_id = get_node_id(to);
   if (from_id == -1 || to_id == -1) {
     return {-1, {}};
   }
-  return queryShortestDistanceById(from_id, to_id);
+  return query_shortest_distance_by_id(from_id, to_id);
 }
 
-cache_result sparse_graph_shortest_path::queryShortestDistanceById(int from_id,
-                                                                   int to_id) {
+cache_result sparse_graph_shortest_path::query_shortest_distance_by_id(
+    int from_id, int to_id) {
   cache_result result;
-  if (all_nodes.find(from_id) == all_nodes.end()) {
+  if (_all_nodes.find(from_id) == _all_nodes.end()) {
     fmt::print(stderr, "Debug: from_id {} does not exist in all_nodes\n",
                from_id);
     return {-1, {}};
   }
-  if (all_nodes.find(to_id) == all_nodes.end()) {
+  if (_all_nodes.find(to_id) == _all_nodes.end()) {
     fmt::print(stderr, "Debug: to_id {} does not exist in all_nodes\n", to_id);
     return {-1, {}};
   }
   if (from_id == to_id) {
-    return {0, {getNodeName(from_id)}};
+    return {0, {get_node_name(from_id)}};
   }
   {
     scoped_timer timer(timing_stats, "check_connectivity");
-    if (component_id.at(from_id) != component_id.at(to_id)) {
+    if (_component_id.at(from_id) != _component_id.at(to_id)) {
       fmt::print(stderr,
                  "Debug: from_id {} and to_id {} are in different components\n",
                  from_id, to_id);
@@ -245,7 +245,7 @@ cache_result sparse_graph_shortest_path::queryShortestDistanceById(int from_id,
   }
   {
     scoped_timer timer(timing_stats, "dijkstra_call");
-    result = dijkstra_topo(from_id, to_id, component_id.at(from_id));
+    result = dijkstra_topo(from_id, to_id, _component_id.at(from_id));
   }
   return result;
 }
@@ -271,7 +271,7 @@ cache_result sparse_graph_shortest_path::dijkstra_topo(int from_id, int to_id,
   dist[from_id] = 0.0;
   pq.push({0.0, from_id});
 
-  int to_id_pos = topological_orders.at(comp_id).at(to_id);
+  int to_id_pos = _topological_orders.at(comp_id).at(to_id);
 
   while (!pq.empty()) {
     auto [d, u] = pq.top();
@@ -286,13 +286,13 @@ cache_result sparse_graph_shortest_path::dijkstra_topo(int from_id, int to_id,
     }
 
     // 拓扑序剪枝：只扩展位置在to_id之前的节点
-    if (topological_orders.at(comp_id).at(u) >= to_id_pos) continue;
+    if (_topological_orders.at(comp_id).at(u) >= to_id_pos) continue;
 
     // 遍历出边
-    if (adj_list.find(u) != adj_list.end()) {
-      for (const auto &[v, w] : adj_list.at(u)) {
+    if (_adj_list.find(u) != _adj_list.end()) {
+      for (const auto &[v, w] : _adj_list.at(u)) {
         // 只考虑拓扑序小于等于to_id的节点
-        if (topological_orders.at(comp_id).at(v) > to_id_pos) continue;
+        if (_topological_orders.at(comp_id).at(v) > to_id_pos) continue;
 
         double new_dist = d + w;
         if (dist.find(v) == dist.end() || new_dist < dist[v]) {
@@ -312,29 +312,29 @@ cache_result sparse_graph_shortest_path::reconstruct_path(
     double distance) const {
   cache_result cache_result(distance, {});
   if (to_id == from_id) {
-    cache_result.path = {getNodeName(from_id)};
+    cache_result.path = {get_node_name(from_id)};
     return cache_result;
   }
   std::vector<std::string_view> path;
   int current = to_id;
   while (current != from_id && previous.find(current) != previous.end()) {
-    path.push_back(getNodeName(current));
+    path.push_back(get_node_name(current));
     current = previous.at(current);
   }
   if (current == from_id) {
-    path.push_back(getNodeName(from_id));
+    path.push_back(get_node_name(from_id));
     std::reverse(path.begin(), path.end());
     cache_result.path = path;
   }
   return cache_result;
 }
 
-void sparse_graph_shortest_path::printStats() const {
+void sparse_graph_shortest_path::print_stats() const {
   int edge_count = 0;
-  for (const auto &[node_id, neighbors] : adj_list) {
+  for (const auto &[node_id, neighbors] : _adj_list) {
     edge_count += neighbors.size();
   }
-  fmt::print("Number of nodes: {}\n", all_nodes.size());
+  fmt::print("Number of nodes: {}\n", _all_nodes.size());
   fmt::print("Number of edges: {}\n", edge_count);
-  fmt::print("String to int mappings: {}\n", string_to_int.size());
+  fmt::print("String to int mappings: {}\n", _string_to_int.size());
 }

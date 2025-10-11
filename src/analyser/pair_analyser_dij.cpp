@@ -34,7 +34,7 @@ void pair_analyser_dij::init_graph(const std::shared_ptr<basedb> &db,
   }
   auto graph = std::make_shared<sparse_graph_shortest_path>(db->all_arcs);
   _sparse_graph_ptrs[name] = graph;
-  graph->printStats();
+  graph->print_stats();
 }
 
 nlohmann::json pair_analyser_dij::create_pin_node(
@@ -86,8 +86,9 @@ void pair_analyser_dij::process_arc_segment(
     auto to = std::make_pair(pin_to, false);
     auto arc_tuple = std::make_tuple(pin_from, false, pin_to, false);
 
-    auto connect_check = _sparse_graph_ptrs[rpt_pair[1]]->queryShortestDistance(
-        pin_from, pin_to);
+    auto connect_check =
+        _sparse_graph_ptrs[rpt_pair[1]]->query_shortest_distance(pin_from,
+                                                                 pin_to);
     if (connect_check.distance < 0) {
       fmt::print("No connection from {} to {}, skip\n", pin_from, pin_to);
       continue;

@@ -35,6 +35,8 @@ class pair_analyser_dij : public pair_analyser_csv {
           &csv_pin_db_value,
       std::vector<std::map<std::tuple<std::string, bool, std::string, bool>,
                            nlohmann::json>> &thread_buffers);
+
+ private:
   absl::flat_hash_map<std::string, std::shared_ptr<sparse_graph_shortest_path>>
       _sparse_graph_ptrs;
 };
