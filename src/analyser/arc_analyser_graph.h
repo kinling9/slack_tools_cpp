@@ -1,20 +1,13 @@
 #pragma once
-#include <absl/strings/match.h>
-
-#include <unordered_map>
-#include <vector>
-
-#include "pair_analyser_csv.h"
+#include "arc_analyser.h"
 #include "utils/sparse_graph_shortest_path.h"
-
-class pair_analyser_dij : public pair_analyser_csv {
+class arc_analyser_graph : public arc_analyser {
  public:
-  pair_analyser_dij(const YAML::Node &configs) : pair_analyser_csv(configs){};
+  arc_analyser_graph(const YAML::Node &configs) : arc_analyser(configs){};
   void analyse() override;
   void init_graph(const std::shared_ptr<basedb> &db, std::string name);
+
   void csv_match(const std::vector<std::string> &rpt_pair,
-                 absl::flat_hash_set<std::tuple<std::shared_ptr<Arc>,
-                                                std::shared_ptr<Arc>>> &arcs,
                  const std::unordered_map<std::string, std::shared_ptr<Pin>>
                      &csv_pin_db_key,
                  const std::unordered_map<std::string, std::shared_ptr<Pin>>
@@ -26,8 +19,7 @@ class pair_analyser_dij : public pair_analyser_csv {
 
   void process_arc_segment(
       int t, size_t begin_idx, size_t end_idx,
-      const absl::flat_hash_set<
-          std::tuple<std::shared_ptr<Arc>, std::shared_ptr<Arc>>> &arcs,
+      const std::vector<std::shared_ptr<Arc>> &arcs,
       const std::vector<std::string> &rpt_pair,
       const std::unordered_map<std::string, std::shared_ptr<Pin>>
           &csv_pin_db_key,

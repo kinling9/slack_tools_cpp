@@ -1,4 +1,4 @@
-#include "pair_analyser_dij.h"
+#include "pair_analyser_graph.h"
 
 #include <fmt/ranges.h>
 
@@ -8,7 +8,7 @@
 #include "utils/cache_result.h"
 #include "utils/utils.h"
 
-void pair_analyser_dij::analyse() {
+void pair_analyser_graph::analyse() {
   // if (_enable_rise_fall) {
   //   fmt::print("Enable rise fall check\n");
   //   _rf_checker.set_enable_rise_fall(true);
@@ -26,8 +26,8 @@ void pair_analyser_dij::analyse() {
   }
 }
 
-void pair_analyser_dij::init_graph(const std::shared_ptr<basedb> &db,
-                                   std::string name) {
+void pair_analyser_graph::init_graph(const std::shared_ptr<basedb> &db,
+                                     std::string name) {
   if (db == nullptr) {
     fmt::print("DB is nullptr, skip\n");
     return;
@@ -37,7 +37,7 @@ void pair_analyser_dij::init_graph(const std::shared_ptr<basedb> &db,
   graph->print_stats();
 }
 
-nlohmann::json pair_analyser_dij::create_pin_node(
+nlohmann::json pair_analyser_graph::create_pin_node(
     const std::string &name, bool is_input, double incr_delay,
     const std::unordered_map<std::string, std::shared_ptr<Pin>> &csv_pin_db) {
   nlohmann::json node;
@@ -57,7 +57,7 @@ nlohmann::json pair_analyser_dij::create_pin_node(
   return node;
 }
 
-void pair_analyser_dij::process_arc_segment(
+void pair_analyser_graph::process_arc_segment(
     int t, size_t begin_idx, size_t end_idx,
     const absl::flat_hash_set<
         std::tuple<std::shared_ptr<Arc>, std::shared_ptr<Arc>>> &arcs,
@@ -194,7 +194,7 @@ void pair_analyser_dij::process_arc_segment(
   }
 }
 
-void pair_analyser_dij::csv_match(
+void pair_analyser_graph::csv_match(
     const std::vector<std::string> &rpt_pair,
     absl::flat_hash_set<std::tuple<std::shared_ptr<Arc>, std::shared_ptr<Arc>>>
         &arcs,
@@ -226,7 +226,7 @@ void pair_analyser_dij::csv_match(
 
     if (begin_idx >= arcs.size()) break;
 
-    threads.emplace_back(&pair_analyser_dij::process_arc_segment, this, t,
+    threads.emplace_back(&pair_analyser_graph::process_arc_segment, this, t,
                          begin_idx, end_idx, std::ref(arcs), std::ref(rpt_pair),
                          std::ref(csv_pin_db_key), std::ref(csv_pin_db_value),
                          std::ref(thread_buffers));
@@ -259,5 +259,5 @@ void pair_analyser_dij::csv_match(
 
   std::string cmp_name = fmt::format("{}", fmt::join(rpt_pair, "-"));
   fmt::print(_arcs_writers[cmp_name]->out_file, "{}", arc_node.dump(2));
-  fmt::print("Wrote {} arc pairs to {}\n", arc_node.size(), cmp_name);
+  fmt::print("Wrote {} arc match result to {}\n", arc_node.size(), cmp_name);
 }

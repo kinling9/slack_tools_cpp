@@ -1,0 +1,19 @@
+mode: arc analyse graph
+rpts:
+  pta_B023_tag0408_csv:
+    net_csv:  /data/mwei/workspace/PTA/slack_tool/fake_data/B024/pta/Leda_Net_Delay_pta.csv
+    cell_csv: /data/mwei/workspace/PTA/slack_tool/fake_data/B024/pta/Leda_Cell_Delay_pta.csv
+    at_csv: /data/mwei/workspace/PTA/slack_tool/fake_data/B024/pta/Leda_AT_pta.csv
+    type: csv
+  opt0_B023_tag0408_csv:
+    net_csv: /data/mwei/workspace/PTA/slack_tool/fake_data/B024/popt/Leda_Net_Delay.csv
+    cell_csv: /data/mwei/workspace/PTA/slack_tool/fake_data/B024/popt/Leda_Cell_Delay.csv
+    at_csv: /data/mwei/workspace/PTA/slack_tool/fake_data/B024/popt/Leda_AT.csv
+    type: csv
+configs:
+  output_dir: output
+  analyse_tuples:
+  - - pta_B023_tag0408_csv
+    - opt0_B023_tag0408_csv
+  enable_rise_fall: false
+  enable_super_arc: true
