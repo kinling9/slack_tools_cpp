@@ -65,13 +65,18 @@ void csv_parser::parse(csv_type type, csv::CSVReader &ifs) {
     for (auto &row : ifs) {
       std::string from_pin = row["from_pin"].get<>();
       std::string to_pin = row["to_pin"].get<>();
+      arc_type arc_type = arc_type::NetArc;
       double setup_delay_rise = row["setup_delay_rise"].get<double>();
       double setup_delay_fall = row["setup_delay_fall"].get<double>();
       std::optional<int> fanout;
       if (type == csv_type::NetArcFanout) {
         fanout = row["fanout"].get<int>();
       }
-      Arc arc_obj{.from_pin = from_pin,
+      if (type == csv_type::CellArc) {
+        arc_type = arc_type::CellArc;
+      }
+      Arc arc_obj{.type = arc_type,
+                  .from_pin = from_pin,
                   .to_pin = to_pin,
                   .delay = {setup_delay_rise, setup_delay_fall},
                   .fanout = fanout};

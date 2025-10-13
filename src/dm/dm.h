@@ -10,6 +10,12 @@
 #include "re2/re2.h"
 #include "yaml-cpp/yaml.h"
 
+enum class arc_type {
+  CellArc,
+  NetArc,
+  PairArc,
+};
+
 class Net;
 class Pin;
 class Path;
@@ -52,7 +58,7 @@ class Net {
 
 class Arc {
  public:
-  std::string type;             // Arc类型（如：setup, hold, recovery等）
+  arc_type type;                // Arc类型（如：setup, hold, recovery等）
   std::string from_pin;         // 起始Pin
   std::string to_pin;           // 结束Pin
   std::array<double, 2> delay;  // delay_rise, delay_fall, according to end_pin

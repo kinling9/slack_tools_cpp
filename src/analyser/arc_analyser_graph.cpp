@@ -1,4 +1,4 @@
-#include "pair_analyser_graph.h"
+#include "arc_analyser_graph.h"
 
 #include <fmt/ranges.h>
 
@@ -8,7 +8,7 @@
 #include "utils/cache_result.h"
 #include "utils/utils.h"
 
-void pair_analyser_graph::analyse() {
+void arc_analyser_graph::analyse() {
   // if (_enable_rise_fall) {
   //   fmt::print("Enable rise fall check\n");
   //   _rf_checker.set_enable_rise_fall(true);
@@ -19,15 +19,13 @@ void pair_analyser_graph::analyse() {
     std::string cmp_name = fmt::format("{}", fmt::join(rpt_pair, "-"));
     absl::flat_hash_set<std::tuple<std::shared_ptr<Arc>, std::shared_ptr<Arc>>>
         arcs;
-    gen_arc_tuples(_dbs.at(rpt_pair[0]), arcs);
     init_graph(_dbs.at(rpt_pair[1]), rpt_pair[1]);
-    csv_match(rpt_pair, arcs, _dbs.at(rpt_pair[0])->pins,
-              _dbs.at(rpt_pair[1])->pins);
+    csv_match(rpt_pair, _dbs.at(rpt_pair[0])->pins, _dbs.at(rpt_pair[1])->pins);
   }
 }
 
-void pair_analyser_graph::init_graph(const std::shared_ptr<basedb> &db,
-                                     std::string name) {
+void arc_analyser_graph::init_graph(const std::shared_ptr<basedb> &db,
+                                    std::string name) {
   if (db == nullptr) {
     fmt::print("DB is nullptr, skip\n");
     return;
@@ -37,7 +35,7 @@ void pair_analyser_graph::init_graph(const std::shared_ptr<basedb> &db,
   graph->print_stats();
 }
 
-nlohmann::json pair_analyser_graph::create_pin_node(
+nlohmann::json arc_analyser_graph::create_pin_node(
     const std::string &name, bool is_input, double incr_delay,
     const std::unordered_map<std::string, std::shared_ptr<Pin>> &csv_pin_db) {
   nlohmann::json node;
@@ -57,10 +55,9 @@ nlohmann::json pair_analyser_graph::create_pin_node(
   return node;
 }
 
-void pair_analyser_graph::process_arc_segment(
+void arc_analyser_graph::process_arc_segment(
     int t, size_t begin_idx, size_t end_idx,
-    const absl::flat_hash_set<
-        std::tuple<std::shared_ptr<Arc>, std::shared_ptr<Arc>>> &arcs,
+    const std::vector<std::shared_ptr<Arc>> &arcs,
     const std::vector<std::string> &rpt_pair,
     const std::unordered_map<std::string, std::shared_ptr<Pin>> &csv_pin_db_key,
     const std::unordered_map<std::string, std::shared_ptr<Pin>>
@@ -78,10 +75,9 @@ void pair_analyser_graph::process_arc_segment(
   std::advance(end_it, end_idx);
 
   for (; it != end_it; ++it) {
-    const auto &[arc_cell, arc_net] = *it;
-    const auto &pin_from = arc_cell->from_pin;
-    const auto &pin_inter = arc_cell->to_pin;
-    const auto &pin_to = arc_net->to_pin;
+    const auto &arc = *it;
+    const auto &pin_from = arc->from_pin;
+    const auto &pin_to = arc->to_pin;
     auto from = std::make_pair(pin_from, false);
     auto to = std::make_pair(pin_to, false);
     auto arc_tuple = std::make_tuple(pin_from, false, pin_to, false);
@@ -94,26 +90,20 @@ void pair_analyser_graph::process_arc_segment(
       continue;
     }
 
-    auto max_cell_delay = std::max(arc_cell->delay[0], arc_cell->delay[1]);
-    auto max_net_delay = std::max(arc_net->delay[0], arc_net->delay[1]);
+    auto total_delay = std::max(arc->delay[0], arc->delay[1]);
 
     nlohmann::json node;
-    node["type"] = "pair arc";
+    node["type"] = arc->type == arc_type::CellArc ? "cell arc" : "net arc";
     node["from"] =
         fmt::format("{} {}", from.first, from.second ? "(rise)" : "(fall)");
     node["to"] =
         fmt::format("{} {}", to.first, to.second ? "(rise)" : "(fall)");
 
-    // Pre-calculate delay
-    const double total_delay = max_cell_delay + max_net_delay;
-
     // Build key section
     nlohmann::json key_pins = nlohmann::json::array();
     key_pins.push_back(create_pin_node(pin_from, true, 0, csv_pin_db_key));
     key_pins.push_back(
-        create_pin_node(pin_inter, false, max_cell_delay, csv_pin_db_key));
-    key_pins.push_back(
-        create_pin_node(pin_to, true, max_net_delay, csv_pin_db_key));
+        create_pin_node(pin_to, true, total_delay, csv_pin_db_key));
 
     node["key"] = {{"pins", std::move(key_pins)}, {"delay", total_delay}};
 
@@ -123,7 +113,7 @@ void pair_analyser_graph::process_arc_segment(
     node["value"]["pins"].push_back(
         create_pin_node(pin_from, true, 0, csv_pin_db_value));
 
-    bool is_cell_arc = true;
+    bool is_cell_arc = arc->type == arc_type::CellArc;
     auto value_db = _dbs.at(rpt_pair[1]);
     for (const auto &pin_tuple : connect_check.path | std::views::adjacent<2>) {
       const auto &[mid_from_view, mid_to_view] = pin_tuple;
@@ -137,17 +127,17 @@ void pair_analyser_graph::process_arc_segment(
           mid_to, !is_cell_arc, mid_arc->delay[0], csv_pin_db_value));
     }
 
-    if (arc_net->fanout.has_value()) {
-      node["key"]["fanout"] = arc_net->fanout.value();
+    if (arc->fanout.has_value()) {
+      node["key"]["fanout"] = arc->fanout.value();
     }
 
     bool valid_location = true;
-    if (csv_pin_db_key.contains(pin_inter)) {
+    if (csv_pin_db_key.contains(pin_to)) {
       node["key"]["slack"] =
-          csv_pin_db_key.at(pin_inter)->path_slack.value_or(0.0);
+          csv_pin_db_key.at(pin_to)->path_slack.value_or(0.0);
       node["value"]["slack"] =
-          csv_pin_db_value.contains(pin_inter)
-              ? csv_pin_db_value.at(pin_inter)->path_slack.value_or(0.0)
+          csv_pin_db_value.contains(pin_to)
+              ? csv_pin_db_value.at(pin_to)->path_slack.value_or(0.0)
               : 0.0;
       node["delta_slack"] = node["key"]["slack"].get<double>() -
                             node["value"]["slack"].get<double>();
@@ -194,13 +184,13 @@ void pair_analyser_graph::process_arc_segment(
   }
 }
 
-void pair_analyser_graph::csv_match(
+void arc_analyser_graph::csv_match(
     const std::vector<std::string> &rpt_pair,
-    absl::flat_hash_set<std::tuple<std::shared_ptr<Arc>, std::shared_ptr<Arc>>>
-        &arcs,
     const std::unordered_map<std::string, std::shared_ptr<Pin>> &csv_pin_db_key,
     const std::unordered_map<std::string, std::shared_ptr<Pin>>
         &csv_pin_db_value) {
+  const std::vector<std::shared_ptr<Arc>> &arcs =
+      _dbs.at(rpt_pair[0])->all_arcs;
   absl::flat_hash_map<std::tuple<std::string, bool, std::string, bool>,
                       nlohmann::json>
       arcs_buffer;
@@ -211,8 +201,8 @@ void pair_analyser_graph::csv_match(
   threads.reserve(num_threads);
 
   std::unordered_set<std::string_view> arc_starts;
-  for (const auto &[arc_cell, arc_net] : arcs) {
-    arc_starts.insert(arc_cell->from_pin);
+  for (const auto &arc : arcs) {
+    arc_starts.insert(arc->from_pin);
   }
 
   std::vector<std::map<std::tuple<std::string, bool, std::string, bool>,
@@ -226,7 +216,7 @@ void pair_analyser_graph::csv_match(
 
     if (begin_idx >= arcs.size()) break;
 
-    threads.emplace_back(&pair_analyser_graph::process_arc_segment, this, t,
+    threads.emplace_back(&arc_analyser_graph::process_arc_segment, this, t,
                          begin_idx, end_idx, std::ref(arcs), std::ref(rpt_pair),
                          std::ref(csv_pin_db_key), std::ref(csv_pin_db_value),
                          std::ref(thread_buffers));
@@ -259,5 +249,5 @@ void pair_analyser_graph::csv_match(
 
   std::string cmp_name = fmt::format("{}", fmt::join(rpt_pair, "-"));
   fmt::print(_arcs_writers[cmp_name]->out_file, "{}", arc_node.dump(2));
-  fmt::print("Wrote {} arc match result to {}\n", arc_node.size(), cmp_name);
+  fmt::print("Wrote {} arc match results to {}\n", arc_node.size(), cmp_name);
 }

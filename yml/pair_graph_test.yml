@@ -1,0 +1,23 @@
+mode: pair analyse graph
+rpts:
+  B023_tag0408_pta_csv:
+    net_csv: /data/mwei/workspace/PTA/slack_tool/changsha/unify_tb/B000/testcase/group_B023_tag0408/sc_0_lx930_ioe/result/banmo_syn_physical_before_resyn/rpt/Leda_Net_delay.csv
+    cell_csv: /data/mwei/workspace/PTA/slack_tool/changsha/unify_tb/B000/testcase/group_B023_tag0408/sc_0_lx930_ioe/result/banmo_syn_physical_before_resyn/rpt/Leda_Cell_delay.csv
+    at_csv: /data/mwei/workspace/PTA/slack_tool/changsha/unify_tb/B000/testcase/group_B023_tag0408/sc_0_lx930_ioe/result/banmo_syn_physical_before_resyn/rpt/Leda_AT.csv
+    type: csv
+  B023_tag0408_opt0_csv:
+    net_csv: /data/mwei/workspace/PTA/slack_tool/changsha/unify_tb/B000/testcase/group_B023_tag0408/sc_0_lx930_ioe/result/banmo_syn_physical_after_resyn/rpt/Leda_Net_delay.csv
+    cell_csv: /data/mwei/workspace/PTA/slack_tool/changsha/unify_tb/B000/testcase/group_B023_tag0408/sc_0_lx930_ioe/result/banmo_syn_physical_after_resyn/rpt/Leda_Cell_delay.csv
+    at_csv: /data/mwei/workspace/PTA/slack_tool/changsha/unify_tb/B000/testcase/group_B023_tag0408/sc_0_lx930_ioe/result/banmo_syn_physical_after_resyn/rpt/Leda_AT.csv
+    type: csv
+configs:
+  output_dir: output
+  analyse_tuples:
+  - - B023_tag0408_pta_csv
+    - B023_tag0408_opt0_csv
+  - - B023_tag0408_pta_csv
+    - B023_tag0408_pta_csv
+  - - B023_tag0408_opt0_csv
+    - B023_tag0408_opt0_csv
+  enable_rise_fall: false
+  enable_super_arc: true

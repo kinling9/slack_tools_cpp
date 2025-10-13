@@ -7,6 +7,7 @@
 
 #include "absl/container/flat_hash_set.h"
 #include "analyser/arc_analyser.h"
+#include "analyser/arc_analyser_graph.h"
 #include "analyser/comparator.h"
 #include "analyser/existence_checker.h"
 #include "analyser/fanout_analyser.h"
@@ -63,6 +64,8 @@ void flow_control::parse_yml(std::string yml_file) {
     _analyser = std::make_unique<existence_checker>(config["configs"]);
   } else if (mode == "arc analyse") {
     _analyser = std::make_unique<arc_analyser>(config["configs"]);
+  } else if (mode == "arc analyse graph") {
+    _analyser = std::make_unique<arc_analyser_graph>(config["configs"]);
   } else if (mode == "fanout analyse") {
     _analyser = std::make_unique<fanout_analyser>(config["configs"]);
   } else if (mode == "path analyse") {
