@@ -114,7 +114,7 @@ void sparse_graph_shortest_path::compute_components() {
             }
           }
         }
-        if (_rev_adj_list.find(curr) != _adj_list.end()) {
+        if (_rev_adj_list.find(curr) != _rev_adj_list.end()) {
           for (auto &[neighbor_id, _] : _rev_adj_list[curr]) {
             if (visited.find(neighbor_id) == visited.end()) {
               visited.insert(neighbor_id);
@@ -268,10 +268,10 @@ cache_result sparse_graph_shortest_path::dijkstra_topo(int from_id, int to_id,
   dist.reserve(bucket_size);
   visited.reserve(bucket_size);
 
-  dist[from_id] = 0.0;
-  pq.push({0.0, from_id});
+  dist[to_id] = 0.0;
+  pq.push({0.0, to_id});
 
-  int to_id_pos = _topological_orders.at(comp_id).at(to_id);
+  int from_id_pos = _topological_orders.at(comp_id).at(from_id);
 
   while (!pq.empty()) {
     auto [d, u] = pq.top();
@@ -285,14 +285,14 @@ cache_result sparse_graph_shortest_path::dijkstra_topo(int from_id, int to_id,
       return reconstruct_path(from_id, to_id, parent, d);
     }
 
-    // 拓扑序剪枝：只扩展位置在to_id之前的节点
-    if (_topological_orders.at(comp_id).at(u) >= to_id_pos) continue;
+    // 拓扑序剪枝：只扩展位置在from_id之后的节点
+    if (_topological_orders.at(comp_id).at(u) < from_id_pos) continue;
 
     // 遍历出边
-    if (_adj_list.find(u) != _adj_list.end()) {
-      for (const auto &[v, w] : _adj_list.at(u)) {
+    if (_rev_adj_list.find(u) != _rev_adj_list.end()) {
+      for (const auto &[v, w] : _rev_adj_list.at(u)) {
         // 只考虑拓扑序小于等于to_id的节点
-        if (_topological_orders.at(comp_id).at(v) > to_id_pos) continue;
+        if (_topological_orders.at(comp_id).at(v) < from_id_pos) continue;
 
         double new_dist = d + w;
         if (dist.find(v) == dist.end() || new_dist < dist[v]) {
@@ -316,14 +316,14 @@ cache_result sparse_graph_shortest_path::reconstruct_path(
     return cache_result;
   }
   std::vector<std::string_view> path;
-  int current = to_id;
-  while (current != from_id && previous.find(current) != previous.end()) {
+  int current = from_id;
+  while (current != to_id && previous.find(current) != previous.end()) {
     path.push_back(get_node_name(current));
     current = previous.at(current);
   }
-  if (current == from_id) {
+  if (current == to_id) {
     path.push_back(get_node_name(from_id));
-    std::reverse(path.begin(), path.end());
+    // std::reverse(path.begin(), path.end());
     cache_result.path = path;
   }
   return cache_result;
