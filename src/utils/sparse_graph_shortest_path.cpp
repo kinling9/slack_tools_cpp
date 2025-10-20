@@ -281,7 +281,7 @@ cache_result sparse_graph_shortest_path::dijkstra_topo(int from_id, int to_id,
     visited[u] = true;
 
     // 找到目标
-    if (u == to_id) {
+    if (u == from_id) {
       return reconstruct_path(from_id, to_id, parent, d);
     }
 
@@ -322,7 +322,7 @@ cache_result sparse_graph_shortest_path::reconstruct_path(
     current = previous.at(current);
   }
   if (current == to_id) {
-    path.push_back(get_node_name(from_id));
+    path.push_back(get_node_name(to_id));
     // std::reverse(path.begin(), path.end());
     cache_result.path = path;
   }
