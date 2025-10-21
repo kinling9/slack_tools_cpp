@@ -3,6 +3,7 @@ import json
 import re
 import copy
 import argparse
+import logging
 
 
 def load_json_template(file_path):
@@ -12,22 +13,36 @@ def load_json_template(file_path):
 
 
 def decode_template(template, variables):
-    """Replace all variable references in the template with their values using Tcl-like rules."""
-    result = template
-    for var_name, var_value in variables.items():
-        # Escape special regex characters in variable names
-        escaped_name = re.escape(var_name)
-        # Match either ${var_name} or $var_name\b
-        pattern = rf"\$\{{{escaped_name}\}}|\${escaped_name}\b"
-        replacement = str(var_value)
-        result = re.sub(pattern, replacement, result)
-    return result
+    """Replace all variable references in the template with their values using Tcl-like rules.
+
+    If template is a dict, recursively process only the values.
+    If template is a string, replace variable references.
+    """
+    if isinstance(template, dict):
+        # For dictionaries, recursively process only the values
+        return {
+            key: decode_template(value, variables) for key, value in template.items()
+        }
+    elif isinstance(template, str):
+        # For strings, perform variable replacement
+        result = template
+        for var_name, var_value in variables.items():
+            # Escape special regex characters in variable names
+            escaped_name = re.escape(var_name)
+            # Match either ${var_name} or $var_name\b
+            pattern = rf"\$\{{{escaped_name}\}}|\${escaped_name}\b"
+            replacement = str(var_value)
+            result = re.sub(pattern, replacement, result)
+        return result
+    else:
+        # For other types, return as-is
+        return template
 
 
 def validate_loop_variables(loop_variables):
     """Validate that all loop variables have the same length."""
     if not loop_variables:
-        return False, "No loop variables defined."
+        return False, 0
 
     # Get the length of the first loop variable array
     first_var = next(iter(loop_variables.values()))
@@ -36,10 +51,10 @@ def validate_loop_variables(loop_variables):
     # Check that all other loop variables have the same length
     for var_name, values in loop_variables.items():
         if len(values) != expected_length:
-            return (
-                False,
-                f"Loop variable '{var_name}' has length {len(values)}, expected {expected_length}.",
+            logging.error(
+                f"Loop variable '{var_name}' has length {len(values)}, expected {expected_length}."
             )
+            return (False, 0)
 
     return True, expected_length
 
@@ -97,17 +112,10 @@ def process_multi_loop_templates(data):
     return loop_results, num_iterations
 
 
-def process_json(file_path: str):
-    try:
-        data = load_json_template(file_path)
-        loop_results, _ = process_multi_loop_templates(data)
-        return loop_results
-    except FileNotFoundError:
-        print(f"Error: File '{file_path}' not found.")
-    except json.JSONDecodeError:
-        print(f"Error: Invalid JSON format in file '{file_path}'.")
-    except Exception as e:
-        print(f"Error: {str(e)}")
+def process_json(file_path: str) -> list:
+    data = load_json_template(file_path)
+    loop_results, _ = process_multi_loop_templates(data)
+    return loop_results
 
 
 def main():
@@ -122,33 +130,38 @@ def main():
         data = load_json_template(file_path)
 
         # Process multi-loop templates
-        print("MULTI-LOOP TEMPLATE PROCESSING:")
+        logging.info("MULTI-LOOP TEMPLATE PROCESSING:")
         loop_results, num_iterations = process_multi_loop_templates(data)
 
         if isinstance(loop_results, list) and loop_results:
-            print(
+            logging.info(
                 f"Processing {num_iterations} iterations with multiple loop variables"
             )
 
             for item in loop_results:
-                print(f"\nCase {item['iteration']}:")
-                print("  Variables:")
+                logging.info(f"Case {item['iteration']}:")
+                logging.info("  Variables:")
                 for var_name, value in item["values"].items():
-                    print(f"    ${var_name} = {value}")
+                    logging.info(f"    ${var_name} = {value}")
 
-                print("  Results:")
+                logging.info("  Results:")
                 for name, text in item["results"].items():
-                    print(f"    {name.upper()}: {text}")
+                    logging.info(f"    {name.upper()}: {text}")
         else:
-            print(f"Error: {loop_results}")
+            logging.error(f"Error: {loop_results}")
 
     except FileNotFoundError:
-        print(f"Error: File '{file_path}' not found.")
+        logging.error(f"Error: File '{file_path}' not found.")
     except json.JSONDecodeError:
-        print(f"Error: Invalid JSON format in file '{file_path}'.")
+        logging.error(f"Error: Invalid JSON format in file '{file_path}'.")
     except Exception as e:
-        print(f"Error: {str(e)}")
+        logging.error(f"Error: {str(e)}")
 
 
 if __name__ == "__main__":
+    # Configure logging
+    logging.basicConfig(
+        level=logging.DEBUG, format="%(asctime)s - %(levelname)s - %(message)s"
+    )
+
     main()

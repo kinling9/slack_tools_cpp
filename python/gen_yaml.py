@@ -3,17 +3,17 @@
 
 import argparse
 import yaml
-import json
 import os
-from collections import defaultdict
+import json_decoder
+import logging
 
 
-def generate_yaml_content(results: list, output_dir: str = "output"):
+def generate_yaml_content(results: list, output_dir: str, analyse_type: str) -> tuple:
     arc_yaml = {
-        "mode": "pair analyse",
+        "mode": f"{analyse_type} analyse",
         "rpts": {},
         "configs": {
-            "output_dir": "",
+            "output_dir": output_dir,
             "analyse_tuples": [],
             "enable_rise_fall": True,
             "enable_super_arc": True,
@@ -23,80 +23,76 @@ def generate_yaml_content(results: list, output_dir: str = "output"):
         "mode": "compare",
         "rpts": {},
         "configs": {
-            "output_dir": "",
+            "output_dir": output_dir,
             "analyse_tuples": [],
             "compare_mode": "endpoint",
             "slack_filter": "x < 1",
         },
     }
-    # Generate the YAML content based on the provided structure
-    arc_yaml["configs"]["output_dir"] = output_dir
-    endpoint_yaml["configs"]["output_dir"] = output_dir
+
+    arc_analyse_type = ""
     for result in results:
         short = result["values"]["SHORT"]
         analyse_tuple = []
-        csv_path = {}
-        for k, v in result["results"]["arc"].items():
-            if "csv" in k:
-                key_map = {"net": "net", "cell": "cell", "at": "at"}
-                csv_type = next(
-                    (mapped for keyword, mapped in key_map.items() if keyword in k),
-                    None,
-                )
-                csv_key = k.split("_")[0]
-                if csv_type:
-                    if csv_key not in csv_path:
-                        csv_path[csv_key] = {}
-                    csv_path[csv_key][csv_type] = v
-                    if len(csv_path) > 1:
-                        arc_yaml["mode"] = "pair analyse graph"
-                    else:
-                        arc_yaml["mode"] = "pair analyse csv"
-                    for k, v in csv_path.items():
-                        csv_entry = {f"{k}_csv": v for k, v in v.items()}
-                        csv_entry["type"] = "csv"
-                        arc_yaml["rpts"][f"{short}_{k}_csv"] = csv_entry
-                        arc_yaml["configs"]["enable_rise_fall"] = False
-                    if f"{short}_{k}_csv" not in analyse_tuple:
-                        analyse_tuple.append(f"{short}_{k}_csv")
-                else:
-                    print(f"Unknown CSV key: {k}")
+        types = []
 
+        for key, arc_inputs in result["results"]["arc"].items():
+            # Handle arc inputs
+            if isinstance(arc_inputs, dict):
+                input_dicts = arc_inputs.copy()
+                if "net_csv" in input_dicts:
+                    input_dicts.pop("path", None)
+                    input_dicts["type"] = "csv"
+                    types.append("csv")
+                else:
+                    input_dicts["type"] = "leda"
+                    types.append("leda")
+                arc_yaml["rpts"][f"{short}_{key}"] = input_dicts
             else:
-                arc_yaml["rpts"][f"{short}_{k}"] = {
-                    "path": v,
+                arc_yaml["rpts"][f"{short}_{key}"] = {
+                    "path": arc_inputs,
                     "type": "leda",
                 }
-                analyse_tuple.append(f"{short}_{k}")
-        # print(csv_path)
-        # if csv_path:
-        #     tmp_tuple = []
-        #     if len(csv_path) > 1:
-        #         arc_yaml["mode"] = "pair analyse dij"
-        #     else:
-        #         arc_yaml["mode"] = "pair analyse csv"
-        #     for k, v in csv_path.items():
-        #         csv_entry = {f"{k}_csv": v for k, v in v.items()}
-        #         csv_entry["type"] = "csv"
-        #         arc_yaml["rpts"][f"{short}_{k}_csv"] = csv_entry
-        #         arc_yaml["configs"]["enable_rise_fall"] = False
-        #         tmp_tuple.append(f"{short}_{k}_csv")
-        #     analyse_tuple.extend(tmp_tuple)
-        arc_yaml["configs"]["analyse_tuples"].append(analyse_tuple)
-        analyse_tuple = []
-        for k, v in result["results"]["endpoint"].items():
-            endpoint_yaml["rpts"][f"{short}_{k}"] = {
-                "path": v,
+                types.append("leda")
+
+            # Handle endpoint inputs
+            endpoint_input = result["results"]["endpoint"][key]
+            endpoint_yaml["rpts"][f"{short}_{key}"] = {
+                "path": endpoint_input,
                 "type": "leda_endpoint",
             }
-            analyse_tuple.append(f"{short}_{k}")
+            analyse_tuple.append(f"{short}_{key}")
+
+        # Determine arc analysis type
+        type_map = {
+            ("csv", "csv"): f"{analyse_type} analyse graph",
+            ("leda", "leda"): f"{analyse_type} analyse",
+            ("csv", "leda"): f"{analyse_type} analyse csv",
+        }
+
+        cur_arc_analyse_type = type_map.get(tuple(types))
+        if not cur_arc_analyse_type:
+            logging.error(f"type: {types} is not supported")
+            exit(0)
+
+        if arc_analyse_type and arc_analyse_type != cur_arc_analyse_type:
+            logging.error(
+                f"Mixed analyse types: {arc_analyse_type} and {cur_arc_analyse_type} are not supported"
+            )
+            exit(0)
+
+        arc_analyse_type = cur_arc_analyse_type
+        arc_yaml["configs"]["analyse_tuples"].append(analyse_tuple)
         endpoint_yaml["configs"]["analyse_tuples"].append(analyse_tuple)
 
+    arc_yaml["mode"] = arc_analyse_type
     return arc_yaml, endpoint_yaml
 
 
-def generate_yaml(results: list, output: str) -> tuple:
-    arc_yaml, endpoint_yaml = generate_yaml_content(results, output)
+def generate_yaml(
+    results: list, output: str = "output", analyse_type: str = "pair"
+) -> tuple:
+    arc_yaml, endpoint_yaml = generate_yaml_content(results, output, analyse_type)
     if not os.path.exists("tmp_yml"):
         os.makedirs("tmp_yml")
 
@@ -119,12 +115,19 @@ def generate_yaml(results: list, output: str) -> tuple:
 
 
 if __name__ == "__main__":
+
+    # Configure logging
+    logging.basicConfig(
+        level=logging.DEBUG, format="%(asctime)s - %(levelname)s - %(message)s"
+    )
     parser = argparse.ArgumentParser(description="Generate YAML content.")
     parser.add_argument(
-        "--json_file",
+        "path",
         type=str,
-        required=True,
         help="Path to the JSON file containing the template and variables.",
     )
     args = parser.parse_args()
-    generate_yaml(args.json_file)
+    json_file = args.path
+    base_name = os.path.splitext(os.path.basename(json_file))[0]
+    results = json_decoder.process_json(json_file)
+    generate_yaml(results, base_name)
