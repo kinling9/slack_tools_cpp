@@ -1,15 +1,15 @@
 #!/usr/bin/env python3
-import json
+import toml
 import re
 import copy
 import argparse
 import logging
 
 
-def load_json_template(file_path):
-    """Load the JSON template file."""
+def load_toml_template(file_path):
+    """Load the TOML template file."""
     with open(file_path, "r") as file:
-        return json.load(file)
+        return toml.load(file)
 
 
 def decode_template(template, variables):
@@ -112,22 +112,22 @@ def process_multi_loop_templates(data):
     return loop_results, num_iterations
 
 
-def process_json(file_path: str) -> list:
-    data = load_json_template(file_path)
+def process_toml(file_path: str) -> list:
+    data = load_toml_template(file_path)
     loop_results, _ = process_multi_loop_templates(data)
     return loop_results
 
 
 def main():
-    parser = argparse.ArgumentParser(description="Decode templates from a JSON file.")
-    parser.add_argument("file_path", type=str, help="Path to the JSON template file")
+    parser = argparse.ArgumentParser(description="Decode templates from a toml file.")
+    parser.add_argument("file_path", type=str, help="Path to the toml template file")
     args = parser.parse_args()
-    # Replace with your actual JSON file path
+    # Replace with your actual toml file path
     file_path = args.file_path
 
     try:
-        # Load the JSON data
-        data = load_json_template(file_path)
+        # Load the toml data
+        data = load_toml_template(file_path)
 
         # Process multi-loop templates
         logging.info("MULTI-LOOP TEMPLATE PROCESSING:")
@@ -152,8 +152,6 @@ def main():
 
     except FileNotFoundError:
         logging.error(f"Error: File '{file_path}' not found.")
-    except json.JSONDecodeError:
-        logging.error(f"Error: Invalid JSON format in file '{file_path}'.")
     except Exception as e:
         logging.error(f"Error: {str(e)}")
 

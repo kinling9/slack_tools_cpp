@@ -4,7 +4,7 @@
 import argparse
 import yaml
 import os
-import json_decoder
+import toml_decoder
 import logging
 
 
@@ -124,10 +124,10 @@ if __name__ == "__main__":
     parser.add_argument(
         "path",
         type=str,
-        help="Path to the JSON file containing the template and variables.",
+        help="Path to the toml file containing the template and variables.",
     )
     args = parser.parse_args()
-    json_file = args.path
-    base_name = os.path.splitext(os.path.basename(json_file))[0]
-    results = json_decoder.process_json(json_file)
+    toml_file = args.path
+    base_name = os.path.splitext(os.path.basename(toml_file))[0]
+    results = toml_decoder.process_toml(toml_file)
     generate_yaml(results, base_name)

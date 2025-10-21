@@ -6,13 +6,13 @@ import argparse
 import subprocess
 import pandas as pd
 import os
-import json
+import toml
 import numpy as np
 
 import gen_yaml
 import plot_correlation
 import filter_net
-import json_decoder
+import toml_decoder
 import slack_score
 
 import logging
@@ -26,17 +26,17 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument(
         "path",
-        help="path to the json file",
+        help="path to the toml file",
     )
     args = parser.parse_args()
 
     with open(args.path, "r") as file:
-        data = json.load(file)
+        data = toml.load(file)
     # output = data.get("variables", {}).get("OUTPUT", "output")
     analyse_type = data.get("variables", {}).get("ANALYSE_TYPE", "pair")
-    json_file = args.path
-    base_name = os.path.splitext(os.path.basename(json_file))[0]
-    results = json_decoder.process_json(args.path)
+    toml_file = args.path
+    base_name = os.path.splitext(os.path.basename(toml_file))[0]
+    results = toml_decoder.process_toml(args.path)
     yaml_files = gen_yaml.generate_yaml(results, base_name, analyse_type)
 
     print(results)
