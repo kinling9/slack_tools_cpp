@@ -7,6 +7,8 @@ import subprocess
 import pandas as pd
 import os
 import toml
+import json
+import sys
 import numpy as np
 
 import gen_yaml
@@ -22,6 +24,38 @@ logging.basicConfig(
     level=logging.INFO, format="%(asctime)s - %(levelname)s - %(message)s"
 )
 
+
+def convert_dict_to_df(data: dict, design: str) -> pd.DataFrame:
+    # Prepare CSV data
+    csv_data = []
+
+    # Iterate through each net arc in the JSON
+    for net_arc_key, net_arc_data in data.items():
+        if net_arc_data["type"] == "cell arc":
+            continue
+        key_info = net_arc_data.get("key", {})
+        value_info = net_arc_data.get("value", {})
+
+        # Extract the required fields
+        row = {
+            "name": net_arc_key,
+            "design": design,
+            "trans": key_info.get("pins", [])[0].get("trans", 0),
+            "cap": key_info.get("pins", [])[0].get("cap", 0),
+            "fanout": key_info.get("fanout", 0),
+            "length": key_info.get("length", 0),
+            "pta delay": key_info.get("delay", 0),
+            "pta slack": key_info.get("slack", 0),
+            "with buffer": len(value_info.get("pins", {})) > 2,
+            "value delay": value_info.get("delay", 0),
+        }
+        print(row)
+        csv_data.append(row)
+
+    df = pd.DataFrame(csv_data)
+    return df
+
+
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument(
@@ -34,6 +68,8 @@ if __name__ == "__main__":
         data = toml.load(file)
     # output = data.get("variables", {}).get("OUTPUT", "output")
     analyse_type = data.get("variables", {}).get("ANALYSE_TYPE", "pair")
+    if analyse_type != "arc":
+        sys.exit(0)
     toml_file = args.path
     base_name = os.path.splitext(os.path.basename(toml_file))[0]
     results = toml_decoder.process_toml(args.path)
@@ -139,4 +175,22 @@ if __name__ == "__main__":
     flow_name = args.path.split("/")[-1].split(".")[0]
     all_r2_df.to_csv(
         f"{output_dir}/{flow_name}_r2.csv", index=False, float_format="%.4f"
+    )
+
+    all_data_df = pd.DataFrame()
+    for i in range(len(analyse_tuples)):
+        name_pair = analyse_tuples[i]
+        tuple_name = "-".join(name_pair)
+        json_file = f"{output_dir}/{tuple_name}.json"
+        with open(json_file, "r") as f:
+            data = json.load(f)
+
+        print(name_pair)
+        design_name = "_".join(name_pair[0].split("_")[:-1])
+        current_df = convert_dict_to_df(data, design_name)
+        all_data_df = pd.concat([all_data_df, current_df], ignore_index=True)
+
+    print(all_data_df)
+    all_data_df.to_csv(
+        f"{output_dir}/{flow_name}_dataset.csv", index=False, float_format="%.4f"
     )
