@@ -9,6 +9,7 @@ import sys
 import re
 import json
 import pandas as pd
+import logging
 
 digit_shrink_level = -1
 digits = re.compile(r"\d+")
@@ -47,6 +48,7 @@ def gen_data(datas):
             "to": v["to"],
         }
         for k, v in datas.items()
+        if v["key"]["delay"] <= 1 and v["value"]["delay"] <= 1
     }
     return data_dict
 
@@ -173,7 +175,7 @@ def plot_group(data_dict: dict, name: str, x_label, y_label):
 
 def plot_correlation(path, output_file, x_label, y_label):
     # collect data
-    print(f"{datetime.now()}: start collecting data")
+    logging.info(f"{datetime.now()}: start collecting data")
 
     with open(path) as f:
         data = json.load(f)
@@ -183,10 +185,10 @@ def plot_correlation(path, output_file, x_label, y_label):
     with open(f"{output_file}_arc.csv", "w") as f:
         data_dict_df.to_csv(f)
 
-    print(f"# values: {len(data)}, matched groups = {len(data_dict)}")
+    logging.info(f"# values: {len(data)}, matched groups = {len(data_dict)}")
 
     # plot
-    print(f"{datetime.now()}: start plotting")
+    logging.info(f"{datetime.now()}: start plotting")
     r2_dict = {
         "arc": 0.0,
         "arc_scaled": 0.0,
@@ -199,7 +201,7 @@ def plot_correlation(path, output_file, x_label, y_label):
     # After calculating r2_dict, create a DataFrame and save to CSV
     r2_dict_with_name = {"name": output_file.split("/")[-1], **r2_dict}
     r2_df = pd.DataFrame([r2_dict_with_name], columns=r2_dict_with_name.keys())
-    print(f"{datetime.now()}: finish plotting")
+    logging.info(f"{datetime.now()}: finish plotting")
     return r2_df
 
 
@@ -209,8 +211,8 @@ def collect_data_to_dict(data_file_name):
     for line in data_file:
         tokens = line.split()
         if tokens[0] in data_dict:
-            print(
-                f"Warning: ignore another occurance of key '{tokens[0]}' in file '{data_file_name}'"
+            logging.warning(
+                f"ignore another occurance of key '{tokens[0]}' in file '{data_file_name}'"
             )
             continue
         data_dict[tokens[0]] = float(tokens[1])

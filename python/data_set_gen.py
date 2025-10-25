@@ -49,7 +49,6 @@ def convert_dict_to_df(data: dict, design: str) -> pd.DataFrame:
             "with buffer": len(value_info.get("pins", {})) > 2,
             "value delay": value_info.get("delay", 0),
         }
-        print(row)
         csv_data.append(row)
 
     df = pd.DataFrame(csv_data)
@@ -69,6 +68,7 @@ if __name__ == "__main__":
     # output = data.get("variables", {}).get("OUTPUT", "output")
     analyse_type = data.get("variables", {}).get("ANALYSE_TYPE", "pair")
     if analyse_type != "arc":
+        logging.info("Only arc analysis is supported currently.")
         sys.exit(0)
     toml_file = args.path
     base_name = os.path.splitext(os.path.basename(toml_file))[0]
@@ -122,7 +122,7 @@ if __name__ == "__main__":
             f"{name_pair[0]}",
             f"{name_pair[1]}",
         )
-        print(f"Processing {tuple_name} and {tuple_name}")
+        logging.info(f"Processing {tuple_name} and {tuple_name}")
         sub_df_arc = plot_correlation.plot_correlation(
             f"{output_dir}/{tuple_name}.json",
             f"{output_dir}/{tuple_name}",
@@ -185,7 +185,6 @@ if __name__ == "__main__":
         with open(json_file, "r") as f:
             data = json.load(f)
 
-        print(name_pair)
         design_name = "_".join(name_pair[0].split("_")[:-1])
         current_df = convert_dict_to_df(data, design_name)
         all_data_df = pd.concat([all_data_df, current_df], ignore_index=True)
