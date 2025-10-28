@@ -44,10 +44,10 @@ def convert_dict_to_df(data: dict, design: str) -> pd.DataFrame:
             "cap": key_info.get("pins", [])[0].get("cap", 0),
             "fanout": key_info.get("fanout", 0),
             "length": key_info.get("length", 0),
-            "pta delay": key_info.get("delay", 0),
-            "pta slack": key_info.get("slack", 0),
-            "with buffer": len(value_info.get("pins", {})) > 2,
-            "value delay": value_info.get("delay", 0),
+            "pta_delay": key_info.get("delay", 0),
+            "pta_slack": key_info.get("slack", 0),
+            "with_buffer": len(value_info.get("pins", {})) > 2,
+            "value_delay": value_info.get("delay", 0),
         }
         csv_data.append(row)
 
