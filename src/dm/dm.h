@@ -111,6 +111,8 @@ class basedb {
     all_arcs.push_back(arc);
   }
 
+  void serialize_to_json(const std::string& output_path) const;
+
  public:
   std::vector<std::shared_ptr<Path>> paths;
 

@@ -1,5 +1,7 @@
 #include "dm/dm.h"
 
+#include <fstream>
+
 #include "utils/utils.h"
 
 YAML::Node Pin::to_yaml() {
@@ -143,4 +145,36 @@ void basedb::update_loc_from_map(
       }
     }
   }
+}
+
+void basedb::serialize_to_json(const std::string &output_path) const {
+  nlohmann::json node;
+  node["design"] = design;
+  node["type"] = type;
+  node["paths"] = nlohmann::json::array();
+  for (const auto &path : paths) {
+    nlohmann::json path_node;
+    path_node["clock"] = path->clock;
+    path_node["slack"] = path->slack;
+    path_node["path_params"] = nlohmann::json::object();
+    for (const auto &[key, value] : path->path_params) {
+      path_node["path_params"][key] = value;
+    }
+    path_node["length"] = path->get_length();
+    path_node["detour"] = path->get_detour();
+    path_node["cell_delay_pct"] = path->get_cell_delay_pct();
+    path_node["net_delay_pct"] = path->get_net_delay_pct();
+    path_node["path"] = nlohmann::json::array();
+    for (const auto &pin : path->path) {
+      path_node["path"].push_back(pin->to_json());
+      if (pin->is_input && pin->net.has_value()) {
+        path_node["path"].back()["net"] = pin->net.value()->to_json();
+      }
+    }
+    path_node["startpoint"] = path->startpoint;
+    path_node["endpoint"] = path->endpoint;
+    node["paths"].push_back(path_node);
+  }
+  std::ofstream ofs(output_path);
+  ofs << std::setw(2) << node << std::endl;
 }

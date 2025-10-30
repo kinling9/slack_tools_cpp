@@ -31,6 +31,13 @@ if(ENABLE_TSAN)
     message(STATUS "ThreadSanitizer (TSAN) enabled")
 endif()
 
+file(GLOB_RECURSE common_sources
+    ${PROJECT_SOURCE_DIR}/src/dm/*.cpp
+    ${PROJECT_SOURCE_DIR}/src/parser/*.cpp
+    ${PROJECT_SOURCE_DIR}/src/flow/*.cpp
+    ${PROJECT_SOURCE_DIR}/src/analyser/*.cpp
+    ${PROJECT_SOURCE_DIR}/src/utils/*.cpp
+)
 find_package(Boost REQUIRED iostreams)
 add_subdirectory(thirdparty/abseil-cpp)
 add_subdirectory(thirdparty/re2)
@@ -39,10 +46,10 @@ add_subdirectory(thirdparty/yaml-cpp)
 add_subdirectory(thirdparty/fmt)
 add_subdirectory(thirdparty/json)
 add_subdirectory(thirdparty/csv-parser)
-file(GLOB_RECURSE sources ${PROJECT_SOURCE_DIR}/src/*.cpp)
+file(GLOB_RECURSE sources ${PROJECT_SOURCE_DIR}/src/main.cpp)
 include_directories(${PROJECT_SOURCE_DIR}/src)
 
-add_executable(slack_tool ${sources})
+add_executable(slack_tool ${sources} ${common_sources})
 # target_link_libraries(slack_tool -static-libgcc -static-libstdc++)
 target_link_libraries(slack_tool Boost::iostreams)
 target_link_libraries(slack_tool re2::re2)
@@ -52,6 +59,18 @@ target_link_libraries(slack_tool fmt::fmt)
 target_link_libraries(slack_tool nlohmann_json::nlohmann_json)
 target_link_libraries(slack_tool csv)
 target_link_libraries(slack_tool gcov)
+
+# RPT serial executable
+file(GLOB_RECURSE rpt_main ${PROJECT_SOURCE_DIR}/src/rpt_serial.cpp)
+add_executable(rpt_serial ${rpt_main} ${common_sources})
+target_link_libraries(rpt_serial Boost::iostreams)
+target_link_libraries(rpt_serial re2::re2)
+target_link_libraries(rpt_serial argparse)
+target_link_libraries(rpt_serial yaml-cpp::yaml-cpp)
+target_link_libraries(rpt_serial fmt::fmt)
+target_link_libraries(rpt_serial nlohmann_json::nlohmann_json)
+target_link_libraries(rpt_serial csv)
+target_link_libraries(rpt_serial gcov)
 
 if(CMAKE_BUILD_TYPE STREQUAL "Debug")
     message(STATUS "Configuring for Debug build")
