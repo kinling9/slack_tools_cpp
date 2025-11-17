@@ -39,8 +39,30 @@ void csv_parser::parse(csv_type type, csv::CSVReader &ifs) {
   if (type == csv_type::PinAT) {
     for (auto &row : ifs) {
       std::string pin_name = row["pin"].get<>();
-      double x = row["x"].get<double>();
-      double y = row["y"].get<double>();
+      // double x = row["loc_x"].get<double>();
+      // double y = row["loc_y"].get<double>();
+      std::string x_str = row["loc_x"].get<std::string>();
+      std::string y_str = row["loc_y"].get<std::string>();
+
+      // Check if strings are empty
+      if (x_str.empty() || y_str.empty()) {
+        continue;  // Skip this row
+      }
+
+      double x = 0, y = 0;
+      // Try to convert to double
+      try {
+        x = std::stod(x_str);
+        y = std::stod(y_str);
+        // ... rest of your processing code ...
+      } catch (const std::invalid_argument &e) {
+        // Skip this row if conversion fails
+        continue;
+      } catch (const std::out_of_range &e) {
+        // Skip this row if number is out of double range
+        continue;
+      }
+
       double max_rise_slack = row["max_rise_slack"].get<double>();
       double max_fall_slack = row["max_fall_slack"].get<double>();
       double path_slack = std::min(max_rise_slack, max_fall_slack);
