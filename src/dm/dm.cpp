@@ -160,6 +160,7 @@ void basedb::serialize_to_json(const std::string &output_path) const {
     for (const auto &[key, value] : path->path_params) {
       path_node["path_params"][key] = value;
     }
+    path_node["path_group"] = path->group;
     path_node["length"] = path->get_length();
     path_node["detour"] = path->get_detour();
     path_node["cell_delay_pct"] = path->get_cell_delay_pct();
