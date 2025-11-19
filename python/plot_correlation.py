@@ -10,6 +10,7 @@ import re
 import json
 import pandas as pd
 import logging
+import scipy
 
 digit_shrink_level = -1
 digits = re.compile(r"\d+")
@@ -153,7 +154,7 @@ def plot_group(data_dict: dict, name: str, x_label, y_label):
     xn = np.linspace(min(x_list), max(x_list), 1000)
     yn = np.poly1d(func)
     r2 = sklearn.metrics.r2_score(y_list, x_list)
-    scale_r2 = sklearn.metrics.r2_score(y_list, yn(x_list))
+    pearsonr, _ = scipy.stats.pearsonr(y_list, x_list)
     ax0.set_title("Scatter plot (r2 = {:0.4f})".format(r2), fontsize=10)
     ax0.plot(xn, yn(xn))
     ax0.plot(xn, xn)
@@ -170,7 +171,7 @@ def plot_group(data_dict: dict, name: str, x_label, y_label):
     ax0.set_aspect("equal", adjustable="box")
 
     plt.savefig(name, bbox_inches="tight")
-    return float(r2), float(scale_r2)
+    return float(r2), float(pearsonr)
 
 
 def plot_correlation(path, output_file, x_label, y_label):
@@ -190,13 +191,13 @@ def plot_correlation(path, output_file, x_label, y_label):
     # plot
     logging.info(f"{datetime.now()}: start plotting")
     r2_dict = {
-        "arc": 0.0,
-        "arc_scaled": 0.0,
+        "arc_r2": 0.0,
+        "arc_pearsonr": 0.0,
         "num_arc": len(data_dict),
     }
     r2_result = plot_group(data_dict, f"{output_file}_arc.png", x_label, y_label)
-    r2_dict["arc"] = r2_result[0]
-    r2_dict["arc_scaled"] = r2_result[1]
+    r2_dict["arc_r2"] = r2_result[0]
+    r2_dict["arc_pearsonr"] = r2_result[1]
 
     # After calculating r2_dict, create a DataFrame and save to CSV
     r2_dict_with_name = {"name": output_file.split("/")[-1], **r2_dict}
@@ -246,10 +247,10 @@ def plot_text(path: list, output_file, x_label, y_label):
         avg_dict_df.to_csv(f)
 
     r2_dict = {
-        "end": 0.0,
-        "end_scaled": 0.0,
-        "end_group": 0.0,
-        "end_group_scaled": 0.0,
+        "end_r2": 0.0,
+        "end_pearsonr": 0.0,
+        "end_group_r2": 0.0,
+        "end_group_pearsonr": 0.0,
         "num_end": len(data_dict),
         "num_group": len(avg_dict),
     }
@@ -257,10 +258,10 @@ def plot_text(path: list, output_file, x_label, y_label):
     end_group_result = plot_group(
         avg_dict, f"{output_file}_endpoint_avg.png", x_label, y_label
     )
-    r2_dict["end"] = end_result[0]
-    r2_dict["end_scaled"] = end_result[1]
-    r2_dict["end_group"] = end_group_result[0]
-    r2_dict["end_group_scaled"] = end_group_result[1]
+    r2_dict["end_r2"] = end_result[0]
+    r2_dict["end_pearsonr"] = end_result[1]
+    r2_dict["end_group_r2"] = end_group_result[0]
+    r2_dict["end_group_pearsonr"] = end_group_result[1]
     r2_dict_with_name = {"name": output_file.split("/")[-1], **r2_dict}
     r2_df = pd.DataFrame([r2_dict_with_name], columns=r2_dict_with_name.keys())
     return r2_df

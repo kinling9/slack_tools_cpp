@@ -118,9 +118,9 @@ if __name__ == "__main__":
             "r2r_tns_score": (100 - all_r2_df["r2r_tns_score"]) / 100,
             "r2r_wns_score": (100 - all_r2_df["r2r_wns_score"]) / 100,
             "arc": all_r2_df["arc"],
-            "arc_scaled": all_r2_df["arc_scaled"],
+            "arc_pearsonr": all_r2_df["arc_pearsonr"],
             "end": all_r2_df["end"],
-            "end_scaled": all_r2_df["end_scaled"],
+            "end_pearsonr": all_r2_df["end_pearsonr"],
             "mae": all_r2_df["mae"],
         }
 
@@ -132,8 +132,8 @@ if __name__ == "__main__":
             + 0.5 * score_datas["r2r_tns_score"]
             + 0.5 * score_datas["r2r_wns_score"]
             + all_r2_df["mae"]
-            - (0.7 * score_datas["arc"] + 0.3 * score_datas["arc_scaled"])
-            - (0.3 * score_datas["end"] + 0.7 * score_datas["end_scaled"])
+            - (0.7 * score_datas["arc_r2"] + 0.3 * score_datas["arc_pearsonr"])
+            - (0.3 * score_datas["end_r2"] + 0.7 * score_datas["end_pearsonr"])
         )
     print(all_r2_df)
     flow_name = args.path.split("/")[-1].split(".")[0]
