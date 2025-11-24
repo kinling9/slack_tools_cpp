@@ -25,7 +25,7 @@ logging.basicConfig(
 )
 
 
-def convert_dict_to_df(data: dict, design: str) -> pd.DataFrame:
+def buffer_check_gen(data: dict, design: str) -> pd.DataFrame:
     # Prepare CSV data
     csv_data = []
 
@@ -60,6 +60,12 @@ if __name__ == "__main__":
     parser.add_argument(
         "path",
         help="path to the toml file",
+    )
+    parser.add_argument(
+        "-m",
+        "--method",
+        default="buffer_check",
+        help="Method to generate the dataset. e.g. buffer_check",
     )
     args = parser.parse_args()
 
@@ -153,10 +159,10 @@ if __name__ == "__main__":
             "tns_score": (100 - all_r2_df["tns_score"]) / 100,
             "r2r_tns_score": (100 - all_r2_df["r2r_tns_score"]) / 100,
             "r2r_wns_score": (100 - all_r2_df["r2r_wns_score"]) / 100,
-            "arc": all_r2_df["arc"],
-            "arc_scaled": all_r2_df["arc_scaled"],
-            "end": all_r2_df["end"],
-            "end_scaled": all_r2_df["end_scaled"],
+            "arc_r2": all_r2_df["arc_r2"],
+            "arc_pearsonr": all_r2_df["arc_pearsonr"],
+            "end_r2": all_r2_df["end_r2"],
+            "end_pearsonr": all_r2_df["end_pearsonr"],
             "mae": all_r2_df["mae"],
         }
 
@@ -168,8 +174,8 @@ if __name__ == "__main__":
             + 0.5 * score_datas["r2r_tns_score"]
             + 0.5 * score_datas["r2r_wns_score"]
             + all_r2_df["mae"]
-            - (0.7 * score_datas["arc"] + 0.3 * score_datas["arc_scaled"])
-            - (0.3 * score_datas["end"] + 0.7 * score_datas["end_scaled"])
+            - (0.7 * score_datas["arc_r2"] + 0.3 * score_datas["arc_pearsonr"])
+            - (0.3 * score_datas["end_r2"] + 0.7 * score_datas["end_pearsonr"])
         )
     print(all_r2_df)
     flow_name = args.path.split("/")[-1].split(".")[0]
@@ -186,7 +192,12 @@ if __name__ == "__main__":
             data = json.load(f)
 
         design_name = "_".join(name_pair[0].split("_")[:-1])
-        current_df = convert_dict_to_df(data, design_name)
+        current_df = None
+        if args.method == "buffer_check":
+            current_df = buffer_check_gen(data, design_name)
+        else:
+            logging.error(f"Method {args.method} not supported.")
+            sys.exit(1)
         all_data_df = pd.concat([all_data_df, current_df], ignore_index=True)
 
     print(all_data_df)

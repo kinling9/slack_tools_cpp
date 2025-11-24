@@ -117,9 +117,9 @@ if __name__ == "__main__":
             "tns_score": (100 - all_r2_df["tns_score"]) / 100,
             "r2r_tns_score": (100 - all_r2_df["r2r_tns_score"]) / 100,
             "r2r_wns_score": (100 - all_r2_df["r2r_wns_score"]) / 100,
-            "arc": all_r2_df["arc"],
+            "arc_r2": all_r2_df["arc_r2"],
             "arc_pearsonr": all_r2_df["arc_pearsonr"],
-            "end": all_r2_df["end"],
+            "end_r2": all_r2_df["end_r2"],
             "end_pearsonr": all_r2_df["end_pearsonr"],
             "mae": all_r2_df["mae"],
         }
