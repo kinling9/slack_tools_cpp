@@ -245,5 +245,5 @@ if __name__ == "__main__":
 
     print(all_data_df)
     all_data_df.to_csv(
-        f"{output_dir}/{flow_name}_dataset.csv", index=False, float_format="%.4f"
+        f"{output_dir}/{flow_name}_dataset.csv", index=False, float_format="%.6f"
     )

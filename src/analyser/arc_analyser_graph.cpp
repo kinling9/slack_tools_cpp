@@ -123,6 +123,8 @@ void arc_analyser_graph::process_arc_segment(
           is_cell_arc ? value_db->cell_arcs[mid_from][mid_to]
                       : value_db->net_arcs[mid_from][mid_to];
       is_cell_arc = !is_cell_arc;
+      // TODO: FIXME using max to max match rather than max to rise to max match
+      // otherwise using rise to rise match
       node["value"]["pins"].push_back(create_pin_node(
           mid_to, !is_cell_arc, mid_arc->delay[0], csv_pin_db_value));
     }
