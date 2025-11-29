@@ -36,12 +36,17 @@ void arc_analyser_graph::init_graph(const std::shared_ptr<basedb> &db,
 }
 
 nlohmann::json arc_analyser_graph::create_pin_node(
-    const std::string &name, bool is_input, double incr_delay,
+    const std::string &name, bool is_input,
+    const std::array<double, 2> &incr_delays,
     const std::unordered_map<std::string, std::shared_ptr<Pin>> &csv_pin_db) {
   nlohmann::json node;
   node["name"] = name;
   node["is_input"] = is_input;
-  node["incr_delay"] = incr_delay;
+  double min_delay = *std::min_element(incr_delays.begin(), incr_delays.end());
+  double max_delay = *std::max_element(incr_delays.begin(), incr_delays.end());
+  node["incr_delay"] = min_delay;
+  node["min_delay"] = min_delay;
+  node["max_delay"] = max_delay;
   node["rf"] = false;
   if (!csv_pin_db.empty()) {
     if (auto pin_it = csv_pin_db.find(name); pin_it != csv_pin_db.end()) {
@@ -90,7 +95,9 @@ void arc_analyser_graph::process_arc_segment(
       continue;
     }
 
-    auto total_delay = std::max(arc->delay[0], arc->delay[1]);
+    auto min_delay = std::min(arc->delay[0], arc->delay[1]);
+    auto max_delay = std::max(arc->delay[0], arc->delay[1]);
+    auto total_delay = min_delay;
 
     nlohmann::json node;
     node["type"] = arc->type == arc_type::CellArc ? "cell arc" : "net arc";
@@ -101,17 +108,20 @@ void arc_analyser_graph::process_arc_segment(
 
     // Build key section
     nlohmann::json key_pins = nlohmann::json::array();
-    key_pins.push_back(create_pin_node(pin_from, true, 0, csv_pin_db_key));
+    key_pins.push_back(create_pin_node(pin_from, true, {0, 0}, csv_pin_db_key));
     key_pins.push_back(
-        create_pin_node(pin_to, true, total_delay, csv_pin_db_key));
+        create_pin_node(pin_to, true, arc->delay, csv_pin_db_key));
 
-    node["key"] = {{"pins", std::move(key_pins)}, {"delay", total_delay}};
+    node["key"] = {{"pins", std::move(key_pins)},
+                   {"delay", total_delay},
+                   {"min_delay", min_delay},
+                   {"max_delay", max_delay}};
 
     node["value"] = {{"pins", nlohmann::json::array()},
                      {"delay", connect_check.distance}};
 
     node["value"]["pins"].push_back(
-        create_pin_node(pin_from, true, 0, csv_pin_db_value));
+        create_pin_node(pin_from, true, {0, 0}, csv_pin_db_value));
 
     bool is_cell_arc = arc->type == arc_type::CellArc;
     auto value_db = _dbs.at(rpt_pair[1]);
@@ -126,14 +136,13 @@ void arc_analyser_graph::process_arc_segment(
       // TODO: FIXME using max to max match rather than max to rise to max match
       // otherwise using rise to rise match
       node["value"]["pins"].push_back(create_pin_node(
-          mid_to, !is_cell_arc, mid_arc->delay[0], csv_pin_db_value));
+          mid_to, !is_cell_arc, mid_arc->delay, csv_pin_db_value));
     }
 
     if (arc->fanout.has_value()) {
       node["key"]["fanout"] = arc->fanout.value();
     }
 
-    bool valid_location = true;
     if (csv_pin_db_key.contains(pin_to)) {
       node["key"]["slack"] =
           csv_pin_db_key.at(pin_to)->path_slack.value_or(0.0);
@@ -148,6 +157,7 @@ void arc_analyser_graph::process_arc_segment(
     std::vector<std::pair<float, float>> locs_key;
     std::vector<std::pair<float, float>> locs_value;
 
+    bool valid_location = true;
     if (!csv_pin_db_key.empty()) {
       for (const auto &pin : node["key"]["pins"]) {
         if (!pin.contains("location")) {
@@ -176,6 +186,14 @@ void arc_analyser_graph::process_arc_segment(
       node["delta_length"] = node["key"]["length"].get<double>() -
                              node["value"]["length"].get<double>();
     }
+    double total_min_delay = 0, total_max_delay = 0;
+    for (const auto &pin : node["value"]["pins"]) {
+      total_min_delay += pin["min_delay"].get<double>();
+      total_max_delay += pin["max_delay"].get<double>();
+    }
+
+    node["value"]["min_delay"] = total_min_delay;
+    node["value"]["max_delay"] = total_max_delay;
 
     double delta_delay = node["key"]["delay"].get<double>() -
                          node["value"]["delay"].get<double>();
