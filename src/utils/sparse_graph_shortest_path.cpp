@@ -42,9 +42,14 @@ void sparse_graph_shortest_path::build_graph(
   for (const auto &edge : edges) {
     int from_id = get_or_create_node_id(edge->from_pin);
     int to_id = get_or_create_node_id(edge->to_pin);
-    double max_delay = std::max(edge->delay[0], edge->delay[1]);
-    _adj_list[from_id].emplace_back(to_id, max_delay);
-    _rev_adj_list[to_id].emplace_back(from_id, max_delay);
+    double target_delay = 0.;
+    if constexpr (dm::TARGET_DLY_USING_MAX) {
+      target_delay = std::max(edge->delay[0], edge->delay[1]);
+    } else {
+      target_delay = std::min(edge->delay[0], edge->delay[1]);
+    }
+    _adj_list[from_id].emplace_back(to_id, target_delay);
+    _rev_adj_list[to_id].emplace_back(from_id, target_delay);
     _all_nodes.insert(from_id);
     _all_nodes.insert(to_id);
   }

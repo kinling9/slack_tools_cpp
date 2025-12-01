@@ -152,4 +152,7 @@ static const std::unordered_map<std::string, std::string> path_param_invs = {
 
 static const std::unordered_set<std::string> path_param_invs_reverse = {
     "data_latency"};
+
+constexpr static const bool TEST_DLY_USING_MAX = true;
+constexpr static const bool TARGET_DLY_USING_MAX = false;
 }  // namespace dm

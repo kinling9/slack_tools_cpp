@@ -91,7 +91,7 @@ void arc_analyser_graph::process_arc_segment(
     }
 
     double total_delay = 0.;
-    if constexpr (DLY_USING_MAX) {
+    if constexpr (dm::TEST_DLY_USING_MAX) {
       total_delay = std::max(arc->delay[0], arc->delay[1]);
     } else {
       total_delay = std::min(arc->delay[0], arc->delay[1]);
@@ -131,7 +131,7 @@ void arc_analyser_graph::process_arc_segment(
       // TODO: FIXME using max to max match rather than max to rise to max match
       // otherwise using rise to rise match
       double target_delay = 0.;
-      if constexpr (DLY_USING_MAX) {
+      if constexpr (dm::TARGET_DLY_USING_MAX) {
         target_delay = std::max(mid_arc->delay[0], mid_arc->delay[1]);
       } else {
         target_delay = std::min(mid_arc->delay[0], mid_arc->delay[1]);
