@@ -90,7 +90,12 @@ void arc_analyser_graph::process_arc_segment(
       continue;
     }
 
-    auto total_delay = std::max(arc->delay[0], arc->delay[1]);
+    double total_delay = 0.;
+    if constexpr (DLY_USING_MAX) {
+      total_delay = std::max(arc->delay[0], arc->delay[1]);
+    } else {
+      total_delay = std::min(arc->delay[0], arc->delay[1]);
+    }
 
     nlohmann::json node;
     node["type"] = arc->type == arc_type::CellArc ? "cell arc" : "net arc";
@@ -125,8 +130,14 @@ void arc_analyser_graph::process_arc_segment(
       is_cell_arc = !is_cell_arc;
       // TODO: FIXME using max to max match rather than max to rise to max match
       // otherwise using rise to rise match
+      double target_delay = 0.;
+      if constexpr (DLY_USING_MAX) {
+        target_delay = std::max(mid_arc->delay[0], mid_arc->delay[1]);
+      } else {
+        target_delay = std::min(mid_arc->delay[0], mid_arc->delay[1]);
+      }
       node["value"]["pins"].push_back(create_pin_node(
-          mid_to, !is_cell_arc, mid_arc->delay[0], csv_pin_db_value));
+          mid_to, !is_cell_arc, target_delay, csv_pin_db_value));
     }
 
     if (arc->fanout.has_value()) {

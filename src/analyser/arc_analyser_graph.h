@@ -31,4 +31,5 @@ class arc_analyser_graph : public arc_analyser {
  private:
   absl::flat_hash_map<std::string, std::shared_ptr<sparse_graph_shortest_path>>
       _sparse_graph_ptrs;
+  constexpr static const bool DLY_USING_MAX = true;
 };
