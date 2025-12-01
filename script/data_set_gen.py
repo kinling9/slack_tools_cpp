@@ -31,8 +31,6 @@ def buffer_check_gen(data: dict, design: str) -> pd.DataFrame:
 
     # Iterate through each net arc in the JSON
     for arc_key, arc_data in data.items():
-        if arc_data["type"] == "cell arc":
-            continue
         key_info = arc_data.get("key", {})
         value_info = arc_data.get("value", {})
 
@@ -46,6 +44,7 @@ def buffer_check_gen(data: dict, design: str) -> pd.DataFrame:
             "length": key_info.get("length", 0),
             "pta_delay": key_info.get("delay", 0),
             "pta_slack": key_info.get("slack", 0),
+            "is_cell_arc": arc_data["type"] == "cell arc",
             "with_buffer": len(value_info.get("pins", {})) > 2,
             "value_delay": value_info.get("delay", 0),
         }
@@ -89,6 +88,7 @@ def filter_check_gen(data: dict, design: str) -> pd.DataFrame:
             "length": key_info.get("length", 0),
             "pta_delay": key_delay,
             "pta_slack": key_info.get("slack", 0),
+            "is_cell_arc": arc_data["type"] == "cell arc",
             "with_buffer": need_update,
             "value_delay": value_delay,
         }
