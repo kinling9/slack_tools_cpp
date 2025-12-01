@@ -72,25 +72,27 @@ def filter_check_gen(data: dict, design: str) -> pd.DataFrame:
         delay_ratio_valid = (value_delay != 0) and (key_delay / value_delay > 1.3)
         delay_difference_valid = key_delay - value_delay > 0.1
 
+        need_update = False
         if value_slack < 0 and delay_ratio_valid and delay_difference_valid:
+            need_update = True
 
-            # Extract the required fields
-            pins = key_info.get("pins", [])
-            first_pin = pins[0] if pins else {}
+        # Extract the required fields
+        pins = key_info.get("pins", [])
+        first_pin = pins[0] if pins else {}
 
-            row = {
-                "name": arc_key,
-                "design": design,
-                "trans": first_pin.get("trans", 0),
-                "cap": first_pin.get("cap", 0),
-                "fanout": key_info.get("fanout", 0),
-                "length": key_info.get("length", 0),
-                "pta_delay": key_delay,
-                "pta_slack": key_info.get("slack", 0),
-                "with_buffer": len(value_info.get("pins", [])) > 2,
-                "value_delay": value_delay,
-            }
-            csv_data.append(row)
+        row = {
+            "name": arc_key,
+            "design": design,
+            "trans": first_pin.get("trans", 0),
+            "cap": first_pin.get("cap", 0),
+            "fanout": key_info.get("fanout", 0),
+            "length": key_info.get("length", 0),
+            "pta_delay": key_delay,
+            "pta_slack": key_info.get("slack", 0),
+            "with_buffer": need_update,
+            "value_delay": value_delay,
+        }
+        csv_data.append(row)
 
     df = pd.DataFrame(csv_data)
     return df
