@@ -38,8 +38,11 @@ def build(docker: bool = False):
     else:
         cmake_defs = ""
         import platform
+
         if platform.release() == "3.10.0-1160.el7.x86_64":
-            print("Detected Linux version 3.10.0-1160.el7.x86_64, setting specific GCC paths and CMake definitions.")
+            print(
+                "Detected Linux version 3.10.0-1160.el7.x86_64, setting specific GCC paths and CMake definitions."
+            )
             os.environ["CC"] = "/data/mwei/packages/gcc-13.2.0/bin/gcc"
             os.environ["CXX"] = "/data/mwei/packages/gcc-13.2.0/bin/g++"
             cmake_defs += "-DENV_EL7=ON "
@@ -48,7 +51,9 @@ def build(docker: bool = False):
         # run_cmd(
         #     f"cmake -S . -B {dir_build_debug} -GNinja -DCMAKE_BUILD_TYPE=Debug -DENABLE_TSAN=ON"
         # )
-        run_cmd(f"cmake -S . -B {dir_build_debug} -GNinja -DCMAKE_BUILD_TYPE=Debug")
+        run_cmd(
+            f"cmake -S . -B {dir_build_debug} -GNinja -DCMAKE_BUILD_TYPE=Debug {cmake_defs}"
+        )
         run_cmd(f"cmake --build {dir_build_debug} --config Debug -j 8")
 
 
