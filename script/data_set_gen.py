@@ -68,8 +68,10 @@ def filter_check_gen(data: dict, design: str) -> pd.DataFrame:
         value_delay = value_info.get("delay", 0)
 
         # Avoid division by zero
-        delay_ratio_valid = (value_delay != 0) and (key_delay / value_delay > 1.3)
-        delay_difference_valid = key_delay - value_delay > 0.1
+        # delay_ratio_valid = (value_delay != 0) and (key_delay / value_delay > 1.3)
+        # delay_difference_valid = key_delay - value_delay > 0.1
+        delay_ratio_valid = (value_delay != 0) and (key_delay / value_delay > 1.1)
+        delay_difference_valid = key_delay - value_delay > 0.005
 
         need_update = False
         if value_slack < 0 and delay_ratio_valid and delay_difference_valid:
