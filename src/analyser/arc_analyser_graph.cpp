@@ -36,12 +36,20 @@ void arc_analyser_graph::init_graph(const std::shared_ptr<basedb> &db,
 }
 
 nlohmann::json arc_analyser_graph::create_pin_node(
-    const std::string &name, bool is_input, double incr_delay,
-    const std::unordered_map<std::string, std::shared_ptr<Pin>> &csv_pin_db) {
+    const std::string &name, bool is_input, std::array<double, 2> incr_delays,
+    const std::unordered_map<std::string, std::shared_ptr<Pin>> &csv_pin_db,
+    const bool is_target) const {
   nlohmann::json node;
   node["name"] = name;
   node["is_input"] = is_input;
-  node["incr_delay"] = incr_delay;
+  if ((is_target && dm::TARGET_DLY_USING_MAX) ||
+      (!is_target && dm::TEST_DLY_USING_MAX)) {
+    node["incr_delay"] = std::max(incr_delays[0], incr_delays[1]);
+  } else {
+    node["incr_delay"] = std::min(incr_delays[0], incr_delays[1]);
+  }
+  node["delay_r"] = incr_delays[0];
+  node["delay_f"] = incr_delays[1];
   node["rf"] = false;
   if (!csv_pin_db.empty()) {
     if (auto pin_it = csv_pin_db.find(name); pin_it != csv_pin_db.end()) {
@@ -106,17 +114,23 @@ void arc_analyser_graph::process_arc_segment(
 
     // Build key section
     nlohmann::json key_pins = nlohmann::json::array();
-    key_pins.push_back(create_pin_node(pin_from, true, 0, csv_pin_db_key));
     key_pins.push_back(
-        create_pin_node(pin_to, true, total_delay, csv_pin_db_key));
+        create_pin_node(pin_from, true, {0, 0}, csv_pin_db_key, false));
+    key_pins.push_back(
+        create_pin_node(pin_to, true, arc->delay, csv_pin_db_key, false));
 
-    node["key"] = {{"pins", std::move(key_pins)}, {"delay", total_delay}};
+    node["key"] = {{"pins", std::move(key_pins)},
+                   {"delay", total_delay},
+                   {"delay_r", arc->delay[0]},
+                   {"delay_f", arc->delay[1]}};
 
-    node["value"] = {{"pins", nlohmann::json::array()},
-                     {"delay", connect_check.distance}};
+    node["value"] = {
+        {"pins", nlohmann::json::array()}, {"delay", connect_check.distance}
+
+    };
 
     node["value"]["pins"].push_back(
-        create_pin_node(pin_from, true, 0, csv_pin_db_value));
+        create_pin_node(pin_from, true, {0, 0}, csv_pin_db_value, true));
 
     bool is_cell_arc = arc->type == arc_type::CellArc;
     auto value_db = _dbs.at(rpt_pair[1]);
@@ -128,16 +142,14 @@ void arc_analyser_graph::process_arc_segment(
           is_cell_arc ? value_db->cell_arcs[mid_from][mid_to]
                       : value_db->net_arcs[mid_from][mid_to];
       is_cell_arc = !is_cell_arc;
-      // TODO: FIXME using max to max match rather than max to rise to max match
-      // otherwise using rise to rise match
-      double target_delay = 0.;
-      if constexpr (dm::TARGET_DLY_USING_MAX) {
-        target_delay = std::max(mid_arc->delay[0], mid_arc->delay[1]);
-      } else {
-        target_delay = std::min(mid_arc->delay[0], mid_arc->delay[1]);
-      }
+      // double target_delay = 0.;
+      // if constexpr (dm::TARGET_DLY_USING_MAX) {
+      //   target_delay = std::max(mid_arc->delay[0], mid_arc->delay[1]);
+      // } else {
+      //   target_delay = std::min(mid_arc->delay[0], mid_arc->delay[1]);
+      // }
       node["value"]["pins"].push_back(create_pin_node(
-          mid_to, !is_cell_arc, target_delay, csv_pin_db_value));
+          mid_to, !is_cell_arc, mid_arc->delay, csv_pin_db_value, true));
     }
 
     if (arc->fanout.has_value()) {
@@ -187,6 +199,15 @@ void arc_analyser_graph::process_arc_segment(
       node["delta_length"] = node["key"]["length"].get<double>() -
                              node["value"]["length"].get<double>();
     }
+
+    double total_rise_delay = 0, total_fall_delay = 0;
+    for (const auto &pin : node["value"]["pins"]) {
+      total_rise_delay += pin["delay_r"].get<double>();
+      total_fall_delay += pin["delay_f"].get<double>();
+    }
+
+    node["value"]["delay_r"] = total_rise_delay;
+    node["value"]["delay_f"] = total_fall_delay;
 
     double delta_delay = node["key"]["delay"].get<double>() -
                          node["value"]["delay"].get<double>();

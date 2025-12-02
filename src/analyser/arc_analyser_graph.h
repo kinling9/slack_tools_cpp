@@ -14,8 +14,9 @@ class arc_analyser_graph : public arc_analyser {
                      &csv_pin_db_value);
 
   nlohmann::json create_pin_node(
-      const std::string &name, bool is_input, double incr_delay,
-      const std::unordered_map<std::string, std::shared_ptr<Pin>> &csv_pin_db);
+      const std::string &name, bool is_input, std::array<double, 2> incr_delays,
+      const std::unordered_map<std::string, std::shared_ptr<Pin>> &csv_pin_db,
+      const bool is_target) const;
 
   void process_arc_segment(
       int t, size_t begin_idx, size_t end_idx,

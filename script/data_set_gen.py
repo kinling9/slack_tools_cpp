@@ -47,6 +47,8 @@ def buffer_check_gen(data: dict, design: str) -> pd.DataFrame:
             "is_cell_arc": arc_data["type"] == "cell arc",
             "with_buffer": len(value_info.get("pins", {})) > 2,
             "value_delay": value_info.get("delay", 0),
+            "value_delay_r": value_info.get("delay_r", 0),
+            "value_delay_f": value_info.get("delay_f", 0),
         }
         csv_data.append(row)
 
@@ -91,6 +93,8 @@ def filter_check_gen(data: dict, design: str) -> pd.DataFrame:
             "is_cell_arc": arc_data["type"] == "cell arc",
             "with_buffer": need_update,
             "value_delay": value_delay,
+            "value_delay_r": value_info.get("delay_r", 0),
+            "value_delay_f": value_info.get("delay_f", 0),
         }
         csv_data.append(row)
 
