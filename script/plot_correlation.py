@@ -44,6 +44,7 @@ def gen_data(datas):
     with_rf = False
     if "delay_f" in first_v["key"]:
         with_rf = True
+        logging.info("detect rise fall in json data, plot arc with rise/fall")
     data_dict = {
         k: {
             "delay": (
@@ -67,7 +68,7 @@ def gen_data(datas):
 
 def group_arc(data_dict):
     data_dict_grouped = {}
-    for key, value in data_dict.items():
+    for _, value in data_dict.items():
         group_key = get_reg_group(value["from"]) + "-" + get_reg_group(value["to"])
         if group_key not in data_dict_grouped:
             data_dict_grouped[group_key] = {
@@ -110,37 +111,40 @@ def plot_group(data_dict: dict, name: str, x_label, y_label):
     scatter_type = ""
 
     for _, v in data_dict.items():
-        if "type" in v and v["type"] != "net arc":
-            if type(v["delay"][0]) == list:
-                cell_x.append(v["delay"][0][0])
-                cell_y.append(v["delay"][1][0])
-                cell_size.append(
-                    v["size"] * (100 if v["type"] != "endpoint_grp" else 1)
-                )
-                cell_x.append(v["delay"][0][1])
-                cell_y.append(v["delay"][1][1])
-                cell_size.append(
-                    v["size"] * (100 if v["type"] != "endpoint_grp" else 1)
-                )
+        if "type" in v:
+            is_net_arc = v["type"] == "net arc"
+            is_endpoint_grp = v["type"] == "endpoint_grp"
+
+            # Determine which lists to append to
+            x_list = net_x if is_net_arc else cell_x
+            y_list = net_y if is_net_arc else cell_y
+            size_list = net_size if is_net_arc else cell_size
+
+            # Determine size multiplier
+            if is_net_arc:
+                size_multiplier = 100
             else:
-                cell_x.append(v["delay"][0])
-                cell_y.append(v["delay"][1])
-                cell_size.append(
-                    v["size"] * (100 if v["type"] != "endpoint_grp" else 1)
-                )
-            scatter_type = v["type"]
-        elif "type" in v and v["type"] == "net arc":
-            if type(v["delay"][0]) == list:
-                net_x.append(v["delay"][0][0])
-                net_y.append(v["delay"][1][0])
-                net_size.append(v["size"] * 100)
-                net_x.append(v["delay"][0][1])
-                net_y.append(v["delay"][1][1])
-                net_size.append(v["size"] * 100)
+                size_multiplier = 100 if not is_endpoint_grp else 1
+
+            # Process delay data
+            if isinstance(v["delay"][0], list):
+                # Handle list case - two points
+                x_list.append(v["delay"][0][0])
+                y_list.append(v["delay"][1][0])
+                size_list.append(v["size"] * size_multiplier)
+
+                x_list.append(v["delay"][0][1])
+                y_list.append(v["delay"][1][1])
+                size_list.append(v["size"] * size_multiplier)
             else:
-                net_x.append(v["delay"][0])
-                net_y.append(v["delay"][1])
-                net_size.append(v["size"] * 100)
+                # Handle single point case
+                x_list.append(v["delay"][0])
+                y_list.append(v["delay"][1])
+                size_list.append(v["size"] * size_multiplier)
+
+            # Only set scatter_type for non-net arc items
+            if not is_net_arc:
+                scatter_type = v["type"]
 
     # Combine all data for regression line and histogram
     x_list = cell_x + net_x
