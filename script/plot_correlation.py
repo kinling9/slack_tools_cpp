@@ -130,10 +130,10 @@ def plot_group(data_dict: dict, name: str, x_label, y_label):
             if isinstance(v["delay"][0], list):
                 # Handle list case - two points
                 x_list.append(v["delay"][0][0])
-                y_list.append(v["delay"][1][0])
+                y_list.append(v["delay"][0][1])
                 size_list.append(v["size"] * size_multiplier)
 
-                x_list.append(v["delay"][0][1])
+                x_list.append(v["delay"][1][0])
                 y_list.append(v["delay"][1][1])
                 size_list.append(v["size"] * size_multiplier)
             else:
