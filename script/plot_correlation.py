@@ -40,9 +40,20 @@ def get_reg_group(reg_name):
 
 
 def gen_data(datas):
+    _, first_v = next(iter(datas.items()))
+    with_rf = False
+    if "delay_f" in first_v["key"]:
+        with_rf = True
     data_dict = {
         k: {
-            "delay": [v["key"]["delay"], v["value"]["delay"]],
+            "delay": (
+                [v["key"]["delay"], v["value"]["delay"]]
+                if not with_rf
+                else [
+                    [v["key"]["delay_r"], v["value"]["delay_r"]],
+                    [v["key"]["delay_f"], v["value"]["delay_f"]],
+                ]
+            ),
             "size": 1,
             "type": v["type"],
             "from": v["from"],
@@ -98,16 +109,38 @@ def plot_group(data_dict: dict, name: str, x_label, y_label):
     net_size = []
     scatter_type = ""
 
-    for k, v in data_dict.items():
+    for _, v in data_dict.items():
         if "type" in v and v["type"] != "net arc":
-            cell_x.append(v["delay"][0])
-            cell_y.append(v["delay"][1])
-            cell_size.append(v["size"] * (100 if v["type"] != "endpoint_grp" else 1))
+            if type(v["delay"][0]) == list:
+                cell_x.append(v["delay"][0][0])
+                cell_y.append(v["delay"][1][0])
+                cell_size.append(
+                    v["size"] * (100 if v["type"] != "endpoint_grp" else 1)
+                )
+                cell_x.append(v["delay"][0][1])
+                cell_y.append(v["delay"][1][1])
+                cell_size.append(
+                    v["size"] * (100 if v["type"] != "endpoint_grp" else 1)
+                )
+            else:
+                cell_x.append(v["delay"][0])
+                cell_y.append(v["delay"][1])
+                cell_size.append(
+                    v["size"] * (100 if v["type"] != "endpoint_grp" else 1)
+                )
             scatter_type = v["type"]
         elif "type" in v and v["type"] == "net arc":
-            net_x.append(v["delay"][0])
-            net_y.append(v["delay"][1])
-            net_size.append(v["size"] * 100)
+            if type(v["delay"][0]) == list:
+                net_x.append(v["delay"][0][0])
+                net_y.append(v["delay"][1][0])
+                net_size.append(v["size"] * 100)
+                net_x.append(v["delay"][0][1])
+                net_y.append(v["delay"][1][1])
+                net_size.append(v["size"] * 100)
+            else:
+                net_x.append(v["delay"][0])
+                net_y.append(v["delay"][1])
+                net_size.append(v["size"] * 100)
 
     # Combine all data for regression line and histogram
     x_list = cell_x + net_x
