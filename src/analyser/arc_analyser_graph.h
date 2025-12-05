@@ -14,7 +14,8 @@ class arc_analyser_graph : public arc_analyser {
                      &csv_pin_db_value);
 
   nlohmann::json create_pin_node(
-      const std::string &name, const bool is_input, const double &incr_delay,
+      const std::string &name, const bool is_input,
+      const std::array<double, 2> &incr_delays,
       const std::unordered_map<std::string, std::shared_ptr<Pin>> &csv_pin_db,
       const bool is_topin_rise) const;
 
@@ -31,17 +32,15 @@ class arc_analyser_graph : public arc_analyser {
 
  private:
   void process_single_connection(
-      int t, const std::shared_ptr<Arc> &arc, const std::string &pin_from,
-      const std::string &pin_to, bool is_topin_rise,
-      const cache_result &connect_check,
+      int t, const std::shared_ptr<Arc> &arc, const cache_result &connect_check,
       const std::vector<std::string> &rpt_pair,
       const std::unordered_map<std::string, std::shared_ptr<Pin>>
           &csv_pin_db_key,
       const std::unordered_map<std::string, std::shared_ptr<Pin>>
           &csv_pin_db_value,
+      const std::tuple<std::string, bool, std::string, bool> &arc_tuple,
       std::vector<std::map<std::tuple<std::string, bool, std::string, bool>,
-                           nlohmann::json>> &thread_buffers,
-      const std::tuple<std::string, bool, std::string, bool> &arc_tuple);
+                           nlohmann::json>> &thread_buffers);
 
  private:
   absl::flat_hash_map<std::string,

@@ -39,13 +39,14 @@ void arc_analyser_graph::init_graph(const std::shared_ptr<basedb> &db,
 }
 
 nlohmann::json arc_analyser_graph::create_pin_node(
-    const std::string &name, const bool is_input, const double &incr_delay,
+    const std::string &name, const bool is_input,
+    const std::array<double, 2> &incr_delays,
     const std::unordered_map<std::string, std::shared_ptr<Pin>> &csv_pin_db,
     const bool is_topin_rise) const {
   nlohmann::json node;
   node["name"] = name;
   node["is_input"] = is_input;
-  node["incr_delay"] = incr_delay;
+  node["incr_delay"] = is_topin_rise ? incr_delays[0] : incr_delays[1];
   node["rf"] = is_topin_rise;
   if (!csv_pin_db.empty()) {
     if (auto pin_it = csv_pin_db.find(name); pin_it != csv_pin_db.end()) {
@@ -96,9 +97,9 @@ void arc_analyser_graph::process_arc_segment(
       // Process Rise
       {
         auto arc_tuple = std::make_tuple(pin_from, false, pin_to, true);
-        process_single_connection(t, arc, pin_from, pin_to, true,
-                                  rise_connect_check, rpt_pair, csv_pin_db_key,
-                                  csv_pin_db_value, thread_buffers, arc_tuple);
+        process_single_connection(t, arc, rise_connect_check, rpt_pair,
+                                  csv_pin_db_key, csv_pin_db_value, arc_tuple,
+                                  thread_buffers);
       }
 
       // --- Only Check Fall if Rise exists (as requested) ---
@@ -108,9 +109,9 @@ void arc_analyser_graph::process_arc_segment(
       if (fall_connect_check.distance >= 0) {
         // Process Fall
         auto arc_tuple = std::make_tuple(pin_from, false, pin_to, false);
-        process_single_connection(t, arc, pin_from, pin_to, false,
-                                  fall_connect_check, rpt_pair, csv_pin_db_key,
-                                  csv_pin_db_value, thread_buffers, arc_tuple);
+        process_single_connection(t, arc, fall_connect_check, rpt_pair,
+                                  csv_pin_db_key, csv_pin_db_value, arc_tuple,
+                                  thread_buffers);
       } else {
         fmt::print("No fall connection from {} to {}, skip\n", pin_from,
                    pin_to);
@@ -126,16 +127,16 @@ void arc_analyser_graph::process_arc_segment(
 }
 
 void arc_analyser_graph::process_single_connection(
-    int t, const std::shared_ptr<Arc> &arc, const std::string &pin_from,
-    const std::string &pin_to, bool is_topin_rise,
-    const cache_result &connect_check, const std::vector<std::string> &rpt_pair,
+    int t, const std::shared_ptr<Arc> &arc, const cache_result &connect_check,
+    const std::vector<std::string> &rpt_pair,
     const std::unordered_map<std::string, std::shared_ptr<Pin>> &csv_pin_db_key,
     const std::unordered_map<std::string, std::shared_ptr<Pin>>
         &csv_pin_db_value,
+    const std::tuple<std::string, bool, std::string, bool> &arc_tuple,
     std::vector<std::map<std::tuple<std::string, bool, std::string, bool>,
-                         nlohmann::json>> &thread_buffers,
-    const std::tuple<std::string, bool, std::string, bool> &arc_tuple) {
-  auto from = std::make_pair(pin_from, false);
+                         nlohmann::json>> &thread_buffers) {
+  auto &[pin_from, is_frompin_rise, pin_to, is_topin_rise] = arc_tuple;
+  auto from = std::make_pair(pin_from, is_frompin_rise);
   auto to = std::make_pair(pin_to, is_topin_rise);
 
   double total_delay = 0.;
@@ -153,10 +154,10 @@ void arc_analyser_graph::process_single_connection(
 
   // Build key section
   nlohmann::json key_pins = nlohmann::json::array();
-  key_pins.push_back(create_pin_node(pin_from, true, 0, csv_pin_db_key, false));
-  double &target_delay = is_topin_rise ? arc->delay[0] : arc->delay[1];
-  key_pins.push_back(create_pin_node(pin_to, true, target_delay, csv_pin_db_key,
-                                     is_topin_rise));
+  key_pins.push_back(create_pin_node(pin_from, true, {0., 0.}, csv_pin_db_key,
+                                     is_frompin_rise));
+  key_pins.push_back(
+      create_pin_node(pin_to, true, arc->delay, csv_pin_db_key, is_topin_rise));
 
   node["key"] = {{"pins", std::move(key_pins)}, {"delay", total_delay}};
 
@@ -165,8 +166,8 @@ void arc_analyser_graph::process_single_connection(
 
   };
 
-  node["value"]["pins"].push_back(
-      create_pin_node(pin_from, true, 0, csv_pin_db_value, false));
+  node["value"]["pins"].push_back(create_pin_node(
+      pin_from, true, {0., 0.}, csv_pin_db_value, is_frompin_rise));
 
   bool is_cell_arc = arc->type == arc_type::CellArc;
   auto value_db = _dbs.at(rpt_pair[1]);
@@ -178,10 +179,8 @@ void arc_analyser_graph::process_single_connection(
                                         ? value_db->cell_arcs[mid_from][mid_to]
                                         : value_db->net_arcs[mid_from][mid_to];
     is_cell_arc = !is_cell_arc;
-    double &target_delay =
-        is_topin_rise ? mid_arc->delay[0] : mid_arc->delay[1];
     node["value"]["pins"].push_back(create_pin_node(
-        mid_to, !is_cell_arc, target_delay, csv_pin_db_value, is_topin_rise));
+        mid_to, !is_cell_arc, mid_arc->delay, csv_pin_db_value, is_topin_rise));
   }
 
   if (arc->fanout.has_value()) {
