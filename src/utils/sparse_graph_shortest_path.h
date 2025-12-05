@@ -22,7 +22,7 @@ class sparse_graph_shortest_path {
   // 获取图的统计信息
   void print_stats() const;
 
- private:
+ protected:
   // 获取或创建节点的int映射
   int get_or_create_node_id(const std::string_view &node_name);
 
@@ -33,7 +33,7 @@ class sparse_graph_shortest_path {
   int get_node_id(const std::string_view &node_name) const;
 
   // 构建图的邻接表
-  void build_graph(const std::vector<std::shared_ptr<Arc>> &edges);
+  virtual void build_graph(const std::vector<std::shared_ptr<Arc>> &edges);
 
   // 计算连通分量（用于快速判断两点是否连通）
   void compute_components();
@@ -50,7 +50,7 @@ class sparse_graph_shortest_path {
  public:
   std::unordered_map<std::string, long long> timing_stats;
 
- private:
+ protected:
   // 邻接表存储图结构 (使用int作为节点ID)
   std::unordered_map<int, std::vector<std::pair<int, double>>>
       _adj_list;  // {node_id: [(neighbor_id, dist)]}

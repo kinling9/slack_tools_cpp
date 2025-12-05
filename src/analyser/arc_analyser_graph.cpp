@@ -30,27 +30,23 @@ void arc_analyser_graph::init_graph(const std::shared_ptr<basedb> &db,
     fmt::print("DB is nullptr, skip\n");
     return;
   }
-  auto graph = std::make_shared<sparse_graph_shortest_path>(db->all_arcs);
-  _sparse_graph_ptrs[name] = graph;
-  graph->print_stats();
+  auto rise_graph =
+      std::make_shared<sparse_graph_shortest_path_rf>(db->all_arcs, true);
+  auto fall_graph =
+      std::make_shared<sparse_graph_shortest_path_rf>(db->all_arcs, false);
+  _sparse_graph_ptrs[name] = {rise_graph, fall_graph};
+  rise_graph->print_stats();
 }
 
 nlohmann::json arc_analyser_graph::create_pin_node(
-    const std::string &name, bool is_input, std::array<double, 2> incr_delays,
+    const std::string &name, const bool is_input, const double &incr_delay,
     const std::unordered_map<std::string, std::shared_ptr<Pin>> &csv_pin_db,
-    const bool is_target) const {
+    const bool is_topin_rise) const {
   nlohmann::json node;
   node["name"] = name;
   node["is_input"] = is_input;
-  if ((is_target && dm::TARGET_DLY_USING_MAX) ||
-      (!is_target && dm::TEST_DLY_USING_MAX)) {
-    node["incr_delay"] = std::max(incr_delays[0], incr_delays[1]);
-  } else {
-    node["incr_delay"] = std::min(incr_delays[0], incr_delays[1]);
-  }
-  node["delay_r"] = incr_delays[0];
-  node["delay_f"] = incr_delays[1];
-  node["rf"] = false;
+  node["incr_delay"] = incr_delay;
+  node["rf"] = is_topin_rise;
   if (!csv_pin_db.empty()) {
     if (auto pin_it = csv_pin_db.find(name); pin_it != csv_pin_db.end()) {
       const auto &pin = pin_it->second;
@@ -82,140 +78,165 @@ void arc_analyser_graph::process_arc_segment(
   auto end_it = arcs.begin();
   std::advance(end_it, end_idx);
 
+  // Get both path pointers
+  auto &[rise_path_ptr, fall_path_ptr] = _sparse_graph_ptrs[rpt_pair[1]];
+
   for (; it != end_it; ++it) {
     const auto &arc = *it;
     const auto &pin_from = arc->from_pin;
     const auto &pin_to = arc->to_pin;
-    auto from = std::make_pair(pin_from, false);
-    auto to = std::make_pair(pin_to, false);
-    auto arc_tuple = std::make_tuple(pin_from, false, pin_to, false);
 
-    auto connect_check =
-        _sparse_graph_ptrs[rpt_pair[1]]->query_shortest_distance(pin_from,
-                                                                 pin_to);
-    if (connect_check.distance < 0) {
-      fmt::print("No connection from {} to {}, skip\n", pin_from, pin_to);
-      continue;
-    }
+    // 1. Check Rise connection first
+    auto rise_connect_check =
+        rise_path_ptr->query_shortest_distance(pin_from, pin_to);
 
-    double total_delay = 0.;
-    if constexpr (dm::TEST_DLY_USING_MAX) {
-      total_delay = std::max(arc->delay[0], arc->delay[1]);
+    if (rise_connect_check.distance >= 0) {
+      // --- Rise Connection Found ---
+
+      // Process Rise
+      {
+        auto arc_tuple = std::make_tuple(pin_from, false, pin_to, true);
+        process_single_connection(t, arc, pin_from, pin_to, true,
+                                  rise_connect_check, rpt_pair, csv_pin_db_key,
+                                  csv_pin_db_value, thread_buffers, arc_tuple);
+      }
+
+      // --- Only Check Fall if Rise exists (as requested) ---
+      auto fall_connect_check =
+          fall_path_ptr->query_shortest_distance(pin_from, pin_to);
+
+      if (fall_connect_check.distance >= 0) {
+        // Process Fall
+        auto arc_tuple = std::make_tuple(pin_from, false, pin_to, false);
+        process_single_connection(t, arc, pin_from, pin_to, false,
+                                  fall_connect_check, rpt_pair, csv_pin_db_key,
+                                  csv_pin_db_value, thread_buffers, arc_tuple);
+      } else {
+        fmt::print("No fall connection from {} to {}, skip\n", pin_from,
+                   pin_to);
+      }
+
     } else {
-      total_delay = std::min(arc->delay[0], arc->delay[1]);
+      // --- Rise Connection Failed ---
+      // Skip Fall computation entirely to avoid runtime issues
+      fmt::print("No rise connection from {} to {}, skip all operations\n",
+                 pin_from, pin_to);
     }
-
-    nlohmann::json node;
-    node["type"] = arc->type == arc_type::CellArc ? "cell arc" : "net arc";
-    node["from"] =
-        fmt::format("{} {}", from.first, from.second ? "(rise)" : "(fall)");
-    node["to"] =
-        fmt::format("{} {}", to.first, to.second ? "(rise)" : "(fall)");
-
-    // Build key section
-    nlohmann::json key_pins = nlohmann::json::array();
-    key_pins.push_back(
-        create_pin_node(pin_from, true, {0, 0}, csv_pin_db_key, false));
-    key_pins.push_back(
-        create_pin_node(pin_to, true, arc->delay, csv_pin_db_key, false));
-
-    node["key"] = {{"pins", std::move(key_pins)},
-                   {"delay", total_delay},
-                   {"delay_r", arc->delay[0]},
-                   {"delay_f", arc->delay[1]}};
-
-    node["value"] = {
-        {"pins", nlohmann::json::array()}, {"delay", connect_check.distance}
-
-    };
-
-    node["value"]["pins"].push_back(
-        create_pin_node(pin_from, true, {0, 0}, csv_pin_db_value, true));
-
-    bool is_cell_arc = arc->type == arc_type::CellArc;
-    auto value_db = _dbs.at(rpt_pair[1]);
-    for (const auto &pin_tuple : connect_check.path | std::views::adjacent<2>) {
-      const auto &[mid_from_view, mid_to_view] = pin_tuple;
-      std::string mid_from = std::string(mid_from_view);
-      std::string mid_to = std::string(mid_to_view);
-      std::shared_ptr<Arc> &mid_arc =
-          is_cell_arc ? value_db->cell_arcs[mid_from][mid_to]
-                      : value_db->net_arcs[mid_from][mid_to];
-      is_cell_arc = !is_cell_arc;
-      // double target_delay = 0.;
-      // if constexpr (dm::TARGET_DLY_USING_MAX) {
-      //   target_delay = std::max(mid_arc->delay[0], mid_arc->delay[1]);
-      // } else {
-      //   target_delay = std::min(mid_arc->delay[0], mid_arc->delay[1]);
-      // }
-      node["value"]["pins"].push_back(create_pin_node(
-          mid_to, !is_cell_arc, mid_arc->delay, csv_pin_db_value, true));
-    }
-
-    if (arc->fanout.has_value()) {
-      node["key"]["fanout"] = arc->fanout.value();
-    }
-
-    bool valid_location = true;
-    if (csv_pin_db_key.contains(pin_to)) {
-      node["key"]["slack"] =
-          csv_pin_db_key.at(pin_to)->path_slack.value_or(0.0);
-      node["value"]["slack"] =
-          csv_pin_db_value.contains(pin_to)
-              ? csv_pin_db_value.at(pin_to)->path_slack.value_or(0.0)
-              : 0.0;
-      node["delta_slack"] = node["key"]["slack"].get<double>() -
-                            node["value"]["slack"].get<double>();
-    }
-
-    std::vector<std::pair<float, float>> locs_key;
-    std::vector<std::pair<float, float>> locs_value;
-
-    if (!csv_pin_db_key.empty()) {
-      for (const auto &pin : node["key"]["pins"]) {
-        if (!pin.contains("location")) {
-          valid_location = false;
-          break;
-        }
-        locs_key.emplace_back(pin["location"][0].get<double>(),
-                              pin["location"][1].get<double>());
-      }
-    }
-
-    if (valid_location && !csv_pin_db_value.empty()) {
-      for (const auto &pin : node["value"]["pins"]) {
-        if (!pin.contains("location")) {
-          valid_location = false;
-          break;
-        }
-        locs_value.emplace_back(pin["location"][0].get<double>(),
-                                pin["location"][1].get<double>());
-      }
-    }
-
-    if (valid_location) {
-      node["key"]["length"] = manhattan_distance(locs_key);
-      node["value"]["length"] = manhattan_distance(locs_value);
-      node["delta_length"] = node["key"]["length"].get<double>() -
-                             node["value"]["length"].get<double>();
-    }
-
-    double total_rise_delay = 0, total_fall_delay = 0;
-    for (const auto &pin : node["value"]["pins"]) {
-      total_rise_delay += pin["delay_r"].get<double>();
-      total_fall_delay += pin["delay_f"].get<double>();
-    }
-
-    node["value"]["delay_r"] = total_rise_delay;
-    node["value"]["delay_f"] = total_fall_delay;
-
-    double delta_delay = node["key"]["delay"].get<double>() -
-                         node["value"]["delay"].get<double>();
-    node["delta_delay"] = delta_delay;
-
-    // Store in thread-local buffer
-    thread_buffers[t][arc_tuple] = std::move(node);
   }
+}
+
+void arc_analyser_graph::process_single_connection(
+    int t, const std::shared_ptr<Arc> &arc, const std::string &pin_from,
+    const std::string &pin_to, bool is_topin_rise,
+    const cache_result &connect_check, const std::vector<std::string> &rpt_pair,
+    const std::unordered_map<std::string, std::shared_ptr<Pin>> &csv_pin_db_key,
+    const std::unordered_map<std::string, std::shared_ptr<Pin>>
+        &csv_pin_db_value,
+    std::vector<std::map<std::tuple<std::string, bool, std::string, bool>,
+                         nlohmann::json>> &thread_buffers,
+    const std::tuple<std::string, bool, std::string, bool> &arc_tuple) {
+  auto from = std::make_pair(pin_from, false);
+  auto to = std::make_pair(pin_to, is_topin_rise);
+
+  double total_delay = 0.;
+  if (is_topin_rise) {
+    total_delay = arc->delay[0];
+  } else {
+    total_delay = arc->delay[1];
+  }
+
+  nlohmann::json node;
+  node["type"] = arc->type == arc_type::CellArc ? "cell arc" : "net arc";
+  node["from"] =
+      fmt::format("{} {}", from.first, from.second ? "(rise)" : "(fall)");
+  node["to"] = fmt::format("{} {}", to.first, to.second ? "(rise)" : "(fall)");
+
+  // Build key section
+  nlohmann::json key_pins = nlohmann::json::array();
+  key_pins.push_back(create_pin_node(pin_from, true, 0, csv_pin_db_key, false));
+  double &target_delay = is_topin_rise ? arc->delay[0] : arc->delay[1];
+  key_pins.push_back(create_pin_node(pin_to, true, target_delay, csv_pin_db_key,
+                                     is_topin_rise));
+
+  node["key"] = {{"pins", std::move(key_pins)}, {"delay", total_delay}};
+
+  node["value"] = {
+      {"pins", nlohmann::json::array()}, {"delay", connect_check.distance}
+
+  };
+
+  node["value"]["pins"].push_back(
+      create_pin_node(pin_from, true, 0, csv_pin_db_value, false));
+
+  bool is_cell_arc = arc->type == arc_type::CellArc;
+  auto value_db = _dbs.at(rpt_pair[1]);
+  for (const auto &pin_tuple : connect_check.path | std::views::adjacent<2>) {
+    const auto &[mid_from_view, mid_to_view] = pin_tuple;
+    std::string mid_from = std::string(mid_from_view);
+    std::string mid_to = std::string(mid_to_view);
+    std::shared_ptr<Arc> &mid_arc = is_cell_arc
+                                        ? value_db->cell_arcs[mid_from][mid_to]
+                                        : value_db->net_arcs[mid_from][mid_to];
+    is_cell_arc = !is_cell_arc;
+    double &target_delay =
+        is_topin_rise ? mid_arc->delay[0] : mid_arc->delay[1];
+    node["value"]["pins"].push_back(create_pin_node(
+        mid_to, !is_cell_arc, target_delay, csv_pin_db_value, is_topin_rise));
+  }
+
+  if (arc->fanout.has_value()) {
+    node["key"]["fanout"] = arc->fanout.value();
+  }
+
+  bool valid_location = true;
+  if (csv_pin_db_key.contains(pin_to)) {
+    node["key"]["slack"] = csv_pin_db_key.at(pin_to)->path_slack.value_or(0.0);
+    node["value"]["slack"] =
+        csv_pin_db_value.contains(pin_to)
+            ? csv_pin_db_value.at(pin_to)->path_slack.value_or(0.0)
+            : 0.0;
+    node["delta_slack"] = node["key"]["slack"].get<double>() -
+                          node["value"]["slack"].get<double>();
+  }
+
+  std::vector<std::pair<float, float>> locs_key;
+  std::vector<std::pair<float, float>> locs_value;
+
+  if (!csv_pin_db_key.empty()) {
+    for (const auto &pin : node["key"]["pins"]) {
+      if (!pin.contains("location")) {
+        valid_location = false;
+        break;
+      }
+      locs_key.emplace_back(pin["location"][0].get<double>(),
+                            pin["location"][1].get<double>());
+    }
+  }
+
+  if (valid_location && !csv_pin_db_value.empty()) {
+    for (const auto &pin : node["value"]["pins"]) {
+      if (!pin.contains("location")) {
+        valid_location = false;
+        break;
+      }
+      locs_value.emplace_back(pin["location"][0].get<double>(),
+                              pin["location"][1].get<double>());
+    }
+  }
+
+  if (valid_location) {
+    node["key"]["length"] = manhattan_distance(locs_key);
+    node["value"]["length"] = manhattan_distance(locs_value);
+    node["delta_length"] = node["key"]["length"].get<double>() -
+                           node["value"]["length"].get<double>();
+  }
+
+  double delta_delay =
+      node["key"]["delay"].get<double>() - node["value"]["delay"].get<double>();
+  node["delta_delay"] = delta_delay;
+
+  // Store in thread-local buffer
+  thread_buffers[t][arc_tuple] = std::move(node);
 }
 
 void arc_analyser_graph::csv_match(
@@ -263,15 +284,17 @@ void arc_analyser_graph::csv_match(
     }
   }
 
-  // process_arc_segment(0, 0, arcs.size(), arcs, rpt_pair, csv_pin_db_key,
-  //                     csv_pin_db_value, thread_buffers);
-
   // Merge results
   for (auto &buffer : thread_buffers) {
     arcs_buffer.insert(buffer.begin(), buffer.end());
   }
-  for (auto [name, time] : _sparse_graph_ptrs[rpt_pair[1]]->timing_stats) {
-    fmt::print("Timing stats {}: {} s\n", name, time / 1e6);
+  for (auto [name, time] :
+       _sparse_graph_ptrs[rpt_pair[1]].first->timing_stats) {
+    fmt::print("Rise graph: Timing stats {}: {} s\n", name, time / 1e6);
+  }
+  for (auto [name, time] :
+       _sparse_graph_ptrs[rpt_pair[1]].second->timing_stats) {
+    fmt::print("Fall graph: Timing stats {}: {} s\n", name, time / 1e6);
   }
   nlohmann::json arc_node;
   for (const auto &[arc, _] : arcs_buffer) {
