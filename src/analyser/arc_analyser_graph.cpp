@@ -189,11 +189,20 @@ void arc_analyser_graph::process_single_connection(
 
   bool valid_location = true;
   if (csv_pin_db_key.contains(pin_to)) {
-    node["key"]["slack"] = csv_pin_db_key.at(pin_to)->path_slack.value_or(0.0);
-    node["value"]["slack"] =
-        csv_pin_db_value.contains(pin_to)
-            ? csv_pin_db_value.at(pin_to)->path_slack.value_or(0.0)
-            : 0.0;
+    if (is_topin_rise) {
+      node["key"]["slack"] = csv_pin_db_key.at(pin_to)->path_slacks.value()[0];
+    } else {
+      node["key"]["slack"] = csv_pin_db_key.at(pin_to)->path_slacks.value()[1];
+    }
+    if (!csv_pin_db_value.empty() && csv_pin_db_value.contains(pin_to)) {
+      if (is_topin_rise) {
+        node["value"]["slack"] =
+            csv_pin_db_key.at(pin_to)->path_slacks.value()[0];
+      } else {
+        node["value"]["slack"] =
+            csv_pin_db_key.at(pin_to)->path_slacks.value()[1];
+      }
+    }
     node["delta_slack"] = node["key"]["slack"].get<double>() -
                           node["value"]["slack"].get<double>();
   }

@@ -66,6 +66,7 @@ void csv_parser::parse(csv_type type, csv::CSVReader &ifs) {
       double max_rise_slack = row["max_rise_slack"].get<double>();
       double max_fall_slack = row["max_fall_slack"].get<double>();
       double path_slack = std::min(max_rise_slack, max_fall_slack);
+      std::array<double, 2> path_slacks = {max_rise_slack, max_fall_slack};
       bool rf = max_rise_slack < max_fall_slack;
       double cap = rf ? row["max_rise_cap"].get<double>()
                       : row["max_fall_cap"].get<double>();
@@ -80,6 +81,7 @@ void csv_parser::parse(csv_type type, csv::CSVReader &ifs) {
           .location = {x, y},
           .cap = cap,
           .path_slack = path_slack,
+          .path_slacks = path_slacks,
       };
       _db.pins[pin_name] = std::make_shared<Pin>(pin_obj);
     }

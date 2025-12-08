@@ -35,7 +35,9 @@ class Pin {
   std::pair<double, double> location;
   std::optional<std::shared_ptr<Net>> net;
   std::optional<double> cap;         // max capacitance of the pin
-  std::optional<double> path_slack;  // slack of the path
+  std::optional<double> path_slack;  // max slack of the path
+  std::optional<std::array<double, 2>>
+      path_slacks;  // rise and fall slack of the path
 
   // TODO: remove type, using db pointer instead
   std::string type;
