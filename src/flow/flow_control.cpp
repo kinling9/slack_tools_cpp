@@ -93,20 +93,10 @@ void flow_control::parse_yml(std::string yml_file) {
   auto rpt_node = config["rpts"];
   auto valid_rpts = _analyser->check_valid(rpt_node);
 
-  std::vector<std::thread> threads;
   for (const auto& rpt : valid_rpts) {
-    // threads.emplace_back([this, &rpt_node, rpt]() {
-    //   run_function(fmt::format("parse rpt {}", rpt),
-    //                [&]() { parse_rpt(rpt_node[rpt], rpt); });
-    // });
     run_function(fmt::format("parse rpt {}", rpt),
                  [&]() { parse_rpt(rpt_node[rpt], rpt); });
   }
-  // for (auto& t : threads) {
-  //   if (t.joinable()) {
-  //     t.join();
-  //   }
-  // }
 }
 
 void flow_control::parse_rpt(const YAML::Node& rpt, std::string key) {
