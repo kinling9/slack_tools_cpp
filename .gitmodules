@@ -25,3 +25,6 @@
 [submodule "thirdparty/csv-parser"]
 	path = thirdparty/csv-parser
 	url = https://github.com/vincentlaucsb/csv-parser.git
+[submodule "pta_predict_model"]
+	path = pta_predict_model
+	url = git@github.com:kinling9/pta_predict_model.git
