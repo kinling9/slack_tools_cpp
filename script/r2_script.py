@@ -8,6 +8,7 @@ import pandas as pd
 import os
 import toml
 import numpy as np
+import concurrent.futures
 
 import gen_yaml
 import plot_correlation
@@ -60,9 +61,16 @@ if __name__ == "__main__":
             df = pd.DataFrame([score])
             summary_df = pd.concat([summary_df, df], ignore_index=True)
 
-    for yaml_file in list(arc_yamls.values()) + list(endpoint_yamls.values()):
-        # Run the command "build/slack_tool yml_file"
-        subprocess.run(["build/slack_tool", yaml_file])
+    yaml_files = list(arc_yamls.values()) + list(endpoint_yamls.values())
+
+    # Run commands in parallel using ThreadPoolExecutor
+    with concurrent.futures.ThreadPoolExecutor() as executor:
+        futures = [
+            executor.submit(subprocess.run, ["build/slack_tool", yaml_file])
+            for yaml_file in yaml_files
+        ]
+        # Wait for all processes to complete
+        concurrent.futures.wait(futures)
 
     all_r2_df = pd.DataFrame()
 
@@ -137,7 +145,6 @@ if __name__ == "__main__":
             - (0.3 * score_datas["end_r2"] + 0.7 * score_datas["end_pearsonr"])
         )
     print(all_r2_df)
-    flow_name = args.path.split("/")[-1].split(".")[0]
     all_r2_df.to_csv(
-        f"{output_dir}/{flow_name}_r2.csv", index=False, float_format="%.4f"
+        f"{output_dir}/{base_name}_r2.csv", index=False, float_format="%.4f"
     )

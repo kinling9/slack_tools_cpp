@@ -9,9 +9,11 @@ import os
 import toml
 import json
 import sys
+import concurrent.futures
 
 import gen_yaml
 import toml_decoder
+
 
 import logging
 
@@ -114,19 +116,28 @@ if __name__ == "__main__":
     toml_file = args.path
     base_name = os.path.splitext(os.path.basename(toml_file))[0]
     results = toml_decoder.process_toml(args.path)
-    yaml_files = gen_yaml.generate_yaml(results, base_name, analyse_type)
+    arc_yamls, endpoint_yamls = gen_yaml.generate_yaml(results, base_name, analyse_type)
 
-    subprocess.run(["build/slack_tool", yaml_files[0]])
+    yaml_files = list(arc_yamls.values())
 
-    arc_yaml_file = yaml_files[0]
-    endpoint_yaml_file = yaml_files[1]
+    # Run commands in parallel using ThreadPoolExecutor
+    with concurrent.futures.ThreadPoolExecutor() as executor:
+        futures = [
+            executor.submit(subprocess.run, ["build/slack_tool", yaml_file])
+            for yaml_file in yaml_files
+        ]
+        # Wait for all processes to complete
+        concurrent.futures.wait(futures)
 
-    with open(endpoint_yaml_file) as f:
-        end_data = yaml.safe_load(f)
-    output_dir = end_data["configs"]["output_dir"]
-    analyse_tuples = end_data["configs"]["analyse_tuples"]
+    output_dir = base_name
+    analyse_tuples = []
+    for result in results:
+        short = result["values"]["SHORT"]
+        tuple_list = []
+        for key in result["results"]["arc"].keys():
+            tuple_list.append(f"{short}_{key}")
+        analyse_tuples.append(tuple_list)
 
-    flow_name = args.path.split("/")[-1].split(".")[0]
     all_data_df = pd.DataFrame()
     for i in range(len(analyse_tuples)):
         name_pair = analyse_tuples[i]
@@ -148,5 +159,5 @@ if __name__ == "__main__":
 
     print(all_data_df)
     all_data_df.to_csv(
-        f"{output_dir}/{flow_name}_dataset.csv", index=False, float_format="%.6f"
+        f"{output_dir}/{base_name}_dataset.csv", index=False, float_format="%.6f"
     )
