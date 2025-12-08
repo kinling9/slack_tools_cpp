@@ -32,7 +32,8 @@ void pair_analyser_graph::init_graph(const std::shared_ptr<basedb> &db,
     fmt::print("DB is nullptr, skip\n");
     return;
   }
-  auto graph = std::make_shared<sparse_graph_shortest_path>(db->all_arcs);
+  auto graph = std::make_shared<sparse_graph_shortest_path>();
+  graph->build_graph(db->all_arcs);
   _sparse_graph_ptrs[name] = graph;
   graph->print_stats();
 }

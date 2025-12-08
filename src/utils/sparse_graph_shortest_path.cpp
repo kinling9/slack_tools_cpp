@@ -7,11 +7,6 @@
 
 #include "utils/scoped_timer.h"
 
-sparse_graph_shortest_path::sparse_graph_shortest_path(
-    const std::vector<std::shared_ptr<Arc>> &edges) {
-  build_graph(edges);
-}
-
 int sparse_graph_shortest_path::get_or_create_node_id(
     const std::string_view &node_name) {
   auto it = _string_to_int.find(node_name);

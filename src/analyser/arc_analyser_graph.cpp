@@ -30,10 +30,10 @@ void arc_analyser_graph::init_graph(const std::shared_ptr<basedb> &db,
     fmt::print("DB is nullptr, skip\n");
     return;
   }
-  auto rise_graph =
-      std::make_shared<sparse_graph_shortest_path_rf>(db->all_arcs, true);
-  auto fall_graph =
-      std::make_shared<sparse_graph_shortest_path_rf>(db->all_arcs, false);
+  auto rise_graph = std::make_shared<sparse_graph_shortest_path_rf>(true);
+  rise_graph->build_graph(db->all_arcs);
+  auto fall_graph = std::make_shared<sparse_graph_shortest_path_rf>(false);
+  fall_graph->build_graph(db->all_arcs);
   _sparse_graph_ptrs[name] = {rise_graph, fall_graph};
   rise_graph->print_stats();
 }

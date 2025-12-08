@@ -12,8 +12,11 @@
 
 class sparse_graph_shortest_path {
  public:
-  // 构造函数，输入边的向量
-  sparse_graph_shortest_path(const std::vector<std::shared_ptr<Arc>> &edges);
+  // 构造函数
+  sparse_graph_shortest_path(){};
+
+  // 构建图的邻接表
+  virtual void build_graph(const std::vector<std::shared_ptr<Arc>> &edges);
 
   // 查询两点间最短距离 (string接口)
   cache_result query_shortest_distance(const std::string_view &from,
@@ -31,9 +34,6 @@ class sparse_graph_shortest_path {
 
   // 根据string获取int (如果不存在返回-1)
   int get_node_id(const std::string_view &node_name) const;
-
-  // 构建图的邻接表
-  virtual void build_graph(const std::vector<std::shared_ptr<Arc>> &edges);
 
   // 计算连通分量（用于快速判断两点是否连通）
   void compute_components();
