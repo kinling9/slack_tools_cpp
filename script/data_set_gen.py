@@ -45,6 +45,7 @@ def buffer_check_gen(data: dict, design: str) -> pd.DataFrame:
             "pta_delay": key_info.get("delay", 0),
             "pta_slack": key_info.get("slack", 0),
             "is_cell_arc": arc_data["type"] == "cell arc",
+            "is_topin_rise": key_info.get("pins", [])[-1].get("rf", False),
             "with_buffer": len(value_info.get("pins", {})) > 2,
             "value_delay": value_info.get("delay", 0),
         }
@@ -91,6 +92,7 @@ def filter_check_gen(data: dict, design: str) -> pd.DataFrame:
             "pta_delay": key_delay,
             "pta_slack": key_info.get("slack", 0),
             "is_cell_arc": arc_data["type"] == "cell arc",
+            "is_topin_rise": key_info.get("pins", [])[-1].get("rf", False),
             "with_buffer": need_update,
             "value_delay": value_delay,
         }
