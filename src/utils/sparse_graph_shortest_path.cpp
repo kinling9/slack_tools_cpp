@@ -34,15 +34,22 @@ int sparse_graph_shortest_path::get_node_id(
 
 void sparse_graph_shortest_path::build_graph(
     const std::vector<std::shared_ptr<Arc>> &edges) {
+  build_graph_base(edges, [](const std::shared_ptr<Arc> &edge) {
+    if constexpr (dm::TARGET_DLY_USING_MAX) {
+      return std::max(edge->delay[0], edge->delay[1]);
+    } else {
+      return std::min(edge->delay[0], edge->delay[1]);
+    }
+  });
+}
+
+void sparse_graph_shortest_path::build_graph_base(
+    const std::vector<std::shared_ptr<Arc>> &edges,
+    std::function<double(const std::shared_ptr<Arc> &)> delay_extractor) {
   for (const auto &edge : edges) {
     int from_id = get_or_create_node_id(edge->from_pin);
     int to_id = get_or_create_node_id(edge->to_pin);
-    double target_delay = 0.;
-    if constexpr (dm::TARGET_DLY_USING_MAX) {
-      target_delay = std::max(edge->delay[0], edge->delay[1]);
-    } else {
-      target_delay = std::min(edge->delay[0], edge->delay[1]);
-    }
+    double target_delay = delay_extractor(edge);
     _adj_list[from_id].emplace_back(to_id, target_delay);
     _rev_adj_list[to_id].emplace_back(from_id, target_delay);
     _all_nodes.insert(from_id);

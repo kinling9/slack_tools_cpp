@@ -6,6 +6,7 @@
 #include <unordered_map>
 #include <unordered_set>
 #include <vector>
+#include <functional>
 
 #include "dm/dm.h"
 #include "utils/cache_result.h"
@@ -26,6 +27,11 @@ class sparse_graph_shortest_path {
   void print_stats() const;
 
  protected:
+  // 通用构建图逻辑
+  void build_graph_base(
+      const std::vector<std::shared_ptr<Arc>> &edges,
+      std::function<double(const std::shared_ptr<Arc> &)> delay_extractor);
+
   // 获取或创建节点的int映射
   int get_or_create_node_id(const std::string_view &node_name);
 
