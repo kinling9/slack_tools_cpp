@@ -28,7 +28,9 @@ class arc_analyser_graph : public arc_analyser {
       const std::unordered_map<std::string, std::shared_ptr<Pin>>
           &csv_pin_db_value,
       std::vector<std::map<std::tuple<std::string, bool, std::string, bool>,
-                           nlohmann::json>> &thread_buffers);
+                           nlohmann::json>> &thread_buffers,
+      const std::shared_ptr<sparse_graph_shortest_path_rf> &graph_ptr,
+      bool is_topin_rise);
 
  private:
   void process_single_connection(

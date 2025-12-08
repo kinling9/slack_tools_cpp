@@ -31,9 +31,13 @@ void arc_analyser_graph::init_graph(const std::shared_ptr<basedb> &db,
     return;
   }
   auto rise_graph = std::make_shared<sparse_graph_shortest_path_rf>(true);
-  rise_graph->build_graph(db->all_arcs);
   auto fall_graph = std::make_shared<sparse_graph_shortest_path_rf>(false);
-  fall_graph->build_graph(db->all_arcs);
+
+  std::thread rise_thread([&]() { rise_graph->build_graph(db->all_arcs); });
+  std::thread fall_thread([&]() { fall_graph->build_graph(db->all_arcs); });
+  rise_thread.join();
+  fall_thread.join();
+
   _sparse_graph_ptrs[name] = {rise_graph, fall_graph};
   rise_graph->print_stats();
 }
@@ -68,60 +72,32 @@ void arc_analyser_graph::process_arc_segment(
     const std::unordered_map<std::string, std::shared_ptr<Pin>>
         &csv_pin_db_value,
     std::vector<std::map<std::tuple<std::string, bool, std::string, bool>,
-                         nlohmann::json>> &thread_buffers) {
-  if (!_sparse_graph_ptrs.contains(rpt_pair[1])) {
-    fmt::print("No graph for type {}\n", rpt_pair[1]);
-    return;
-  }
-
+                         nlohmann::json>> &thread_buffers,
+    const std::shared_ptr<sparse_graph_shortest_path_rf> &graph_ptr,
+    bool is_topin_rise) {
   auto it = arcs.begin();
   std::advance(it, begin_idx);
   auto end_it = arcs.begin();
   std::advance(end_it, end_idx);
-
-  // Get both path pointers
-  auto &[rise_path_ptr, fall_path_ptr] = _sparse_graph_ptrs[rpt_pair[1]];
 
   for (; it != end_it; ++it) {
     const auto &arc = *it;
     const auto &pin_from = arc->from_pin;
     const auto &pin_to = arc->to_pin;
 
-    // 1. Check Rise connection first
-    auto rise_connect_check =
-        rise_path_ptr->query_shortest_distance(pin_from, pin_to);
+    auto connect_check = graph_ptr->query_shortest_distance(pin_from, pin_to);
 
-    if (rise_connect_check.distance >= 0) {
-      // --- Rise Connection Found ---
-
-      // Process Rise
-      {
-        auto arc_tuple = std::make_tuple(pin_from, false, pin_to, true);
-        process_single_connection(t, arc, rise_connect_check, rpt_pair,
-                                  csv_pin_db_key, csv_pin_db_value, arc_tuple,
-                                  thread_buffers);
-      }
-
-      // --- Only Check Fall if Rise exists (as requested) ---
-      auto fall_connect_check =
-          fall_path_ptr->query_shortest_distance(pin_from, pin_to);
-
-      if (fall_connect_check.distance >= 0) {
-        // Process Fall
-        auto arc_tuple = std::make_tuple(pin_from, false, pin_to, false);
-        process_single_connection(t, arc, fall_connect_check, rpt_pair,
-                                  csv_pin_db_key, csv_pin_db_value, arc_tuple,
-                                  thread_buffers);
-      } else {
-        fmt::print("No fall connection from {} to {}, skip\n", pin_from,
-                   pin_to);
-      }
-
+    if (connect_check.distance >= 0) {
+      auto arc_tuple = std::make_tuple(pin_from, false, pin_to, is_topin_rise);
+      process_single_connection(t, arc, connect_check, rpt_pair, csv_pin_db_key,
+                                csv_pin_db_value, arc_tuple, thread_buffers);
     } else {
-      // --- Rise Connection Failed ---
-      // Skip Fall computation entirely to avoid runtime issues
-      fmt::print("No rise connection from {} to {}, skip all operations\n",
-                 pin_from, pin_to);
+      if (is_topin_rise) {
+        fmt::print("No rise connection from {} to {}, skip all operations\n",
+                   pin_from, pin_to);
+      } else {
+        fmt::print("No fall connection from {} to {}, skip\n", pin_from, pin_to);
+      }
     }
   }
 }
@@ -258,10 +234,16 @@ void arc_analyser_graph::csv_match(
                       nlohmann::json>
       arcs_buffer;
 
+  if (!_sparse_graph_ptrs.contains(rpt_pair[1])) {
+    fmt::print("No graph for type {}\n", rpt_pair[1]);
+    return;
+  }
+  auto &[rise_graph, fall_graph] = _sparse_graph_ptrs[rpt_pair[1]];
+
   unsigned int num_threads =
-      std::max(1u, std::min(8u, static_cast<unsigned int>(arcs.size())));
+      std::max(1u, std::min(16u, static_cast<unsigned int>(arcs.size())));
   std::vector<std::thread> threads;
-  threads.reserve(num_threads);
+  threads.reserve(num_threads * 2);
 
   std::unordered_set<std::string_view> arc_starts;
   for (const auto &arc : arcs) {
@@ -270,7 +252,7 @@ void arc_analyser_graph::csv_match(
 
   std::vector<std::map<std::tuple<std::string, bool, std::string, bool>,
                        nlohmann::json>>
-      thread_buffers(num_threads);
+      thread_buffers(num_threads * 2);
   size_t chunk_size_arc = (arcs.size() + num_threads - 1) / num_threads;
 
   for (unsigned int t = 0; t < num_threads; ++t) {
@@ -282,7 +264,20 @@ void arc_analyser_graph::csv_match(
     threads.emplace_back(&arc_analyser_graph::process_arc_segment, this, t,
                          begin_idx, end_idx, std::ref(arcs), std::ref(rpt_pair),
                          std::ref(csv_pin_db_key), std::ref(csv_pin_db_value),
-                         std::ref(thread_buffers));
+                         std::ref(thread_buffers), rise_graph, true);
+  }
+
+  for (unsigned int t = 0; t < num_threads; ++t) {
+    size_t begin_idx = t * chunk_size_arc;
+    size_t end_idx = std::min(begin_idx + chunk_size_arc, arcs.size());
+
+    if (begin_idx >= arcs.size()) break;
+
+    threads.emplace_back(&arc_analyser_graph::process_arc_segment, this,
+                         t + num_threads, begin_idx, end_idx, std::ref(arcs),
+                         std::ref(rpt_pair), std::ref(csv_pin_db_key),
+                         std::ref(csv_pin_db_value), std::ref(thread_buffers),
+                         fall_graph, false);
   }
 
   // Wait for all threads
