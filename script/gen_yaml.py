@@ -9,33 +9,30 @@ import logging
 
 
 def generate_yaml_content(results: list, output_dir: str, analyse_type: str) -> tuple:
-    arc_yaml_template = {
-        "mode": f"{analyse_type} analyse",
-        "rpts": {},
-        "configs": {
-            "output_dir": output_dir,
-            "analyse_tuples": [],
-            "enable_rise_fall": True,
-            "enable_super_arc": True,
-        },
-    }
-    endpoint_yaml_template = {
-        "mode": "compare",
-        "rpts": {},
-        "configs": {
-            "output_dir": output_dir,
-            "analyse_tuples": [],
-            "compare_mode": "endpoint",
-            "slack_filter": "x < 1",
-        },
-    }
-
     arc_yamls = {}
     endpoint_yamls = {}
 
     for result in results:
-        arc_yaml = arc_yaml_template.copy()
-        endpoint_yaml = endpoint_yaml_template.copy()
+        arc_yaml = {
+            "mode": f"{analyse_type} analyse",
+            "rpts": {},
+            "configs": {
+                "output_dir": output_dir,
+                "analyse_tuples": [],
+                "enable_rise_fall": True,
+                "enable_super_arc": True,
+            },
+        }
+        endpoint_yaml = {
+            "mode": "compare",
+            "rpts": {},
+            "configs": {
+                "output_dir": output_dir,
+                "analyse_tuples": [],
+                "compare_mode": "endpoint",
+                "slack_filter": "x < 1",
+            },
+        }
         short = result["values"]["SHORT"]
         analyse_tuple = []
         types = []
@@ -78,6 +75,9 @@ def generate_yaml_content(results: list, output_dir: str, analyse_type: str) -> 
         if not cur_arc_analyse_type:
             logging.error(f"type: {types} is not supported")
             exit(0)
+
+        if "analyse csv" in cur_arc_analyse_type:
+            arc_yaml["configs"]["enable_rise_fall"] = False
 
         arc_analyse_type = cur_arc_analyse_type
         arc_yaml["configs"]["analyse_tuples"].append(analyse_tuple)

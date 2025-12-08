@@ -37,7 +37,7 @@ if __name__ == "__main__":
     toml_file = args.path
     base_name = os.path.splitext(os.path.basename(toml_file))[0]
     results = toml_decoder.process_toml(args.path)
-    yaml_files = gen_yaml.generate_yaml(results, base_name, analyse_type)
+    arc_yamls, endpoint_yamls = gen_yaml.generate_yaml(results, base_name, analyse_type)
 
     summary_df = pd.DataFrame()
     for res in results:
@@ -60,19 +60,20 @@ if __name__ == "__main__":
             df = pd.DataFrame([score])
             summary_df = pd.concat([summary_df, df], ignore_index=True)
 
-    for yaml_file in yaml_files:
+    for yaml_file in list(arc_yamls.values()) + list(endpoint_yamls.values()):
         # Run the command "build/slack_tool yml_file"
         subprocess.run(["build/slack_tool", yaml_file])
 
     all_r2_df = pd.DataFrame()
 
-    arc_yaml_file = yaml_files[0]
-    endpoint_yaml_file = yaml_files[1]
-
-    with open(endpoint_yaml_file) as f:
-        end_data = yaml.safe_load(f)
-    output_dir = end_data["configs"]["output_dir"]
-    analyse_tuples = end_data["configs"]["analyse_tuples"]
+    output_dir = base_name
+    analyse_tuples = []
+    for result in results:
+        short = result["values"]["SHORT"]
+        tuple_list = []
+        for key in result["results"]["arc"].keys():
+            tuple_list.append(f"{short}_{key}")
+        analyse_tuples.append(tuple_list)
 
     for i in range(len(analyse_tuples)):
         name_pair = analyse_tuples[i]
