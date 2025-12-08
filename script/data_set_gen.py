@@ -25,6 +25,27 @@ logging.basicConfig(
 )
 
 
+def _extract_common_arc_data(arc_key: str, arc_data: dict, design: str) -> dict:
+    key_info = arc_data.get("key", {})
+    value_info = arc_data.get("value", {})
+    pins = key_info.get("pins", [])
+    first_pin = pins[0] if pins else {}
+
+    return {
+        "name": arc_key,
+        "design": design,
+        "trans": first_pin.get("trans", 0),
+        "cap": first_pin.get("cap", 0),
+        "fanout": key_info.get("fanout", 0),
+        "length": key_info.get("length", 0),
+        "pta_delay": key_info.get("delay", 0),
+        "pta_slack": key_info.get("slack", 0),
+        "is_cell_arc": arc_data["type"] == "cell arc",
+        "is_topin_rise": key_info.get("pins", [])[-1].get("rf", False),
+        "value_delay": value_info.get("delay", 0),
+    }
+
+
 def buffer_check_gen(data: dict, design: str) -> pd.DataFrame:
     # Prepare CSV data
     csv_data = []
@@ -34,21 +55,8 @@ def buffer_check_gen(data: dict, design: str) -> pd.DataFrame:
         key_info = arc_data.get("key", {})
         value_info = arc_data.get("value", {})
 
-        # Extract the required fields
-        row = {
-            "name": arc_key,
-            "design": design,
-            "trans": key_info.get("pins", [])[0].get("trans", 0),
-            "cap": key_info.get("pins", [])[0].get("cap", 0),
-            "fanout": key_info.get("fanout", 0),
-            "length": key_info.get("length", 0),
-            "pta_delay": key_info.get("delay", 0),
-            "pta_slack": key_info.get("slack", 0),
-            "is_cell_arc": arc_data["type"] == "cell arc",
-            "is_topin_rise": key_info.get("pins", [])[-1].get("rf", False),
-            "with_buffer": len(value_info.get("pins", {})) > 2,
-            "value_delay": value_info.get("delay", 0),
-        }
+        row = _extract_common_arc_data(arc_key, arc_data, design)
+        row["with_buffer"] = len(value_info.get("pins", {})) > 2
         csv_data.append(row)
 
     df = pd.DataFrame(csv_data)
@@ -78,24 +86,8 @@ def filter_check_gen(data: dict, design: str) -> pd.DataFrame:
         if value_slack < 0 and delay_ratio_valid and delay_difference_valid:
             need_update = True
 
-        # Extract the required fields
-        pins = key_info.get("pins", [])
-        first_pin = pins[0] if pins else {}
-
-        row = {
-            "name": arc_key,
-            "design": design,
-            "trans": first_pin.get("trans", 0),
-            "cap": first_pin.get("cap", 0),
-            "fanout": key_info.get("fanout", 0),
-            "length": key_info.get("length", 0),
-            "pta_delay": key_delay,
-            "pta_slack": key_info.get("slack", 0),
-            "is_cell_arc": arc_data["type"] == "cell arc",
-            "is_topin_rise": key_info.get("pins", [])[-1].get("rf", False),
-            "with_buffer": need_update,
-            "value_delay": value_delay,
-        }
+        row = _extract_common_arc_data(arc_key, arc_data, design)
+        row["with_buffer"] = need_update
         csv_data.append(row)
 
     df = pd.DataFrame(csv_data)
