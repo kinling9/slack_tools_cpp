@@ -207,7 +207,7 @@ void pair_analyser_graph::csv_match(
       arcs_buffer;
 
   unsigned int num_threads =
-      std::max(1u, std::min(8u, static_cast<unsigned int>(arcs.size())));
+      std::max(1u, std::min(2u, static_cast<unsigned int>(arcs.size())));
   std::vector<std::thread> threads;
   threads.reserve(num_threads);
 
