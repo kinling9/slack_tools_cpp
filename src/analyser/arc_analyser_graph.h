@@ -2,6 +2,7 @@
 #include "arc_analyser.h"
 #include "utils/sparse_graph_shortest_path_rf.h"
 #include "yyjson.h"
+#include <string_view>
 
 class arc_analyser_graph : public arc_analyser {
  public:
@@ -16,7 +17,7 @@ class arc_analyser_graph : public arc_analyser {
                      &csv_pin_db_value);
 
   yyjson_mut_val *create_pin_node(
-      yyjson_mut_doc *doc, const std::string &name, const bool is_input,
+      yyjson_mut_doc *doc, std::string_view name_sv, const bool is_input,
       const std::array<double, 2> &incr_delays,
       const std::unordered_map<std::string, std::shared_ptr<Pin>> &csv_pin_db,
       const bool is_topin_rise) const;
