@@ -51,6 +51,7 @@ add_subdirectory(thirdparty/yaml-cpp)
 add_subdirectory(thirdparty/fmt)
 add_subdirectory(thirdparty/json)
 add_subdirectory(thirdparty/csv-parser)
+add_subdirectory(thirdparty/yyjson)
 file(GLOB_RECURSE sources ${PROJECT_SOURCE_DIR}/src/main.cpp)
 include_directories(${PROJECT_SOURCE_DIR}/src)
 
@@ -65,6 +66,7 @@ target_link_libraries(slack_tool yaml-cpp::yaml-cpp)
 target_link_libraries(slack_tool fmt::fmt)
 target_link_libraries(slack_tool nlohmann_json::nlohmann_json)
 target_link_libraries(slack_tool csv)
+target_link_libraries(slack_tool yyjson)
 target_link_libraries(slack_tool gcov)
 
 # RPT serial executable
@@ -80,6 +82,7 @@ target_link_libraries(rpt_serial yaml-cpp::yaml-cpp)
 target_link_libraries(rpt_serial fmt::fmt)
 target_link_libraries(rpt_serial nlohmann_json::nlohmann_json)
 target_link_libraries(rpt_serial csv)
+target_link_libraries(rpt_serial yyjson)
 target_link_libraries(rpt_serial gcov)
 
 if(CMAKE_BUILD_TYPE STREQUAL "Debug")

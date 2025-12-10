@@ -3,6 +3,8 @@
 #include <fstream>
 
 #include "utils/utils.h"
+#include <cstdlib>
+#include "yyjson.h"
 
 YAML::Node Pin::to_yaml() {
   YAML::Node node;
@@ -178,4 +180,110 @@ void basedb::serialize_to_json(const std::string &output_path) const {
   }
   std::ofstream ofs(output_path);
   ofs << std::setw(2) << node << std::endl;
+}
+
+namespace {
+yyjson_mut_val *net_to_yyjson(yyjson_mut_doc *doc,
+                              const std::shared_ptr<Net> &net) {
+  yyjson_mut_val *obj = yyjson_mut_obj(doc);
+  yyjson_mut_obj_add_str(doc, obj, "name", net->name.c_str());
+  yyjson_mut_obj_add_int(doc, obj, "fanout", net->fanout);
+  yyjson_mut_obj_add_real(doc, obj, "cap", net->cap);
+  return obj;
+}
+
+yyjson_mut_val *pin_to_yyjson(yyjson_mut_doc *doc,
+                              const std::shared_ptr<Pin> &pin) {
+  yyjson_mut_val *obj = yyjson_mut_obj(doc);
+  yyjson_mut_obj_add_str(doc, obj, "name", pin->name.c_str());
+  yyjson_mut_obj_add_real(doc, obj, "incr_delay",
+                          pin->incr_delay.value_or(0.));
+  yyjson_mut_obj_add_real(doc, obj, "path_delay", pin->path_delay);
+
+  yyjson_mut_val *loc_arr = yyjson_mut_arr(doc);
+  yyjson_mut_arr_add_real(doc, loc_arr, pin->location.first);
+  yyjson_mut_arr_add_real(doc, loc_arr, pin->location.second);
+  yyjson_mut_obj_add_val(doc, obj, "location", loc_arr);
+
+  yyjson_mut_obj_add_bool(doc, obj, "is_input", pin->is_input);
+  yyjson_mut_obj_add_real(doc, obj, "trans", pin->trans);
+
+  if (pin->cell.has_value()) {
+    yyjson_mut_obj_add_str(doc, obj, "cell", pin->cell.value().c_str());
+  }
+
+  yyjson_mut_obj_add_bool(doc, obj, "rf", pin->rise_fall.value_or(false));
+
+  if (pin->pta_buf.has_value()) {
+    yyjson_mut_obj_add_real(doc, obj, "pta_buf", pin->pta_buf.value());
+  }
+
+  if (pin->pta_net.has_value()) {
+    yyjson_mut_obj_add_real(doc, obj, "pta_net", pin->pta_net.value());
+  }
+
+  return obj;
+}
+}  // namespace
+
+void basedb::serialize_to_yyjson(const std::string &output_path) const {
+  yyjson_mut_doc *doc = yyjson_mut_doc_new(NULL);
+  yyjson_mut_val *root = yyjson_mut_obj(doc);
+  yyjson_mut_doc_set_root(doc, root);
+
+  yyjson_mut_obj_add_str(doc, root, "design", design.c_str());
+  yyjson_mut_obj_add_str(doc, root, "type", type.c_str());
+
+  yyjson_mut_val *paths_arr = yyjson_mut_arr(doc);
+  yyjson_mut_obj_add_val(doc, root, "paths", paths_arr);
+
+  for (const auto &path : paths) {
+    yyjson_mut_val *path_node = yyjson_mut_obj(doc);
+    yyjson_mut_arr_append(paths_arr, path_node);
+
+    yyjson_mut_obj_add_str(doc, path_node, "clock", path->clock.c_str());
+    yyjson_mut_obj_add_real(doc, path_node, "slack", path->slack);
+
+    yyjson_mut_val *path_params_obj = yyjson_mut_obj(doc);
+    yyjson_mut_obj_add_val(doc, path_node, "path_params", path_params_obj);
+    for (const auto &[key, value] : path->path_params) {
+      yyjson_mut_obj_add_real(doc, path_params_obj, key.c_str(), value);
+    }
+
+    yyjson_mut_obj_add_str(doc, path_node, "path_group", path->group.c_str());
+    yyjson_mut_obj_add_real(doc, path_node, "length", path->get_length());
+    yyjson_mut_obj_add_real(doc, path_node, "detour", path->get_detour());
+    yyjson_mut_obj_add_real(doc, path_node, "cell_delay_pct",
+                            path->get_cell_delay_pct());
+    yyjson_mut_obj_add_real(doc, path_node, "net_delay_pct",
+                            path->get_net_delay_pct());
+
+    yyjson_mut_val *pin_arr = yyjson_mut_arr(doc);
+    yyjson_mut_obj_add_val(doc, path_node, "path", pin_arr);
+
+    for (const auto &pin : path->path) {
+      yyjson_mut_val *pin_obj = pin_to_yyjson(doc, pin);
+      yyjson_mut_arr_append(pin_arr, pin_obj);
+
+      if (pin->is_input && pin->net.has_value()) {
+        yyjson_mut_val *net_obj = net_to_yyjson(doc, pin->net.value());
+        yyjson_mut_obj_add_val(doc, pin_obj, "net", net_obj);
+      }
+    }
+
+    yyjson_mut_obj_add_str(doc, path_node, "startpoint",
+                           path->startpoint.c_str());
+    yyjson_mut_obj_add_str(doc, path_node, "endpoint", path->endpoint.c_str());
+  }
+
+  yyjson_write_err err;
+  const char *json =
+      yyjson_mut_write_opts(doc, YYJSON_WRITE_PRETTY, NULL, NULL, &err);
+  if (json) {
+    std::ofstream ofs(output_path);
+    ofs << json;
+    free((void *)json);
+  }
+
+  yyjson_mut_doc_free(doc);
 }

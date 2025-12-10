@@ -114,6 +114,7 @@ class basedb {
   }
 
   void serialize_to_json(const std::string& output_path) const;
+  void serialize_to_yyjson(const std::string& output_path) const;
 
  public:
   std::vector<std::shared_ptr<Path>> paths;
