@@ -242,7 +242,7 @@ cache_result sparse_graph_shortest_path::query_shortest_distance_by_id(
     return {0, {get_node_name(from_id)}};
   }
   {
-    scoped_timer timer(timing_stats, "check_connectivity");
+    // scoped_timer timer(timing_stats, "check_connectivity");
     if (_component_id.at(from_id) != _component_id.at(to_id)) {
       fmt::print(stderr,
                  "Debug: from_id {} and to_id {} are in different components\n",
@@ -251,7 +251,7 @@ cache_result sparse_graph_shortest_path::query_shortest_distance_by_id(
     }
   }
   {
-    scoped_timer timer(timing_stats, "dijkstra_call");
+    // scoped_timer timer(timing_stats, "dijkstra_call");
     result = dijkstra_topo(from_id, to_id, _component_id.at(from_id));
   }
   return result;

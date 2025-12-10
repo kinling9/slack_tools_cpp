@@ -28,10 +28,10 @@ void pair_analyser_csv::csv_match(
       auto pin_it = csv_pin_db.find(name);
       if (pin_it != csv_pin_db.end()) {
         auto pin = pin_it->second;
-        node["path_delay"] = pin->path_delay;
+        node["path_delay"] = pin->path_delay.value_or(0.);
         node["location"] =
             nlohmann::json::array({pin->location.first, pin->location.second});
-        node["trans"] = pin->trans;
+        node["trans"] = pin->trans.value_or(0.);
         node["cap"] = pin->cap.value_or(0.);
       }
     }

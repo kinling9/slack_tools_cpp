@@ -44,26 +44,35 @@ void arc_analyser_graph::init_graph(const std::shared_ptr<basedb> &db,
 }
 
 yyjson_mut_val *arc_analyser_graph::create_pin_node(
-    yyjson_mut_doc *doc, const std::string &name, const bool is_input,
+    yyjson_mut_doc *doc, std::string_view name_sv, const bool is_input,
     const std::array<double, 2> &incr_delays,
     const std::unordered_map<std::string, std::shared_ptr<Pin>> &csv_pin_db,
     const bool is_topin_rise) const {
   yyjson_mut_val *node = yyjson_mut_obj(doc);
-  yyjson_mut_obj_add_str(doc, node, "name", name.c_str());
+  yyjson_mut_obj_add_strncpy(doc, node, "name", name_sv.data(),
+                             name_sv.length());
   yyjson_mut_obj_add_bool(doc, node, "is_input", is_input);
   yyjson_mut_obj_add_real(doc, node, "incr_delay",
                           is_topin_rise ? incr_delays[0] : incr_delays[1]);
   yyjson_mut_obj_add_bool(doc, node, "rf", is_topin_rise);
   if (!csv_pin_db.empty()) {
-    if (auto pin_it = csv_pin_db.find(name); pin_it != csv_pin_db.end()) {
+    if (auto pin_it = csv_pin_db.find(std::string(name_sv));
+        pin_it != csv_pin_db.end()) {
       const auto &pin = pin_it->second;
-      yyjson_mut_obj_add_real(doc, node, "path_delay", pin->path_delay);
+      const auto &path_delays =
+          pin->path_delays.value_or(std::array<double, 2>{0., 0.});
+      yyjson_mut_obj_add_real(doc, node, "path_delay",
+                              is_topin_rise ? path_delays[0] : path_delays[1]);
       yyjson_mut_val *loc_arr = yyjson_mut_arr(doc);
       yyjson_mut_arr_add_real(doc, loc_arr, pin->location.first);
       yyjson_mut_arr_add_real(doc, loc_arr, pin->location.second);
       yyjson_mut_obj_add_val(doc, node, "location", loc_arr);
-      yyjson_mut_obj_add_real(doc, node, "trans", pin->trans);
-      yyjson_mut_obj_add_real(doc, node, "cap", pin->cap.value_or(0.));
+      const auto &trans = pin->transs.value_or(std::array<double, 2>{0., 0.});
+      yyjson_mut_obj_add_real(doc, node, "trans",
+                              is_topin_rise ? trans[0] : trans[1]);
+      const auto &caps = pin->caps.value_or(std::array<double, 2>{0., 0.});
+      yyjson_mut_obj_add_real(doc, node, "cap",
+                              is_topin_rise ? caps[0] : caps[1]);
     }
   }
   return node;
@@ -133,17 +142,16 @@ void arc_analyser_graph::process_single_connection(
     total_delay = arc->delay[1];
   }
 
-  std::locale::global(std::locale("en_US.UTF-8"));
   yyjson_mut_val *node = yyjson_mut_obj(doc);
   yyjson_mut_obj_add_str(
       doc, node, "type",
       arc->type == arc_type::CellArc ? "cell arc" : "net arc");
   std::string from_pin =
       fmt::format("{} {}", pin_from, is_frompin_rise ? "(rise)" : "(fall)");
-  yyjson_mut_obj_add_str(doc, node, "from", from_pin.c_str());
+  yyjson_mut_obj_add_strcpy(doc, node, "from", from_pin.c_str());
   std::string to_pin =
       fmt::format("{} {}", pin_to, is_topin_rise ? "(rise)" : "(fall)");
-  yyjson_mut_obj_add_str(doc, node, "to", to_pin.c_str());
+  yyjson_mut_obj_add_strcpy(doc, node, "to", to_pin.c_str());
 
   // Build key section
   yyjson_mut_val *key_obj = yyjson_mut_obj(doc);
@@ -153,11 +161,11 @@ void arc_analyser_graph::process_single_connection(
   yyjson_mut_obj_add_val(doc, key_obj, "pins", key_pins);
 
   yyjson_mut_arr_append(
-      key_pins, create_pin_node(doc, pin_from, true, {0., 0.}, csv_pin_db_key,
-                                is_frompin_rise));
+      key_pins, create_pin_node(doc, std::string_view(pin_from), true, {0., 0.},
+                                csv_pin_db_key, is_frompin_rise));
   yyjson_mut_arr_append(
-      key_pins, create_pin_node(doc, pin_to, true, arc->delay, csv_pin_db_key,
-                                is_topin_rise));
+      key_pins, create_pin_node(doc, std::string_view(pin_to), true, arc->delay,
+                                csv_pin_db_key, is_topin_rise));
 
   yyjson_mut_obj_add_real(doc, key_obj, "delay", total_delay);
 
@@ -169,23 +177,23 @@ void arc_analyser_graph::process_single_connection(
 
   yyjson_mut_obj_add_real(doc, value_obj, "delay", connect_check.distance);
 
-  yyjson_mut_arr_append(value_pins,
-                        create_pin_node(doc, pin_from, true, {0., 0.},
-                                        csv_pin_db_value, is_frompin_rise));
+  yyjson_mut_arr_append(
+      value_pins, create_pin_node(doc, std::string_view(pin_from), true,
+                                  {0., 0.}, csv_pin_db_value, is_frompin_rise));
 
   bool is_cell_arc = arc->type == arc_type::CellArc;
   auto value_db = _dbs.at(rpt_pair[1]);
   for (const auto &pin_tuple : connect_check.path | std::views::adjacent<2>) {
     const auto &[mid_from_view, mid_to_view] = pin_tuple;
     std::string mid_from = std::string(mid_from_view);
-    std::string mid_to = std::string(mid_to_view);
-    std::shared_ptr<Arc> &mid_arc = is_cell_arc
-                                        ? value_db->cell_arcs[mid_from][mid_to]
-                                        : value_db->net_arcs[mid_from][mid_to];
+    std::shared_ptr<Arc> &mid_arc =
+        is_cell_arc ? value_db->cell_arcs[mid_from][std::string(mid_to_view)]
+                    : value_db->net_arcs[mid_from][std::string(mid_to_view)];
     is_cell_arc = !is_cell_arc;
     yyjson_mut_arr_append(
-        value_pins, create_pin_node(doc, mid_to, !is_cell_arc, mid_arc->delay,
-                                    csv_pin_db_value, is_topin_rise));
+        value_pins,
+        create_pin_node(doc, mid_to_view, !is_cell_arc, mid_arc->delay,
+                        csv_pin_db_value, is_topin_rise));
   }
 
   if (arc->fanout.has_value()) {
@@ -268,7 +276,6 @@ void arc_analyser_graph::process_single_connection(
                                 std::get<1>(arc_tuple) ? "(rise)" : "(fall)",
                                 std::get<2>(arc_tuple),
                                 std::get<3>(arc_tuple) ? "(rise)" : "(fall)");
-    fmt::print("{}", std::string(json_str));
     thread_buffers[t].emplace_back(k, std::string(json_str));
     free((void *)json_str);
   } else {

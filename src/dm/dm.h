@@ -25,16 +25,22 @@ class Pin {
   std::string name;
   std::optional<std::string> cell;
   std::optional<std::string> instance;  // invs only
-  double trans;
+  std::optional<double> trans;
+  std::optional<std::array<double, 2>>
+      transs;  // rise and fall transition of the pin
   std::optional<double> incr_delay;
-  double path_delay;
+  std::optional<double> path_delay;
+  std::optional<std::array<double, 2>>
+      path_delays;  // rise and fall at of the pin
   std::optional<double> pta_buf;
   std::optional<double> pta_net;
   std::optional<bool> rise_fall;
   bool is_input;  // cell input
   std::pair<double, double> location;
   std::optional<std::shared_ptr<Net>> net;
-  std::optional<double> cap;         // max capacitance of the pin
+  std::optional<double> cap;  // max capacitance of the pin
+  std::optional<std::array<double, 2>>
+      caps;                          // rise and fall capacitance of the pin
   std::optional<double> path_slack;  // max slack of the path
   std::optional<std::array<double, 2>>
       path_slacks;  // rise and fall slack of the path

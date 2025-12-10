@@ -169,7 +169,7 @@ void invs_rpt_parser<T>::parse_line(T line,
         }
         if (pin.name == path_block->path_obj->startpoint) {
           path_block->path_obj->path_params["data_latency"] =
-              path_block->pin_obj->path_delay;
+              path_block->pin_obj->path_delay.value_or(0.);
         }
         path_block->start = true;
         pin.trans = boost::convert<double>(tokens[path_block->row["Slew"]],

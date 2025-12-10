@@ -235,7 +235,8 @@ void leda_rpt_parser<T>::parse_line(T line,
           if (pin.name == path_block->path_obj->startpoint &&
               !path_block->path_obj->path_params.contains(
                   "input_external_delay")) {
-            path_block->path_obj->path_params["data_latency"] = pin.path_delay;
+            path_block->path_obj->path_params["data_latency"] =
+                pin.path_delay.value_or(0.);
           }
           get_location(tokens, path_block->row, pin);
           path_block->pin_obj = std::make_shared<Pin>(pin);

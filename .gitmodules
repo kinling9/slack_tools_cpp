@@ -31,3 +31,6 @@
 [submodule "thirdparty/yyjson"]
 	path = thirdparty/yyjson
 	url = https://github.com/ibireme/yyjson.git
+[submodule "thirdparty/csv2"]
+	path = thirdparty/csv2
+	url = https://github.com/p-ranav/csv2.git

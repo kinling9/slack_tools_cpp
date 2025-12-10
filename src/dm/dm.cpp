@@ -1,9 +1,9 @@
 #include "dm/dm.h"
 
+#include <cstdlib>
 #include <fstream>
 
 #include "utils/utils.h"
-#include <cstdlib>
 #include "yyjson.h"
 
 YAML::Node Pin::to_yaml() {
@@ -11,7 +11,7 @@ YAML::Node Pin::to_yaml() {
   // pack for arc analyser
   node["name"] = name;
   node["incr_delay"] = incr_delay.value_or(0.);
-  node["path_delay"] = path_delay;
+  node["path_delay"] = path_delay.value_or(0.);
   node["location"] = YAML::Node();
   node["location"].push_back(location.first);
   node["location"].push_back(location.second);
@@ -23,10 +23,10 @@ nlohmann::json Pin::to_json() {
   nlohmann::json node;
   node["name"] = name;
   node["incr_delay"] = incr_delay.value_or(0.);
-  node["path_delay"] = path_delay;
+  node["path_delay"] = path_delay.value_or(0.);
   node["location"] = nlohmann::json::array({location.first, location.second});
   node["is_input"] = is_input;
-  node["trans"] = trans;
+  node["trans"] = trans.value_or(0.);
   if (cell.has_value()) {
     node["cell"] = cell.value();
   }
@@ -196,9 +196,8 @@ yyjson_mut_val *pin_to_yyjson(yyjson_mut_doc *doc,
                               const std::shared_ptr<Pin> &pin) {
   yyjson_mut_val *obj = yyjson_mut_obj(doc);
   yyjson_mut_obj_add_str(doc, obj, "name", pin->name.c_str());
-  yyjson_mut_obj_add_real(doc, obj, "incr_delay",
-                          pin->incr_delay.value_or(0.));
-  yyjson_mut_obj_add_real(doc, obj, "path_delay", pin->path_delay);
+  yyjson_mut_obj_add_real(doc, obj, "incr_delay", pin->incr_delay.value_or(0.));
+  yyjson_mut_obj_add_real(doc, obj, "path_delay", pin->path_delay.value_or(0.));
 
   yyjson_mut_val *loc_arr = yyjson_mut_arr(doc);
   yyjson_mut_arr_add_real(doc, loc_arr, pin->location.first);
@@ -206,7 +205,7 @@ yyjson_mut_val *pin_to_yyjson(yyjson_mut_doc *doc,
   yyjson_mut_obj_add_val(doc, obj, "location", loc_arr);
 
   yyjson_mut_obj_add_bool(doc, obj, "is_input", pin->is_input);
-  yyjson_mut_obj_add_real(doc, obj, "trans", pin->trans);
+  yyjson_mut_obj_add_real(doc, obj, "trans", pin->trans.value_or(0.));
 
   if (pin->cell.has_value()) {
     yyjson_mut_obj_add_str(doc, obj, "cell", pin->cell.value().c_str());
