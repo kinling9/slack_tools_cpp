@@ -1,6 +1,8 @@
 #pragma once
 #include "arc_analyser.h"
 #include "utils/sparse_graph_shortest_path_rf.h"
+#include "yyjson.h"
+
 class arc_analyser_graph : public arc_analyser {
  public:
   arc_analyser_graph(const YAML::Node &configs) : arc_analyser(configs){};
@@ -13,8 +15,8 @@ class arc_analyser_graph : public arc_analyser {
                  const std::unordered_map<std::string, std::shared_ptr<Pin>>
                      &csv_pin_db_value);
 
-  nlohmann::json create_pin_node(
-      const std::string &name, const bool is_input,
+  yyjson_mut_val *create_pin_node(
+      yyjson_mut_doc *doc, const std::string &name, const bool is_input,
       const std::array<double, 2> &incr_delays,
       const std::unordered_map<std::string, std::shared_ptr<Pin>> &csv_pin_db,
       const bool is_topin_rise) const;
@@ -27,8 +29,8 @@ class arc_analyser_graph : public arc_analyser {
           &csv_pin_db_key,
       const std::unordered_map<std::string, std::shared_ptr<Pin>>
           &csv_pin_db_value,
-      std::vector<std::map<std::tuple<std::string, bool, std::string, bool>,
-                           nlohmann::json>> &thread_buffers,
+      std::vector<std::vector<std::pair<std::string, std::string>>>
+          &thread_buffers,
       const std::shared_ptr<sparse_graph_shortest_path_rf> &graph_ptr,
       bool is_topin_rise);
 
@@ -41,8 +43,9 @@ class arc_analyser_graph : public arc_analyser {
       const std::unordered_map<std::string, std::shared_ptr<Pin>>
           &csv_pin_db_value,
       const std::tuple<std::string, bool, std::string, bool> &arc_tuple,
-      std::vector<std::map<std::tuple<std::string, bool, std::string, bool>,
-                           nlohmann::json>> &thread_buffers);
+      std::vector<std::vector<std::pair<std::string, std::string>>>
+          &thread_buffers,
+      yyjson_mut_doc *doc);
 
  private:
   absl::flat_hash_map<std::string,

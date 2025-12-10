@@ -9,29 +9,10 @@
 #include "utils/utils.h"
 
 bool csv_parser::parse_file(csv_type type, const std::string &filename) {
-  std::ifstream file(filename, std::ios_base::in | std::ios_base::binary);
   csv::CSVFormat format;
   format.trim({' ', '\t'});
-  if (!isgz(filename)) {
-    file.close();
-    // bug in redirect stream to csv reader
-    csv::CSVReader ifs(filename, format);
-    parse(type, ifs);
-  } else {
-    // boost::iostreams::filtering_streambuf<boost::iostreams::input> inbuf;
-    // inbuf.push(boost::iostreams::gzip_decompressor());
-    // inbuf.push(file);
-    // // Convert streambuf to istream
-    // std::stringstream instream(&inbuf);
-    boost::iostreams::filtering_streambuf<boost::iostreams::input> inbuf;
-    inbuf.push(boost::iostreams::gzip_decompressor());
-    inbuf.push(file);
-    std::ostringstream decompressed;
-    boost::iostreams::copy(inbuf, decompressed);
-    csv::CSVReader ifs(decompressed.str(), format);
-    parse(type, ifs);
-    file.close();
-  }
+  csv::CSVReader ifs(filename, format);
+  parse(type, ifs);
   return true;
 }
 
