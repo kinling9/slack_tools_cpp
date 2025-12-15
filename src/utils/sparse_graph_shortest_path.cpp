@@ -2,6 +2,7 @@
 
 #include <fmt/core.h>
 
+#include <cstdint>
 #include <queue>
 #include <thread>
 
@@ -14,8 +15,9 @@ int sparse_graph_shortest_path::get_or_create_node_id(
     return it->second;
   }
   int node_id = _next_node_id++;
-  _string_to_int[node_name] = node_id;
-  _int_to_string.push_back(node_name);
+  // _string_to_int[node_name] = node_id;
+  _string_to_int.emplace(node_name, node_id);
+  _int_to_string.emplace_back(node_name);
   return node_id;
 }
 
@@ -63,7 +65,7 @@ void sparse_graph_shortest_path::build_graph_base(
   {
     scoped_timer timer(timing_stats, "topo_sort");
 
-    const int num_threads = 8;
+    const int num_threads = 1;
     std::vector<std::thread> threads;
     threads.reserve(num_threads);
 
@@ -98,23 +100,24 @@ void sparse_graph_shortest_path::build_graph_base(
 
 void sparse_graph_shortest_path::compute_components() {
   if (_components_computed != 0) return;
-  std::unordered_set<int> visited;
+  // std::unordered_set<int> visited;
+  std::vector<int8_t> visited(_all_nodes.size(), 0);
   int comp_id = 0;
   for (int node_id : _all_nodes) {
-    if (visited.find(node_id) == visited.end()) {
+    if (visited[node_id] == 0) {
       _graph_components.resize(comp_id + 1);
       std::queue<int> q;
       q.push(node_id);
-      visited.insert(node_id);
+      visited[node_id] = 1;
       _component_id[node_id] = comp_id;
       _graph_components[comp_id].push_back(node_id);
       while (!q.empty()) {
         int curr = q.front();
         q.pop();
         if (_adj_list.find(curr) != _adj_list.end()) {
-          for (auto &[neighbor_id, _] : _adj_list[curr]) {
-            if (visited.find(neighbor_id) == visited.end()) {
-              visited.insert(neighbor_id);
+          for (const auto &[neighbor_id, _] : _adj_list[curr]) {
+            if (visited[neighbor_id] == 0) {
+              visited[neighbor_id] = 1;
               _component_id[neighbor_id] = comp_id;
               _graph_components[comp_id].push_back(neighbor_id);
               q.push(neighbor_id);
@@ -122,9 +125,9 @@ void sparse_graph_shortest_path::compute_components() {
           }
         }
         if (_rev_adj_list.find(curr) != _rev_adj_list.end()) {
-          for (auto &[neighbor_id, _] : _rev_adj_list[curr]) {
-            if (visited.find(neighbor_id) == visited.end()) {
-              visited.insert(neighbor_id);
+          for (const auto &[neighbor_id, _] : _rev_adj_list[curr]) {
+            if (visited[neighbor_id] == 0) {
+              visited[neighbor_id] = 1;
               _component_id[neighbor_id] = comp_id;
               _graph_components[comp_id].push_back(neighbor_id);
               q.push(neighbor_id);

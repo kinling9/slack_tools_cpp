@@ -1,180 +1,232 @@
 #include "csv_parser.h"
 
-#include <algorithm>  // For std::min
-#include <boost/iostreams/copy.hpp>
-#include <boost/iostreams/filter/gzip.hpp>
-#include <boost/iostreams/filtering_stream.hpp>
-#include <boost/iostreams/filtering_streambuf.hpp>
-#include <stdexcept>  // For std::invalid_argument, std::out_of_range
+#include <algorithm>
+#include <charconv>
+#include <vector>
 
 #include "utils/utils.h"
 
+namespace {
+
+// Helper to parse numbers using std::from_chars
+template <typename T>
+bool fast_parse(std::string_view sv, T &value) {
+  if (sv.empty()) return false;
+  auto [ptr, ec] = std::from_chars(sv.data(), sv.data() + sv.size(), value);
+  return ec == std::errc();
+}
+
+enum class PinCol {
+  Ignore,
+  Pin,
+  LocX,
+  LocY,
+  MaxRiseSlack,
+  MaxFallSlack,
+  MaxRiseCap,
+  MaxFallCap,
+  MaxRiseTrans,
+  MaxFallTrans,
+  MaxRiseAt,
+  MaxFallAt
+};
+
+enum class ArcCol {
+  Ignore,
+  FromPin,
+  ToPin,
+  SetupDelayRise,
+  SetupDelayFall,
+  Fanout
+};
+
+}  // namespace
+
 bool csv_parser::parse_file(csv_type type, const std::string &filename) {
-  CsvReaderType csv;  // Use the alias
+  CsvReaderType csv;
 
   if (!csv.mmap(filename)) {
-    // Handle error: could not open or parse CSV file
     return false;
   }
 
-  std::map<std::string, int> header_map;
-  int i = 0;
+  std::vector<std::string> headers;
   for (const auto &cell : csv.header()) {
-    std::string col_name;
-    cell.read_value(col_name);
-    header_map[col_name] = i++;
+    headers.push_back(std::string(cell.read_view()));
   }
 
-  parse(type, csv, header_map);
+  parse(type, csv, headers);
   return true;
 }
 
 void csv_parser::parse(csv_type type, CsvReaderType &csv_reader,
-                       const std::map<std::string, int> &header_map) {
-  // Helper lambda to safely get index or -1 if missing
-  auto get_idx = [&](const std::string &name) {
-    auto it = header_map.find(name);
-    return (it != header_map.end()) ? it->second : -1;
-  };
+                       const std::vector<std::string> &headers) {
+  const int max_idx = headers.size();
 
   if (type == csv_type::PinAT) {
-    // Resolve indices for PinAT
-    int idx_pin = get_idx("pin");
-    int idx_loc_x = get_idx("loc_x");
-    int idx_loc_y = get_idx("loc_y");
-    int idx_max_rise_slack = get_idx("max_rise_slack");
-    int idx_max_fall_slack = get_idx("max_fall_slack");
-    int idx_max_rise_cap = get_idx("max_rise_cap");
-    int idx_max_fall_cap = get_idx("max_fall_cap");
-    int idx_max_rise_trans = get_idx("max_rise_trans");
-    int idx_max_fall_trans = get_idx("max_fall_trans");
-    int idx_max_rise_at = get_idx("max_rise_at");
-    int idx_max_fall_at = get_idx("max_fall_at");
+    std::vector<PinCol> col_map(max_idx, PinCol::Ignore);
+    auto map_col = [&](const std::string &name, PinCol col_type) {
+      for (int i = 0; i < max_idx; ++i) {
+        if (headers[i] == name) {
+          col_map[i] = col_type;
+          break;
+        }
+      }
+    };
+
+    map_col("pin", PinCol::Pin);
+    map_col("loc_x", PinCol::LocX);
+    map_col("loc_y", PinCol::LocY);
+    map_col("max_rise_slack", PinCol::MaxRiseSlack);
+    map_col("max_fall_slack", PinCol::MaxFallSlack);
+    map_col("max_rise_cap", PinCol::MaxRiseCap);
+    map_col("max_fall_cap", PinCol::MaxFallCap);
+    map_col("max_rise_trans", PinCol::MaxRiseTrans);
+    map_col("max_fall_trans", PinCol::MaxFallTrans);
+    map_col("max_rise_at", PinCol::MaxRiseAt);
+    map_col("max_fall_at", PinCol::MaxFallAt);
 
     for (const auto &row : csv_reader) {
       std::string pin_name;
-      std::string x_str, y_str;
-      std::string max_rise_slack_str, max_fall_slack_str;
-      std::string max_rise_cap_str, max_fall_cap_str;
-      std::string max_rise_trans_str, max_fall_trans_str;
-      std::string max_rise_at_str, max_fall_at_str;
-
-      int idx = 0;
-      for (const auto &cell : row) {
-        if (idx == idx_pin)
-          cell.read_value(pin_name);
-        else if (idx == idx_loc_x)
-          cell.read_value(x_str);
-        else if (idx == idx_loc_y)
-          cell.read_value(y_str);
-        else if (idx == idx_max_rise_slack)
-          cell.read_value(max_rise_slack_str);
-        else if (idx == idx_max_fall_slack)
-          cell.read_value(max_fall_slack_str);
-        else if (idx == idx_max_rise_cap)
-          cell.read_value(max_rise_cap_str);
-        else if (idx == idx_max_fall_cap)
-          cell.read_value(max_fall_cap_str);
-        else if (idx == idx_max_rise_trans)
-          cell.read_value(max_rise_trans_str);
-        else if (idx == idx_max_fall_trans)
-          cell.read_value(max_fall_trans_str);
-        else if (idx == idx_max_rise_at)
-          cell.read_value(max_rise_at_str);
-        else if (idx == idx_max_fall_at)
-          cell.read_value(max_fall_at_str);
-        idx++;
-      }
-
-      if (x_str.empty() || y_str.empty()) {
-        continue;
-      }
-
-      double x = 0, y = 0;
-      try {
-        x = std::stod(x_str);
-        y = std::stod(y_str);
-      } catch (const std::invalid_argument &) {
-        continue;
-      } catch (const std::out_of_range &) {
-        continue;
-      }
+      double x = 0.0, y = 0.0;
       double max_rise_slack = 0.0, max_fall_slack = 0.0;
       double max_rise_cap = 0.0, max_fall_cap = 0.0;
       double max_rise_trans = 0.0, max_fall_trans = 0.0;
       double max_rise_at = 0.0, max_fall_at = 0.0;
-      try {
-        max_rise_slack = std::stod(max_rise_slack_str);
-        max_fall_slack = std::stod(max_fall_slack_str);
-        max_rise_cap = std::stod(max_rise_cap_str);
-        max_fall_cap = std::stod(max_fall_cap_str);
-        max_rise_trans = std::stod(max_rise_trans_str);
-        max_fall_trans = std::stod(max_fall_trans_str);
-        max_rise_at = std::stod(max_rise_at_str);
-        max_fall_at = std::stod(max_fall_at_str);
-      } catch (const std::invalid_argument &) {
-        continue;
-      } catch (const std::out_of_range &) {
+
+      bool has_loc_x = false;
+      bool has_loc_y = false;
+      bool row_valid = true;
+
+      int idx = 0;
+      for (const auto &cell : row) {
+        if (idx >= max_idx) {
+          idx++;
+          continue;
+        }
+
+        switch (col_map[idx]) {
+          case PinCol::Pin:
+            pin_name = std::string(cell.read_view());
+            break;
+          case PinCol::LocX:
+            if (fast_parse(cell.read_view(), x)) has_loc_x = true;
+            break;
+          case PinCol::LocY:
+            if (fast_parse(cell.read_view(), y)) has_loc_y = true;
+            break;
+          case PinCol::MaxRiseSlack:
+            if (!fast_parse(cell.read_view(), max_rise_slack))
+              row_valid = false;
+            break;
+          case PinCol::MaxFallSlack:
+            if (!fast_parse(cell.read_view(), max_fall_slack))
+              row_valid = false;
+            break;
+          case PinCol::MaxRiseCap:
+            if (!fast_parse(cell.read_view(), max_rise_cap)) row_valid = false;
+            break;
+          case PinCol::MaxFallCap:
+            if (!fast_parse(cell.read_view(), max_fall_cap)) row_valid = false;
+            break;
+          case PinCol::MaxRiseTrans:
+            if (!fast_parse(cell.read_view(), max_rise_trans))
+              row_valid = false;
+            break;
+          case PinCol::MaxFallTrans:
+            if (!fast_parse(cell.read_view(), max_fall_trans))
+              row_valid = false;
+            break;
+          case PinCol::MaxRiseAt:
+            if (!fast_parse(cell.read_view(), max_rise_at)) row_valid = false;
+            break;
+          case PinCol::MaxFallAt:
+            if (!fast_parse(cell.read_view(), max_fall_at)) row_valid = false;
+            break;
+          default:
+            break;
+        }
+        idx++;
+      }
+
+      if (!has_loc_x || !has_loc_y || !row_valid || pin_name.empty()) {
         continue;
       }
 
       double path_slack = std::min(max_rise_slack, max_fall_slack);
-      std::array<double, 2> path_slacks = {max_rise_slack, max_fall_slack};
-      std::array<double, 2> caps = {max_rise_cap, max_fall_cap};
-      std::array<double, 2> transs = {max_rise_trans, max_fall_trans};
-      std::array<double, 2> path_delays = {max_rise_at, max_fall_at};
-
       Pin pin_obj{
-          .name = pin_name,
-          .transs = transs,
-          .path_delays = path_delays,
+          .name = std::move(pin_name),
+          .transs = std::array<double, 2>{max_rise_trans, max_fall_trans},
+          .path_delays = std::array<double, 2>{max_rise_at, max_fall_at},
           .location = {x, y},
-          .caps = caps,
+          .caps = std::array<double, 2>{max_rise_cap, max_fall_cap},
           .path_slack = path_slack,
-          .path_slacks = path_slacks,
+          .path_slacks = std::array<double, 2>{max_rise_slack, max_fall_slack},
       };
-      _db.pins[pin_name] = std::make_shared<Pin>(pin_obj);
+      _db.pins[pin_obj.name] = std::make_shared<Pin>(std::move(pin_obj));
     }
   } else {
-    // Resolve indices for Arcs
-    int idx_from_pin = get_idx("from_pin");
-    int idx_to_pin = get_idx("to_pin");
-    int idx_setup_delay_rise = get_idx("setup_delay_rise");
-    int idx_setup_delay_fall = get_idx("setup_delay_fall");
-    int idx_fanout = (type == csv_type::NetArcFanout) ? get_idx("fanout") : -1;
+    // Arc Parsing
+    std::vector<ArcCol> col_map(max_idx, ArcCol::Ignore);
+    auto map_col = [&](const std::string &name, ArcCol col_type) {
+      for (int i = 0; i < max_idx; ++i) {
+        if (headers[i] == name) {
+          col_map[i] = col_type;
+          break;
+        }
+      }
+    };
+
+    map_col("from_pin", ArcCol::FromPin);
+    map_col("to_pin", ArcCol::ToPin);
+    map_col("setup_delay_rise", ArcCol::SetupDelayRise);
+    map_col("setup_delay_fall", ArcCol::SetupDelayFall);
+    bool is_net_arc_fanout = (type == csv_type::NetArcFanout);
+    if (is_net_arc_fanout) {
+      map_col("fanout", ArcCol::Fanout);
+    }
+
+    bool is_cell_arc = (type == csv_type::CellArc);
+    arc_type arc_type_val = is_cell_arc ? arc_type::CellArc : arc_type::NetArc;
 
     for (const auto &row : csv_reader) {
       std::string from_pin, to_pin;
-      std::string setup_delay_rise_str, setup_delay_fall_str;
-      std::string fanout_val_str;
-
-      int idx = 0;
-      for (const auto &cell : row) {
-        if (idx == idx_from_pin)
-          cell.read_value(from_pin);
-        else if (idx == idx_to_pin)
-          cell.read_value(to_pin);
-        else if (idx == idx_setup_delay_rise)
-          cell.read_value(setup_delay_rise_str);
-        else if (idx == idx_setup_delay_fall)
-          cell.read_value(setup_delay_fall_str);
-        else if (idx_fanout != -1 && idx == idx_fanout)
-          cell.read_value(fanout_val_str);
-        idx++;
-      }
-
       double setup_delay_rise = 0.0;
       double setup_delay_fall = 0.0;
       int fanout_val = 0;
-      try {
-        setup_delay_rise = std::stod(setup_delay_rise_str);
-        setup_delay_fall = std::stod(setup_delay_fall_str);
-        if (idx_fanout != -1) {
-          fanout_val = std::stoi(fanout_val_str);
+      bool row_valid = true;
+
+      int idx = 0;
+      for (const auto &cell : row) {
+        if (idx >= max_idx) {
+          idx++;
+          continue;
         }
-      } catch (const std::invalid_argument &) {
-        continue;
-      } catch (const std::out_of_range &) {
+
+        switch (col_map[idx]) {
+          case ArcCol::FromPin:
+            from_pin = std::string(cell.read_view());
+            break;
+          case ArcCol::ToPin:
+            to_pin = std::string(cell.read_view());
+            break;
+          case ArcCol::SetupDelayRise:
+            if (!fast_parse(cell.read_view(), setup_delay_rise))
+              row_valid = false;
+            break;
+          case ArcCol::SetupDelayFall:
+            if (!fast_parse(cell.read_view(), setup_delay_fall))
+              row_valid = false;
+            break;
+          case ArcCol::Fanout:
+            if (!fast_parse(cell.read_view(), fanout_val)) row_valid = false;
+            break;
+          default:
+            break;
+        }
+        idx++;
+      }
+
+      if (!row_valid || from_pin.empty() || to_pin.empty()) {
         continue;
       }
 
@@ -183,19 +235,16 @@ void csv_parser::parse(csv_type type, CsvReaderType &csv_reader,
       }
 
       std::optional<int> fanout;
-      if (type == csv_type::NetArcFanout) {
+      if (is_net_arc_fanout) {
         fanout = fanout_val;
       }
 
-      arc_type arc_type_val =
-          (type == csv_type::CellArc) ? arc_type::CellArc : arc_type::NetArc;
-
       Arc arc_obj{.type = arc_type_val,
-                  .from_pin = from_pin,
-                  .to_pin = to_pin,
+                  .from_pin = std::move(from_pin),
+                  .to_pin = std::move(to_pin),
                   .delay = {setup_delay_rise, setup_delay_fall},
                   .fanout = fanout};
-      _db.add_arc(type == csv_type::CellArc, std::make_shared<Arc>(arc_obj));
+      _db.add_arc(is_cell_arc, std::make_shared<Arc>(std::move(arc_obj)));
     }
   }
 }

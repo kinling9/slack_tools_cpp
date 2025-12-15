@@ -185,10 +185,13 @@ void arc_analyser_graph::process_single_connection(
   auto value_db = _dbs.at(rpt_pair[1]);
   for (const auto &pin_tuple : connect_check.path | std::views::adjacent<2>) {
     const auto &[mid_from_view, mid_to_view] = pin_tuple;
-    std::string mid_from = std::string(mid_from_view);
+    // std::string mid_from = std::string(mid_from_view);
     std::shared_ptr<Arc> &mid_arc =
-        is_cell_arc ? value_db->cell_arcs[mid_from][std::string(mid_to_view)]
-                    : value_db->net_arcs[mid_from][std::string(mid_to_view)];
+        is_cell_arc
+            ? value_db
+                  ->cell_arcs_flat[std::make_pair(mid_from_view, mid_to_view)]
+            : value_db
+                  ->net_arcs_flat[std::make_pair(mid_from_view, mid_to_view)];
     is_cell_arc = !is_cell_arc;
     yyjson_mut_arr_append(
         value_pins,
@@ -298,7 +301,7 @@ void arc_analyser_graph::csv_match(
   auto &[rise_graph, fall_graph] = _sparse_graph_ptrs[rpt_pair[1]];
 
   unsigned int num_threads =
-      std::max(1u, std::min(16u, static_cast<unsigned int>(arcs.size())));
+      std::max(1u, std::min(4u, static_cast<unsigned int>(arcs.size())));
   std::vector<std::thread> threads;
   threads.reserve(num_threads * 2);
 

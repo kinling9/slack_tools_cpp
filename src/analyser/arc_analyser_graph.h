@@ -1,8 +1,9 @@
 #pragma once
+#include <string_view>
+
 #include "arc_analyser.h"
 #include "utils/sparse_graph_shortest_path_rf.h"
 #include "yyjson.h"
-#include <string_view>
 
 class arc_analyser_graph : public arc_analyser {
  public:
@@ -49,8 +50,8 @@ class arc_analyser_graph : public arc_analyser {
       yyjson_mut_doc *doc);
 
  private:
-  absl::flat_hash_map<std::string,
-                      std::pair<std::shared_ptr<sparse_graph_shortest_path_rf>,
-                                std::shared_ptr<sparse_graph_shortest_path_rf>>>
+  std::unordered_map<std::string,
+                     std::pair<std::shared_ptr<sparse_graph_shortest_path_rf>,
+                               std::shared_ptr<sparse_graph_shortest_path_rf>>>
       _sparse_graph_ptrs;
 };

@@ -1,10 +1,13 @@
 #pragma once
 #include <absl/container/flat_hash_map.h>
 
+#include <functional>
 #include <memory>
 #include <nlohmann/json.hpp>
 #include <optional>
 #include <string>
+#include <string_view>
+#include <utility>
 #include <vector>
 
 #include "re2/re2.h"
@@ -77,6 +80,26 @@ class Arc {
   // nlohmann::json to_json();  // 转换为JSON格式
 };
 
+// Custom Hash for pair<string_view, string_view>
+struct ArcKeyHash {
+  std::size_t operator()(
+      const std::pair<std::string_view, std::string_view>& k) const {
+    // Combine hashes of the two strings
+    // 0x9e3779b9 is a standard magic number (phi) to scramble bits and avoid collisions
+    std::size_t h1 = std::hash<std::string_view>{}(k.first);
+    std::size_t h2 = std::hash<std::string_view>{}(k.second);
+    return h1 ^ (h2 + 0x9e3779b9 + (h1 << 6) + (h1 >> 2));
+  }
+};
+
+// Define the Map Type to save typing
+using ArcMap = std::unordered_map<
+    std::pair<std::string_view,
+              std::string_view>,  // The Key: lightweight pointers
+    std::shared_ptr<Arc>,         // The Value: keeps the strings alive
+    ArcKeyHash                    // The Hasher
+    >;
+
 class Path {
  public:
   std::string startpoint;
@@ -111,10 +134,19 @@ class basedb {
           loc_map);
   void add_arc(bool is_cell_arc, const std::shared_ptr<Arc>& arc) {
     if (is_cell_arc) {
-      cell_arcs_rev[arc->to_pin][arc->from_pin] = arc;
-      cell_arcs[arc->from_pin][arc->to_pin] = arc;
+      // cell_arcs_rev[arc->to_pin][arc->from_pin] = arc;
+      // cell_arcs[arc->from_pin][arc->to_pin] = arc;
+
+      // Construct the key using views into the string data ALREADY inside 'arc'
+      // No new memory allocation occurs for these keys.
+      std::pair<std::string_view, std::string_view> fwd_key = {arc->from_pin,
+                                                               arc->to_pin};
+      cell_arcs_flat[fwd_key] = arc;
     } else {
-      net_arcs[arc->from_pin][arc->to_pin] = arc;
+      // net_arcs[arc->from_pin][arc->to_pin] = arc;
+      std::pair<std::string_view, std::string_view> fwd_key = {arc->from_pin,
+                                                               arc->to_pin};
+      net_arcs_flat[fwd_key] = arc;
     }
     all_arcs.push_back(arc);
   }
@@ -135,6 +167,8 @@ class basedb {
   std::unordered_map<std::string,
                      std::unordered_map<std::string, std::shared_ptr<Arc>>>
       net_arcs;
+  ArcMap cell_arcs_flat;
+  ArcMap net_arcs_flat;
   std::unordered_map<std::string, std::shared_ptr<Pin>> pins;
   std::vector<std::shared_ptr<Arc>> all_arcs;
 
