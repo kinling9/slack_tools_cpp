@@ -32,7 +32,8 @@ void pair_analyser_graph::init_graph(const std::shared_ptr<basedb> &db,
     fmt::print("DB is nullptr, skip\n");
     return;
   }
-  auto graph = std::make_shared<sparse_graph_shortest_path>(db->all_arcs);
+  auto graph = std::make_shared<sparse_graph_shortest_path>();
+  graph->build_graph(db->all_arcs);
   _sparse_graph_ptrs[name] = graph;
   graph->print_stats();
 }
@@ -48,9 +49,9 @@ nlohmann::json pair_analyser_graph::create_pin_node(
   if (!csv_pin_db.empty()) {
     if (auto pin_it = csv_pin_db.find(name); pin_it != csv_pin_db.end()) {
       const auto &pin = pin_it->second;
-      node["path_delay"] = pin->path_delay;
+      node["path_delay"] = pin->path_delay.value_or(0.);
       node["location"] = {pin->location.first, pin->location.second};
-      node["trans"] = pin->trans;
+      node["trans"] = pin->trans.value_or(0.);
       node["cap"] = pin->cap.value_or(0.);
     }
   }
@@ -206,7 +207,7 @@ void pair_analyser_graph::csv_match(
       arcs_buffer;
 
   unsigned int num_threads =
-      std::max(1u, std::min(8u, static_cast<unsigned int>(arcs.size())));
+      std::max(1u, std::min(2u, static_cast<unsigned int>(arcs.size())));
   std::vector<std::thread> threads;
   threads.reserve(num_threads);
 

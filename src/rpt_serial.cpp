@@ -19,6 +19,6 @@ int main(int argc, char** argv) {
   }
   auto parser = std::make_shared<leda_rpt_parser<std::string>>();
   parser->parse_file(program.get<std::string>("rpt_path"));
-  parser->get_db().serialize_to_json(program.get<std::string>("output_path"));
+  parser->get_db().serialize_to_yyjson(program.get<std::string>("output_path"));
   return 0;
 }

@@ -6,14 +6,18 @@
 #include <unordered_map>
 #include <unordered_set>
 #include <vector>
+#include <functional>
 
 #include "dm/dm.h"
 #include "utils/cache_result.h"
 
 class sparse_graph_shortest_path {
  public:
-  // 构造函数，输入边的向量
-  sparse_graph_shortest_path(const std::vector<std::shared_ptr<Arc>> &edges);
+  // 构造函数
+  sparse_graph_shortest_path(){};
+
+  // 构建图的邻接表
+  virtual void build_graph(const std::vector<std::shared_ptr<Arc>> &edges);
 
   // 查询两点间最短距离 (string接口)
   cache_result query_shortest_distance(const std::string_view &from,
@@ -22,7 +26,12 @@ class sparse_graph_shortest_path {
   // 获取图的统计信息
   void print_stats() const;
 
- private:
+ protected:
+  // 通用构建图逻辑
+  void build_graph_base(
+      const std::vector<std::shared_ptr<Arc>> &edges,
+      std::function<double(const std::shared_ptr<Arc> &)> delay_extractor);
+
   // 获取或创建节点的int映射
   int get_or_create_node_id(const std::string_view &node_name);
 
@@ -31,9 +40,6 @@ class sparse_graph_shortest_path {
 
   // 根据string获取int (如果不存在返回-1)
   int get_node_id(const std::string_view &node_name) const;
-
-  // 构建图的邻接表
-  void build_graph(const std::vector<std::shared_ptr<Arc>> &edges);
 
   // 计算连通分量（用于快速判断两点是否连通）
   void compute_components();
@@ -50,7 +56,7 @@ class sparse_graph_shortest_path {
  public:
   std::unordered_map<std::string, long long> timing_stats;
 
- private:
+ protected:
   // 邻接表存储图结构 (使用int作为节点ID)
   std::unordered_map<int, std::vector<std::pair<int, double>>>
       _adj_list;  // {node_id: [(neighbor_id, dist)]}

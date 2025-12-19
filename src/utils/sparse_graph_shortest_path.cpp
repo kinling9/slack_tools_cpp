@@ -2,15 +2,11 @@
 
 #include <fmt/core.h>
 
+#include <cstdint>
 #include <queue>
 #include <thread>
 
 #include "utils/scoped_timer.h"
-
-sparse_graph_shortest_path::sparse_graph_shortest_path(
-    const std::vector<std::shared_ptr<Arc>> &edges) {
-  build_graph(edges);
-}
 
 int sparse_graph_shortest_path::get_or_create_node_id(
     const std::string_view &node_name) {
@@ -19,8 +15,9 @@ int sparse_graph_shortest_path::get_or_create_node_id(
     return it->second;
   }
   int node_id = _next_node_id++;
-  _string_to_int[node_name] = node_id;
-  _int_to_string.push_back(node_name);
+  // _string_to_int[node_name] = node_id;
+  _string_to_int.emplace(node_name, node_id);
+  _int_to_string.emplace_back(node_name);
   return node_id;
 }
 
@@ -39,12 +36,24 @@ int sparse_graph_shortest_path::get_node_id(
 
 void sparse_graph_shortest_path::build_graph(
     const std::vector<std::shared_ptr<Arc>> &edges) {
+  build_graph_base(edges, [](const std::shared_ptr<Arc> &edge) {
+    if constexpr (dm::TARGET_DLY_USING_MAX) {
+      return std::max(edge->delay[0], edge->delay[1]);
+    } else {
+      return std::min(edge->delay[0], edge->delay[1]);
+    }
+  });
+}
+
+void sparse_graph_shortest_path::build_graph_base(
+    const std::vector<std::shared_ptr<Arc>> &edges,
+    std::function<double(const std::shared_ptr<Arc> &)> delay_extractor) {
   for (const auto &edge : edges) {
     int from_id = get_or_create_node_id(edge->from_pin);
     int to_id = get_or_create_node_id(edge->to_pin);
-    double max_delay = std::max(edge->delay[0], edge->delay[1]);
-    _adj_list[from_id].emplace_back(to_id, max_delay);
-    _rev_adj_list[to_id].emplace_back(from_id, max_delay);
+    double target_delay = delay_extractor(edge);
+    _adj_list[from_id].emplace_back(to_id, target_delay);
+    _rev_adj_list[to_id].emplace_back(from_id, target_delay);
     _all_nodes.insert(from_id);
     _all_nodes.insert(to_id);
   }
@@ -56,7 +65,7 @@ void sparse_graph_shortest_path::build_graph(
   {
     scoped_timer timer(timing_stats, "topo_sort");
 
-    const int num_threads = 8;
+    const int num_threads = 1;
     std::vector<std::thread> threads;
     threads.reserve(num_threads);
 
@@ -91,23 +100,24 @@ void sparse_graph_shortest_path::build_graph(
 
 void sparse_graph_shortest_path::compute_components() {
   if (_components_computed != 0) return;
-  std::unordered_set<int> visited;
+  // std::unordered_set<int> visited;
+  std::vector<int8_t> visited(_all_nodes.size(), 0);
   int comp_id = 0;
   for (int node_id : _all_nodes) {
-    if (visited.find(node_id) == visited.end()) {
+    if (visited[node_id] == 0) {
       _graph_components.resize(comp_id + 1);
       std::queue<int> q;
       q.push(node_id);
-      visited.insert(node_id);
+      visited[node_id] = 1;
       _component_id[node_id] = comp_id;
       _graph_components[comp_id].push_back(node_id);
       while (!q.empty()) {
         int curr = q.front();
         q.pop();
         if (_adj_list.find(curr) != _adj_list.end()) {
-          for (auto &[neighbor_id, _] : _adj_list[curr]) {
-            if (visited.find(neighbor_id) == visited.end()) {
-              visited.insert(neighbor_id);
+          for (const auto &[neighbor_id, _] : _adj_list[curr]) {
+            if (visited[neighbor_id] == 0) {
+              visited[neighbor_id] = 1;
               _component_id[neighbor_id] = comp_id;
               _graph_components[comp_id].push_back(neighbor_id);
               q.push(neighbor_id);
@@ -115,9 +125,9 @@ void sparse_graph_shortest_path::compute_components() {
           }
         }
         if (_rev_adj_list.find(curr) != _rev_adj_list.end()) {
-          for (auto &[neighbor_id, _] : _rev_adj_list[curr]) {
-            if (visited.find(neighbor_id) == visited.end()) {
-              visited.insert(neighbor_id);
+          for (const auto &[neighbor_id, _] : _rev_adj_list[curr]) {
+            if (visited[neighbor_id] == 0) {
+              visited[neighbor_id] = 1;
               _component_id[neighbor_id] = comp_id;
               _graph_components[comp_id].push_back(neighbor_id);
               q.push(neighbor_id);
@@ -235,7 +245,7 @@ cache_result sparse_graph_shortest_path::query_shortest_distance_by_id(
     return {0, {get_node_name(from_id)}};
   }
   {
-    scoped_timer timer(timing_stats, "check_connectivity");
+    // scoped_timer timer(timing_stats, "check_connectivity");
     if (_component_id.at(from_id) != _component_id.at(to_id)) {
       fmt::print(stderr,
                  "Debug: from_id {} and to_id {} are in different components\n",
@@ -244,7 +254,7 @@ cache_result sparse_graph_shortest_path::query_shortest_distance_by_id(
     }
   }
   {
-    scoped_timer timer(timing_stats, "dijkstra_call");
+    // scoped_timer timer(timing_stats, "dijkstra_call");
     result = dijkstra_topo(from_id, to_id, _component_id.at(from_id));
   }
   return result;

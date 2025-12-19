@@ -9,29 +9,30 @@ import logging
 
 
 def generate_yaml_content(results: list, output_dir: str, analyse_type: str) -> tuple:
-    arc_yaml = {
-        "mode": f"{analyse_type} analyse",
-        "rpts": {},
-        "configs": {
-            "output_dir": output_dir,
-            "analyse_tuples": [],
-            "enable_rise_fall": True,
-            "enable_super_arc": True,
-        },
-    }
-    endpoint_yaml = {
-        "mode": "compare",
-        "rpts": {},
-        "configs": {
-            "output_dir": output_dir,
-            "analyse_tuples": [],
-            "compare_mode": "endpoint",
-            "slack_filter": "x < 1",
-        },
-    }
+    arc_yamls = {}
+    endpoint_yamls = {}
 
-    arc_analyse_type = ""
     for result in results:
+        arc_yaml = {
+            "mode": f"{analyse_type} analyse",
+            "rpts": {},
+            "configs": {
+                "output_dir": output_dir,
+                "analyse_tuples": [],
+                "enable_rise_fall": True,
+                "enable_super_arc": True,
+            },
+        }
+        endpoint_yaml = {
+            "mode": "compare",
+            "rpts": {},
+            "configs": {
+                "output_dir": output_dir,
+                "analyse_tuples": [],
+                "compare_mode": "endpoint",
+                "slack_filter": "x < 1",
+            },
+        }
         short = result["values"]["SHORT"]
         analyse_tuple = []
         types = []
@@ -75,43 +76,50 @@ def generate_yaml_content(results: list, output_dir: str, analyse_type: str) -> 
             logging.error(f"type: {types} is not supported")
             exit(0)
 
-        if arc_analyse_type and arc_analyse_type != cur_arc_analyse_type:
-            logging.error(
-                f"Mixed analyse types: {arc_analyse_type} and {cur_arc_analyse_type} are not supported"
-            )
-            exit(0)
+        if "analyse csv" in cur_arc_analyse_type:
+            arc_yaml["configs"]["enable_rise_fall"] = False
 
         arc_analyse_type = cur_arc_analyse_type
         arc_yaml["configs"]["analyse_tuples"].append(analyse_tuple)
         endpoint_yaml["configs"]["analyse_tuples"].append(analyse_tuple)
+        arc_yaml["mode"] = arc_analyse_type
+        arc_yamls[short] = arc_yaml
+        endpoint_yamls[short] = endpoint_yaml
 
-    arc_yaml["mode"] = arc_analyse_type
-    return arc_yaml, endpoint_yaml
+    return arc_yamls, endpoint_yamls
 
 
 def generate_yaml(
     results: list, output: str = "output", analyse_type: str = "pair"
 ) -> tuple:
-    arc_yaml, endpoint_yaml = generate_yaml_content(results, output, analyse_type)
+    arc_yamls, endpoint_yamls = generate_yaml_content(results, output, analyse_type)
     if not os.path.exists("tmp_yml"):
         os.makedirs("tmp_yml")
 
-    with open(f"tmp_yml/{output}_arc.yml", "w") as yaml_file:
-        yaml.dump(
-            arc_yaml,
-            yaml_file,
-            default_flow_style=False,
-            sort_keys=False,
-        )
-    with open(f"tmp_yml/{output}_endpoint.yml", "w") as yaml_file:
-        yaml.dump(
-            endpoint_yaml,
-            yaml_file,
-            default_flow_style=False,
-            sort_keys=False,
-        )
+    arc_yaml_files = {}
+    endpoint_yaml_files = {}
 
-    return f"tmp_yml/{output}_arc.yml", f"tmp_yml/{output}_endpoint.yml"
+    for k in arc_yamls.keys():
+        arc_yaml = arc_yamls[k]
+        endpoint_yaml = endpoint_yamls[k]
+        arc_yaml_files[k] = f"tmp_yml/{output}_{k}_arc.yml"
+        endpoint_yaml_files[k] = f"tmp_yml/{output}_{k}_endpoint.yml"
+        with open(f"tmp_yml/{output}_{k}_arc.yml", "w") as yaml_file:
+            yaml.dump(
+                arc_yaml,
+                yaml_file,
+                default_flow_style=False,
+                sort_keys=False,
+            )
+        with open(f"tmp_yml/{output}_{k}_endpoint.yml", "w") as yaml_file:
+            yaml.dump(
+                endpoint_yaml,
+                yaml_file,
+                default_flow_style=False,
+                sort_keys=False,
+            )
+
+    return arc_yaml_files, endpoint_yaml_files
 
 
 if __name__ == "__main__":

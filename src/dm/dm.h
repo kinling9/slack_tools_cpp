@@ -1,10 +1,13 @@
 #pragma once
 #include <absl/container/flat_hash_map.h>
 
+#include <functional>
 #include <memory>
 #include <nlohmann/json.hpp>
 #include <optional>
 #include <string>
+#include <string_view>
+#include <utility>
 #include <vector>
 
 #include "re2/re2.h"
@@ -25,17 +28,25 @@ class Pin {
   std::string name;
   std::optional<std::string> cell;
   std::optional<std::string> instance;  // invs only
-  double trans;
+  std::optional<double> trans;
+  std::optional<std::array<double, 2>>
+      transs;  // rise and fall transition of the pin
   std::optional<double> incr_delay;
-  double path_delay;
+  std::optional<double> path_delay;
+  std::optional<std::array<double, 2>>
+      path_delays;  // rise and fall at of the pin
   std::optional<double> pta_buf;
   std::optional<double> pta_net;
   std::optional<bool> rise_fall;
   bool is_input;  // cell input
   std::pair<double, double> location;
   std::optional<std::shared_ptr<Net>> net;
-  std::optional<double> cap;         // max capacitance of the pin
-  std::optional<double> path_slack;  // slack of the path
+  std::optional<double> cap;  // max capacitance of the pin
+  std::optional<std::array<double, 2>>
+      caps;                          // rise and fall capacitance of the pin
+  std::optional<double> path_slack;  // max slack of the path
+  std::optional<std::array<double, 2>>
+      path_slacks;  // rise and fall slack of the path
 
   // TODO: remove type, using db pointer instead
   std::string type;
@@ -68,6 +79,26 @@ class Arc {
  public:
   // nlohmann::json to_json();  // 转换为JSON格式
 };
+
+// Custom Hash for pair<string_view, string_view>
+struct ArcKeyHash {
+  std::size_t operator()(
+      const std::pair<std::string_view, std::string_view>& k) const {
+    // Combine hashes of the two strings
+    // 0x9e3779b9 is a standard magic number (phi) to scramble bits and avoid collisions
+    std::size_t h1 = std::hash<std::string_view>{}(k.first);
+    std::size_t h2 = std::hash<std::string_view>{}(k.second);
+    return h1 ^ (h2 + 0x9e3779b9 + (h1 << 6) + (h1 >> 2));
+  }
+};
+
+// Define the Map Type to save typing
+using ArcMap = std::unordered_map<
+    std::pair<std::string_view,
+              std::string_view>,  // The Key: lightweight pointers
+    std::shared_ptr<Arc>,         // The Value: keeps the strings alive
+    ArcKeyHash                    // The Hasher
+    >;
 
 class Path {
  public:
@@ -103,15 +134,25 @@ class basedb {
           loc_map);
   void add_arc(bool is_cell_arc, const std::shared_ptr<Arc>& arc) {
     if (is_cell_arc) {
-      cell_arcs_rev[arc->to_pin][arc->from_pin] = arc;
-      cell_arcs[arc->from_pin][arc->to_pin] = arc;
+      // cell_arcs_rev[arc->to_pin][arc->from_pin] = arc;
+      // cell_arcs[arc->from_pin][arc->to_pin] = arc;
+
+      // Construct the key using views into the string data ALREADY inside 'arc'
+      // No new memory allocation occurs for these keys.
+      std::pair<std::string_view, std::string_view> fwd_key = {arc->from_pin,
+                                                               arc->to_pin};
+      cell_arcs_flat[fwd_key] = arc;
     } else {
-      net_arcs[arc->from_pin][arc->to_pin] = arc;
+      // net_arcs[arc->from_pin][arc->to_pin] = arc;
+      std::pair<std::string_view, std::string_view> fwd_key = {arc->from_pin,
+                                                               arc->to_pin};
+      net_arcs_flat[fwd_key] = arc;
     }
     all_arcs.push_back(arc);
   }
 
   void serialize_to_json(const std::string& output_path) const;
+  void serialize_to_yyjson(const std::string& output_path) const;
 
  public:
   std::vector<std::shared_ptr<Path>> paths;
@@ -126,6 +167,8 @@ class basedb {
   std::unordered_map<std::string,
                      std::unordered_map<std::string, std::shared_ptr<Arc>>>
       net_arcs;
+  ArcMap cell_arcs_flat;
+  ArcMap net_arcs_flat;
   std::unordered_map<std::string, std::shared_ptr<Pin>> pins;
   std::vector<std::shared_ptr<Arc>> all_arcs;
 
@@ -152,4 +195,7 @@ static const std::unordered_map<std::string, std::string> path_param_invs = {
 
 static const std::unordered_set<std::string> path_param_invs_reverse = {
     "data_latency"};
+
+constexpr static const bool TEST_DLY_USING_MAX = true;
+constexpr static const bool TARGET_DLY_USING_MAX = false;
 }  // namespace dm
