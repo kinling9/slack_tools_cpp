@@ -123,7 +123,8 @@ if __name__ == "__main__":
         return sub_df
 
     # Process tuples in parallel
-    with concurrent.futures.ThreadPoolExecutor(max_workers=4) as executor:
+    # FIXME: matplotlib cannot work in parallel properly, so we use max_workers=1 here.
+    with concurrent.futures.ThreadPoolExecutor(max_workers=1) as executor:
         # Create partial function with output_dir pre-filled
         process_func = partial(process_tuple, output_dir)
 
