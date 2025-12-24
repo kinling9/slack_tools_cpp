@@ -38,13 +38,16 @@ def build(docker: bool = False):
     else:
         cmake_defs = ""
         import platform
+        from pathlib import Path
 
         if platform.release() == "3.10.0-1160.el7.x86_64":
+            home = Path.home()
             print(
                 "Detected Linux version 3.10.0-1160.el7.x86_64, setting specific GCC paths and CMake definitions."
             )
-            os.environ["CC"] = "/data/mwei/packages/gcc-13.2.0/bin/gcc"
-            os.environ["CXX"] = "/data/mwei/packages/gcc-13.2.0/bin/g++"
+            gcc_bin = home / "packages/gcc-13.2.0/bin"
+            os.environ["CC"] = str((gcc_bin / "gcc").resolve())
+            os.environ["CXX"] = str((gcc_bin / "g++").resolve())
             cmake_defs += "-DENV_EL7=ON "
         run_cmd(f"cmake -S . -B {dir_build} -GNinja {cmake_defs}")
         run_cmd(f"cmake --build {dir_build} --config Release -j 8")
