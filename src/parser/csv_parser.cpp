@@ -162,7 +162,7 @@ void csv_parser::parse(csv_type type, CsvReaderType &csv_reader,
           .path_slack = path_slack,
           .path_slacks = std::array<double, 2>{max_rise_slack, max_fall_slack},
       };
-      auto original_name = pin_obj.name;
+      std::string original_name = pin_obj.name;
       _db.pins[original_name] = std::make_shared<Pin>(std::move(pin_obj));
     }
   } else {
