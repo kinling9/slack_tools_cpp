@@ -28,18 +28,19 @@ def _extract_common_arc_data(arc_key: str, arc_data: dict, design: str) -> dict:
     value_info = arc_data.get("value", {})
     pins = key_info.get("pins", [])
     first_pin = pins[0] if pins else {}
+    last_pin = pins[-1] if pins else {}
 
     return {
         "name": arc_key,
         "design": design,
         "trans": first_pin.get("trans", 0),
-        "cap": first_pin.get("cap", 0),
+        "cap": last_pin.get("cap", 0),
         "fanout": key_info.get("fanout", 0),
         "length": key_info.get("length", 0),
         "pta_delay": key_info.get("delay", 0),
         "pta_slack": key_info.get("slack", 0),
         "is_cell_arc": arc_data["type"] == "cell arc",
-        "is_topin_rise": key_info.get("pins", [])[-1].get("rf", False),
+        "is_topin_rise": last_pin.get("rf", False),
         "value_delay": value_info.get("delay", 0),
     }
 
