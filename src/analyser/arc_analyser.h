@@ -19,6 +19,9 @@ class arc_analyser : public analyser {
       absl::flat_hash_map<std::pair<std::string_view, bool>,
                           std::shared_ptr<Path>> &pin2path_map);
 
+ protected:
+  bool parse_configs() override;
+
  private:
   void gen_value_map();
   virtual void match(
@@ -26,7 +29,6 @@ class arc_analyser : public analyser {
       const absl::flat_hash_map<std::pair<std::string_view, bool>,
                                 std::shared_ptr<Path>> &pin_map,
       const std::vector<std::shared_ptr<basedb>> &dbs);
-  bool parse_configs() override;
 
  protected:
   bool _enable_super_arc;

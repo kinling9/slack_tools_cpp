@@ -48,10 +48,12 @@ class arc_analyser_graph : public arc_analyser {
       std::vector<std::vector<std::pair<std::string, std::string>>>
           &thread_buffers,
       yyjson_mut_doc *doc);
+  bool parse_configs() override;
 
  private:
   std::unordered_map<std::string,
                      std::pair<std::shared_ptr<sparse_graph_shortest_path_rf>,
                                std::shared_ptr<sparse_graph_shortest_path_rf>>>
       _sparse_graph_ptrs;
+  bool _allow_unplaced_pins = true;
 };

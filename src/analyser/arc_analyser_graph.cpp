@@ -9,6 +9,12 @@
 #include "utils/cache_result.h"
 #include "utils/utils.h"
 
+bool arc_analyser_graph::parse_configs() {
+  bool valid = arc_analyser::parse_configs();
+  collect_from_node("allow_unplaced_pins", _allow_unplaced_pins);
+  return valid;
+}
+
 void arc_analyser_graph::analyse() {
   // if (_enable_rise_fall) {
   //   fmt::print("Enable rise fall check\n");
