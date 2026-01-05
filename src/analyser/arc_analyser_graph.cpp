@@ -139,10 +139,9 @@ void arc_analyser_graph::process_single_connection(
     yyjson_mut_doc *doc) {
   auto &[pin_from, is_frompin_rise, pin_to, is_topin_rise] = arc_tuple;
 
-  if (!_allow_unplaced_pins &&
-      (!csv_pin_db_key.contains(pin_from) || !csv_pin_db_key.contains(pin_to) ||
-       !csv_pin_db_value.contains(pin_from) ||
-       !csv_pin_db_value.contains(pin_to))) {
+  // FIXME: currently, CP pin of reg does not have their location info
+  if (!_allow_unplaced_pins && (!csv_pin_db_key.contains(pin_to) ||
+                                !csv_pin_db_value.contains(pin_to))) {
     return;
   }
 
