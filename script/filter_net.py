@@ -1,15 +1,15 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 
-import json
+import orjson
 import argparse
 import csv
 
 
 def sort_and_convert(input_file, output_csv, top_n=None):
     try:
-        with open(input_file, "r") as f:
-            data = json.load(f)
+        with open(input_file, "rb") as f:
+            data = orjson.loads(f.read())
 
         sorted_entries = sorted(
             data.items(), key=lambda x: abs(x[1].get("delta_delay", 0)), reverse=True
@@ -119,7 +119,7 @@ def sort_and_convert(input_file, output_csv, top_n=None):
         return mean_absolute_error, max_error
     except FileNotFoundError:
         print(f"Error: Input file '{input_file}' not found.")
-    except json.JSONDecodeError:
+    except orjson.JSONDecodeError:
         print(f"Error: Invalid JSON format in '{input_file}'.")
     except ValueError:
         print("Error: top_n must be an integer.")

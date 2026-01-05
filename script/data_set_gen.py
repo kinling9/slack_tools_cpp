@@ -7,7 +7,7 @@ import subprocess
 import pandas as pd
 import os
 import toml
-import json
+import orjson
 import sys
 import concurrent.futures
 
@@ -146,8 +146,8 @@ if __name__ == "__main__":
         name_pair = analyse_tuples[i]
         tuple_name = "-".join(name_pair)
         json_file = f"{output_dir}/{tuple_name}.json"
-        with open(json_file, "r") as f:
-            data = json.load(f)
+        with open(json_file, "rb") as f:
+            data = orjson.loads(f.read())
 
         design_name = "_".join(name_pair[0].split("_")[:-1])
         current_df = None

@@ -7,7 +7,7 @@ import sklearn.metrics
 from datetime import datetime
 import sys
 import re
-import json
+import orjson
 import pandas as pd
 import logging
 import scipy
@@ -215,8 +215,8 @@ def plot_correlation(path, output_file, x_label, y_label):
     # collect data
     logging.info(f"{datetime.now()}: start collecting data")
 
-    with open(path) as f:
-        data = json.load(f)
+    with open(path, "rb") as f:
+        data = orjson.loads(f.read())
     data_dict = gen_data(data)
 
     data_dict_df = pd.DataFrame.from_dict(data_dict, orient="index")

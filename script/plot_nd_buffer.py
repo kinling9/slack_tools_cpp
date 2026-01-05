@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 
-import json
+import orjson
 import argparse
 import seaborn as sns
 import pandas as pd
@@ -29,8 +29,8 @@ if __name__ == "__main__":
 
     input_json = args.input_json
 
-    with open(input_json, "r") as file:
-        data = json.load(file)
+    with open(input_json, "rb") as file:
+        data = orjson.loads(file.read())
 
     buffer_num = [calculate_buffer_num(item) for _, item in data.items()]
     delta_delay = [calculate_delta_delay(item) for _, item in data.items()]

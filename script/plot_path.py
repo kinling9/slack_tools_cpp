@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 import numpy as np
 import matplotlib.pyplot as plt
-import json
+import orjson
 import argparse
 
 
@@ -78,6 +78,6 @@ if __name__ == "__main__":
     parser.add_argument("-x", "--xlabel", help="xlabel of the plot", default="base")
     parser.add_argument("-y", "--ylabel", help="ylabel of the plot", default="target")
     args = parser.parse_args()
-    with open(args.path) as f:
-        data = json.load(f)
+    with open(args.path, "rb") as f:
+        data = orjson.loads(f.read())
     plot_data(args.name, data, [args.xlabel, args.ylabel])
