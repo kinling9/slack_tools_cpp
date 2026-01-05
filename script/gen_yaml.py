@@ -21,6 +21,7 @@ def generate_yaml_content(results: list, output_dir: str, analyse_type: str) -> 
                 "analyse_tuples": [],
                 "enable_rise_fall": True,
                 "enable_super_arc": True,
+                "allow_unplaced_pins": False,
             },
         }
         endpoint_yaml = {
