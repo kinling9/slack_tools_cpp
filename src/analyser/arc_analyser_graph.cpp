@@ -138,6 +138,13 @@ void arc_analyser_graph::process_single_connection(
         &thread_buffers,
     yyjson_mut_doc *doc) {
   auto &[pin_from, is_frompin_rise, pin_to, is_topin_rise] = arc_tuple;
+
+  if (!_allow_unplaced_pins &&
+      (!csv_pin_db_key.contains(pin_from) ||
+       !csv_pin_db_key.contains(pin_to))) {
+    return;
+  }
+
   auto from = std::make_pair(pin_from, is_frompin_rise);
   auto to = std::make_pair(pin_to, is_topin_rise);
 
