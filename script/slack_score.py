@@ -1,9 +1,11 @@
 #!/usr/bin/env python3
 
-import extract_timing
 import argparse
 import math
+
 import pandas as pd
+
+import extract_timing
 
 
 def slack_score(test_path: str, target_path: str, period):

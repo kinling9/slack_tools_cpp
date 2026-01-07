@@ -1,24 +1,24 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 
-import yaml
 import argparse
-import subprocess
-import pandas as pd
-import os
-import toml
-import numpy as np
 import concurrent.futures
+import logging
+import os
+import subprocess
 from functools import partial
 
+import matplotlib
+import numpy as np
+import pandas as pd
+import toml
+import yaml
+
+import filter_net
 import gen_yaml
 import plot_correlation
-import filter_net
-import toml_decoder
 import slack_score
-
-import logging
-import matplotlib
+import toml_decoder
 
 matplotlib.use("agg")
 

@@ -1,9 +1,10 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 
-import orjson
 import argparse
 import csv
+
+import orjson
 
 
 def sort_and_convert(input_file, output_csv, top_n=None):

@@ -1,16 +1,16 @@
 #!/usr/bin/env python3
 import argparse
+import logging
+import re
+import sys
+from datetime import datetime
+
 import matplotlib.pyplot as plt
 import numpy as np
-import pandas as pd
-import sklearn.metrics
-from datetime import datetime
-import sys
-import re
 import orjson
 import pandas as pd
-import logging
 import scipy
+import sklearn.metrics
 
 digit_shrink_level = -1
 digits = re.compile(r"\d+")

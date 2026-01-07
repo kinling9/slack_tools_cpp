@@ -2,10 +2,12 @@
 # -*- coding: utf-8 -*-
 
 import argparse
-import yaml
-import os
-import toml_decoder
 import logging
+import os
+
+import yaml
+
+import toml_decoder
 
 
 def generate_yaml_content(results: list, output_dir: str, analyse_type: str) -> tuple:

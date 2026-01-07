@@ -1,9 +1,10 @@
 #!/usr/bin/env python3
-import toml
-import re
-import copy
 import argparse
+import copy
 import logging
+import re
+
+import toml
 
 
 def load_toml_template(file_path):

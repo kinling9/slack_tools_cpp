@@ -1,8 +1,9 @@
 #!/usr/bin/env python3
-from build import run_cmd, build
+import argparse
 import os
 import sys
-import argparse
+
+from build import build, run_cmd
 
 if __name__ == "__main__":
 

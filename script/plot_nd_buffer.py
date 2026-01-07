@@ -1,11 +1,12 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 
-import orjson
 import argparse
-import seaborn as sns
-import pandas as pd
+
 import matplotlib.pyplot as plt
+import orjson
+import pandas as pd
+import seaborn as sns
 
 
 def calculate_buffer_num(data_item):

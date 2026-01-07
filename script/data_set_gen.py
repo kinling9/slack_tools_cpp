@@ -1,21 +1,20 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 
-import yaml
 import argparse
-import subprocess
-import pandas as pd
-import os
-import toml
-import orjson
-import sys
 import concurrent.futures
+import logging
+import os
+import subprocess
+import sys
+
+import orjson
+import pandas as pd
+import toml
+import yaml
 
 import gen_yaml
 import toml_decoder
-
-
-import logging
 
 # Configure logging
 logging.basicConfig(

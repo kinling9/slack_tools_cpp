@@ -1,8 +1,9 @@
 #!/usr/bin/env python3
-import numpy as np
-import matplotlib.pyplot as plt
-import orjson
 import argparse
+
+import matplotlib.pyplot as plt
+import numpy as np
+import orjson
 
 
 def gen_data(name, datas):
