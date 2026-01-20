@@ -8,13 +8,12 @@ import os
 import subprocess
 import sys
 
+import gen_yaml
 import orjson
 import pandas as pd
 import toml
-import yaml
-
-import gen_yaml
 import toml_decoder
+import yaml
 
 # Configure logging
 logging.basicConfig(
@@ -52,6 +51,9 @@ def buffer_check_gen(data: dict, design: str) -> pd.DataFrame:
     for arc_key, arc_data in data.items():
         key_info = arc_data.get("key", {})
         value_info = arc_data.get("value", {})
+        key_slack = key_info.get("slack", 0)
+        if key_slack >= 10000:
+            continue
 
         row = _extract_common_arc_data(arc_key, arc_data, design)
         row["with_buffer"] = len(value_info.get("pins", {})) > 2
@@ -70,6 +72,9 @@ def filter_check_gen(data: dict, design: str) -> pd.DataFrame:
         key_info = arc_data.get("key", {})
         value_info = arc_data.get("value", {})
         # Check conditions with protection against division by zero
+        key_slack = key_info.get("slack", 0)
+        if key_slack >= 10000:
+            continue
         value_slack = value_info.get("slack", 0)
         key_delay = key_info.get("delay", 0)
         value_delay = value_info.get("delay", 0)
