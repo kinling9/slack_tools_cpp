@@ -238,11 +238,11 @@ void arc_analyser_graph::process_single_connection(
     }
   }
 
-  std::vector<std::pair<float, float>> locs_key;
-  std::vector<std::pair<float, float>> locs_value;
+  std::vector<std::pair<double, double>> locs_key;
+  std::vector<std::pair<double, double>> locs_value;
 
   auto collect_loc = [&](const std::string &p, const auto &db,
-                         std::vector<std::pair<float, float>> &locs) {
+                         std::vector<std::pair<double, double>> &locs) {
     if (db.contains(p)) {
       locs.push_back(db.at(p)->location);
       return true;
