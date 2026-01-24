@@ -40,6 +40,7 @@ def _extract_common_arc_data(arc_key: str, arc_data: dict, design: str) -> dict:
         "is_cell_arc": arc_data["type"] == "cell arc",
         "is_topin_rise": last_pin.get("rf", False),
         "value_delay": value_info.get("delay", 0),
+        "value_slack": value_info.get("slack", 0),
     }
 
 
