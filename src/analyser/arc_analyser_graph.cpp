@@ -229,9 +229,9 @@ void arc_analyser_graph::process_single_connection(
     if (!csv_pin_db_value.empty() && csv_pin_db_value.contains(pin_to)) {
       double val_slack = 0;
       if (is_topin_rise) {
-        val_slack = csv_pin_db_key.at(pin_to)->path_slacks.value()[0];
+        val_slack = csv_pin_db_value.at(pin_to)->path_slacks.value()[0];
       } else {
-        val_slack = csv_pin_db_key.at(pin_to)->path_slacks.value()[1];
+        val_slack = csv_pin_db_value.at(pin_to)->path_slacks.value()[1];
       }
       yyjson_mut_obj_add_real(doc, value_obj, "slack", val_slack);
       yyjson_mut_obj_add_real(doc, node, "delta_slack", slack_val - val_slack);
