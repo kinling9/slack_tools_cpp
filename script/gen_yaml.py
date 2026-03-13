@@ -10,7 +10,12 @@ import yaml
 import toml_decoder
 
 
-def generate_yaml_content(results: list, output_dir: str, analyse_type: str) -> tuple:
+def generate_yaml_content(
+    results: list,
+    output_dir: str,
+    analyse_type: str,
+    arc_output_format: str | None = None,
+) -> tuple:
     arc_yamls = {}
     endpoint_yamls = {}
 
@@ -81,6 +86,8 @@ def generate_yaml_content(results: list, output_dir: str, analyse_type: str) -> 
 
         if "analyse csv" in cur_arc_analyse_type:
             arc_yaml["configs"]["enable_rise_fall"] = False
+        if arc_output_format:
+            arc_yaml["configs"]["output_format"] = arc_output_format
 
         arc_analyse_type = cur_arc_analyse_type
         arc_yaml["configs"]["analyse_tuples"].append(analyse_tuple)
@@ -93,9 +100,14 @@ def generate_yaml_content(results: list, output_dir: str, analyse_type: str) -> 
 
 
 def generate_yaml(
-    results: list, output: str = "output", analyse_type: str = "pair"
+    results: list,
+    output: str = "output",
+    analyse_type: str = "pair",
+    arc_output_format: str | None = None,
 ) -> tuple:
-    arc_yamls, endpoint_yamls = generate_yaml_content(results, output, analyse_type)
+    arc_yamls, endpoint_yamls = generate_yaml_content(
+        results, output, analyse_type, arc_output_format=arc_output_format
+    )
     if not os.path.exists("tmp_yml"):
         os.makedirs("tmp_yml")
 

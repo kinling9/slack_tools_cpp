@@ -14,6 +14,8 @@ class arc_analyser : public analyser {
   ~arc_analyser() override = default;
   virtual void analyse() override;
   void open_writers();
+  bool use_jsonl_output() const { return _output_format == "jsonl"; }
+  std::string arc_output_filename(const std::string &cmp_name) const;
   void gen_pin2path_map(
       const std::shared_ptr<basedb> &db,
       absl::flat_hash_map<std::pair<std::string_view, bool>,
@@ -38,4 +40,5 @@ class arc_analyser : public analyser {
   std::vector<double> _fanout_filter_op_code;
   super_arc::super_arc_pattern _super_arc;
   rf_checker::rf_checker _rf_checker;
+  std::string _output_format = "json";
 };

@@ -3,6 +3,7 @@
 
 import argparse
 import concurrent.futures
+import csv
 import logging
 import os
 import subprocess
@@ -10,26 +11,40 @@ import sys
 
 import gen_yaml
 import orjson
-import pandas as pd
 import toml
 import toml_decoder
-import yaml
 
 # Configure logging
 logging.basicConfig(
     level=logging.INFO, format="%(asctime)s - %(levelname)s - %(message)s"
 )
 
+DATASET_COLUMNS = [
+    "name",
+    "design",
+    "trans",
+    "cap",
+    "fanout",
+    "length",
+    "pta_delay",
+    "pta_slack",
+    "is_cell_arc",
+    "is_topin_rise",
+    "value_delay",
+    "value_slack",
+    "with_buffer",
+]
 
-def _extract_common_arc_data(arc_key: str, arc_data: dict, design: str) -> dict:
-    key_info = arc_data.get("key", {})
-    value_info = arc_data.get("value", {})
+
+def _extract_common_arc_data(record: dict, design: str) -> dict:
+    key_info = record.get("key", {})
+    value_info = record.get("value", {})
     pins = key_info.get("pins", [])
     first_pin = pins[0] if pins else {}
     last_pin = pins[-1] if pins else {}
 
     return {
-        "name": arc_key,
+        "name": record["name"],
         "design": design,
         "trans": first_pin.get("trans", 0),
         "cap": last_pin.get("cap", 0),
@@ -37,67 +52,88 @@ def _extract_common_arc_data(arc_key: str, arc_data: dict, design: str) -> dict:
         "length": key_info.get("length", 0),
         "pta_delay": key_info.get("delay", 0),
         "pta_slack": key_info.get("slack", 0),
-        "is_cell_arc": arc_data["type"] == "cell arc",
+        "is_cell_arc": record["type"] == "cell arc",
         "is_topin_rise": last_pin.get("rf", False),
         "value_delay": value_info.get("delay", 0),
         "value_slack": value_info.get("slack", 0),
     }
 
 
-def buffer_check_gen(data: dict, design: str) -> pd.DataFrame:
-    # Prepare CSV data
-    csv_data = []
+def _iter_arc_records(input_file: str):
+    if input_file.endswith(".jsonl"):
+        with open(input_file, "rb") as f:
+            for line in f:
+                line = line.strip()
+                if not line:
+                    continue
+                yield orjson.loads(line)
+        return
 
-    # Iterate through each net arc in the JSON
-    for arc_key, arc_data in data.items():
-        key_info = arc_data.get("key", {})
-        value_info = arc_data.get("value", {})
+    with open(input_file, "rb") as f:
+        data = orjson.loads(f.read())
+    for arc_name, arc_data in data.items():
+        arc_data["name"] = arc_name
+        yield arc_data
+
+
+def _iter_buffer_check_rows(records, design: str):
+    for record in records:
+        key_info = record.get("key", {})
+        value_info = record.get("value", {})
         key_slack = key_info.get("slack", 0)
         if key_slack >= 10000:
             continue
 
-        row = _extract_common_arc_data(arc_key, arc_data, design)
-        row["with_buffer"] = len(value_info.get("pins", {})) > 2
-        csv_data.append(row)
-
-    df = pd.DataFrame(csv_data)
-    return df
+        row = _extract_common_arc_data(record, design)
+        row["with_buffer"] = len(value_info.get("pins", [])) > 2
+        yield row
 
 
-def filter_check_gen(data: dict, design: str) -> pd.DataFrame:
-    # Prepare CSV data
-    csv_data = []
-
-    # Iterate through each net arc in the JSON
-    for arc_key, arc_data in data.items():
-        key_info = arc_data.get("key", {})
-        value_info = arc_data.get("value", {})
-        # Check conditions with protection against division by zero
+def _iter_filter_check_rows(records, design: str):
+    for record in records:
+        key_info = record.get("key", {})
+        value_info = record.get("value", {})
         key_slack = key_info.get("slack", 0)
         if key_slack >= 10000:
             continue
+
         value_slack = value_info.get("slack", 0)
         key_delay = key_info.get("delay", 0)
         value_delay = value_info.get("delay", 0)
-
-        # Avoid division by zero
-        # delay_ratio_valid = (value_delay != 0) and (key_delay / value_delay > 1.3)
-        # delay_difference_valid = key_delay - value_delay > 0.1
-        # delay_ratio_valid = (value_delay != 0) and (key_delay / value_delay > 1.1)
-        # delay_difference_valid = key_delay - value_delay > 0.005
         delay_ratio_valid = value_delay != 0
         delay_difference_valid = abs(key_delay - value_delay) > 0.005
 
-        need_update = False
-        if value_slack < 0 and delay_ratio_valid and delay_difference_valid:
-            need_update = True
+        row = _extract_common_arc_data(record, design)
+        row["with_buffer"] = (
+            value_slack < 0 and delay_ratio_valid and delay_difference_valid
+        )
+        yield row
 
-        row = _extract_common_arc_data(arc_key, arc_data, design)
-        row["with_buffer"] = need_update
-        csv_data.append(row)
 
-    df = pd.DataFrame(csv_data)
-    return df
+def _get_input_file(output_dir: str, tuple_name: str) -> str:
+    jsonl_file = f"{output_dir}/{tuple_name}.jsonl"
+    if os.path.exists(jsonl_file):
+        return jsonl_file
+    return f"{output_dir}/{tuple_name}.json"
+
+
+def _serialize_value(value):
+    if isinstance(value, float):
+        return f"{value:.6f}"
+    return value
+
+
+def _write_dataset_rows(output_csv: str, rows) -> int:
+    row_count = 0
+    with open(output_csv, "w", newline="") as f:
+        writer = csv.DictWriter(f, fieldnames=DATASET_COLUMNS)
+        writer.writeheader()
+        for row in rows:
+            writer.writerow(
+                {column: _serialize_value(row.get(column, "")) for column in DATASET_COLUMNS}
+            )
+            row_count += 1
+    return row_count
 
 
 if __name__ == "__main__":
@@ -116,26 +152,27 @@ if __name__ == "__main__":
 
     with open(args.path, "r") as file:
         data = toml.load(file)
-    # output = data.get("variables", {}).get("OUTPUT", "output")
     analyse_type = data.get("variables", {}).get("ANALYSE_TYPE", "pair")
     if analyse_type != "arc":
         logging.info("Only arc analysis is supported currently.")
         sys.exit(0)
+
     toml_file = args.path
     base_name = os.path.splitext(os.path.basename(toml_file))[0]
     results = toml_decoder.process_toml(args.path)
-    arc_yamls, endpoint_yamls = gen_yaml.generate_yaml(results, base_name, analyse_type)
+    arc_yamls, _ = gen_yaml.generate_yaml(
+        results, base_name, analyse_type, arc_output_format="jsonl"
+    )
 
     yaml_files = list(arc_yamls.values())
-
-    # Run commands in parallel using ThreadPoolExecutor
     with concurrent.futures.ThreadPoolExecutor() as executor:
         futures = [
-            executor.submit(subprocess.run, ["build/slack_tool", yaml_file])
+            executor.submit(subprocess.run, ["build/slack_tool", yaml_file], check=True)
             for yaml_file in yaml_files
         ]
-        # Wait for all processes to complete
         concurrent.futures.wait(futures)
+        for future in futures:
+            future.result()
 
     output_dir = base_name
     analyse_tuples = []
@@ -146,26 +183,22 @@ if __name__ == "__main__":
             tuple_list.append(f"{short}_{key}")
         analyse_tuples.append(tuple_list)
 
-    all_data_df = pd.DataFrame()
-    for i in range(len(analyse_tuples)):
-        name_pair = analyse_tuples[i]
-        tuple_name = "-".join(name_pair)
-        json_file = f"{output_dir}/{tuple_name}.json"
-        with open(json_file, "rb") as f:
-            data = orjson.loads(f.read())
+    if args.method == "buffer_check":
+        row_builder = _iter_buffer_check_rows
+    elif args.method == "filter_check":
+        row_builder = _iter_filter_check_rows
+    else:
+        logging.error("Method %s not supported.", args.method)
+        sys.exit(1)
 
-        design_name = "_".join(name_pair[0].split("_")[:-1])
-        current_df = None
-        if args.method == "buffer_check":
-            current_df = buffer_check_gen(data, design_name)
-        elif args.method == "filter_check":
-            current_df = filter_check_gen(data, design_name)
-        else:
-            logging.error(f"Method {args.method} not supported.")
-            sys.exit(1)
-        all_data_df = pd.concat([all_data_df, current_df], ignore_index=True)
+    output_csv = f"{output_dir}/{base_name}_dataset.csv"
 
-    print(all_data_df)
-    all_data_df.to_csv(
-        f"{output_dir}/{base_name}_dataset.csv", index=False, float_format="%.6f"
-    )
+    def iter_all_rows():
+        for name_pair in analyse_tuples:
+            tuple_name = "-".join(name_pair)
+            input_file = _get_input_file(output_dir, tuple_name)
+            design_name = "_".join(name_pair[0].split("_")[:-1])
+            yield from row_builder(_iter_arc_records(input_file), design_name)
+
+    row_count = _write_dataset_rows(output_csv, iter_all_rows())
+    logging.info("Wrote %s rows to %s", row_count, output_csv)

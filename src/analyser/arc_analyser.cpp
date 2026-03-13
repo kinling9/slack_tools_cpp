@@ -22,15 +22,25 @@ bool arc_analyser::parse_configs() {
   collect_from_node("fanout_filter", fanout_filter);
   collect_from_node("enable_super_arc", _enable_super_arc);
   collect_from_node("enable_rise_fall", _enable_rise_fall);
+  collect_from_node("output_format", _output_format);
+  if (_output_format != "json" && _output_format != "jsonl") {
+    fmt::print(fmt::fg(fmt::color::red), "Unsupported output_format: {}\n",
+               _output_format);
+    valid = false;
+  }
   compile_double_filter(fanout_filter, _fanout_filter_op_code);
   return valid;
+}
+
+std::string arc_analyser::arc_output_filename(const std::string &cmp_name) const {
+  return fmt::format("{}.{}", cmp_name, use_jsonl_output() ? "jsonl" : "json");
 }
 
 void arc_analyser::open_writers() {
   for (const auto &rpt_pair : _analyse_tuples) {
     std::string cmp_name = fmt::format("{}", fmt::join(rpt_pair, "-"));
     _arcs_writers[cmp_name] =
-        std::make_shared<writer>(writer(fmt::format("{}.json", cmp_name)));
+        std::make_shared<writer>(writer(arc_output_filename(cmp_name)));
     _arcs_writers[cmp_name]->set_output_dir(_output_dir);
     _arcs_writers[cmp_name]->open();
   }

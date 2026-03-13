@@ -1,6 +1,7 @@
 #include "arc_analyser_graph.h"
 
 #include <fmt/ranges.h>
+#include <nlohmann/json.hpp>
 
 #include <algorithm>
 #include <cstdlib>
@@ -380,6 +381,16 @@ void arc_analyser_graph::csv_match(
 
   std::string cmp_name = fmt::format("{}", fmt::join(rpt_pair, "-"));
   auto &outfile = _arcs_writers[cmp_name]->out_file;
+
+  if (use_jsonl_output()) {
+    for (const auto &[name, payload] : all_results) {
+      fmt::print(outfile, "{{\"name\":{},{}\n", nlohmann::json(name).dump(),
+                 payload.substr(1));
+    }
+    fmt::print("Wrote {} arc match results to {} as jsonl\n", all_results.size(),
+               cmp_name);
+    return;
+  }
 
   fmt::print(outfile, "{{\n");
   for (size_t i = 0; i < all_results.size(); ++i) {
