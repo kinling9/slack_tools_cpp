@@ -35,6 +35,9 @@ DATASET_COLUMNS = [
     "with_buffer",
 ]
 
+WRITE_BATCH_SIZE = 50000
+WRITE_BUFFER_SIZE = 8 * 1024 * 1024
+
 
 def _extract_common_arc_data(record: dict, design: str) -> dict:
     key_info = record.get("key", {})
@@ -123,16 +126,28 @@ def _serialize_value(value):
     return value
 
 
+def _iter_serialized_row_values(rows):
+    for row in rows:
+        yield tuple(_serialize_value(row.get(column, "")) for column in DATASET_COLUMNS)
+
+
 def _write_dataset_rows(output_csv: str, rows) -> int:
     row_count = 0
-    with open(output_csv, "w", newline="") as f:
-        writer = csv.DictWriter(f, fieldnames=DATASET_COLUMNS)
-        writer.writeheader()
-        for row in rows:
-            writer.writerow(
-                {column: _serialize_value(row.get(column, "")) for column in DATASET_COLUMNS}
-            )
-            row_count += 1
+    with open(output_csv, "w", newline="", buffering=WRITE_BUFFER_SIZE) as f:
+        writer = csv.writer(f)
+        writer.writerow(DATASET_COLUMNS)
+
+        batch = []
+        for row_values in _iter_serialized_row_values(rows):
+            batch.append(row_values)
+            if len(batch) >= WRITE_BATCH_SIZE:
+                writer.writerows(batch)
+                row_count += len(batch)
+                batch.clear()
+
+        if batch:
+            writer.writerows(batch)
+            row_count += len(batch)
     return row_count
 
 
