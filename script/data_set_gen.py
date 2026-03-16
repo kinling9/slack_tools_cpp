@@ -105,10 +105,11 @@ def _iter_filter_check_rows(records, design: str):
         value_delay = value_info.get("delay", 0)
         delay_ratio_valid = value_delay != 0
         delay_difference_valid = abs(key_delay - value_delay) > 0.005
+        # delay_difference_valid = True
 
         row = _extract_common_arc_data(record, design)
         row["with_buffer"] = (
-            value_slack < 0 and delay_ratio_valid and delay_difference_valid
+            (value_slack < 0 or key_slack < 0) and delay_ratio_valid and delay_difference_valid
         )
         yield row
 
