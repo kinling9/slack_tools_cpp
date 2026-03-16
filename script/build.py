@@ -9,9 +9,11 @@ def run_cmd(cmd: str):
     os.system(cmd)
 
 
-def build(docker: bool = False):
+def build(docker: bool = False, build_mode: str = "all"):
     dir_build = "build" + ("_docker" if docker else "")
     dir_build_debug = dir_build + "_debug"
+    build_release = build_mode in ("all", "release")
+    build_debug = build_mode in ("all", "debug")
     files = os.listdir(os.getcwd())
     if dir_build not in files:
         os.mkdir(dir_build)
@@ -23,12 +25,20 @@ def build(docker: bool = False):
         run_cmd(
             r'sed -i "s/# set(Boost_USE_STATIC_LIBS ON)/set(Boost_USE_STATIC_LIBS ON)/g" CMakeLists.txt'
         )
-        run_cmd(f"cmake -S . -B {dir_build} -GNinja")
-        run_cmd(f"cmake --build {dir_build} --config Release -j 8")
-        run_cmd(f"cmake -S . -B {dir_build_debug} -GNinja -DCMAKE_BUILD_TYPE=Debug")
-        run_cmd(f"cmake --build {dir_build_debug} --config Debug -j 8")
+        if build_release:
+            run_cmd(f"cmake -S . -B {dir_build} -GNinja -DCMAKE_BUILD_TYPE=Release")
+            run_cmd(f"cmake --build {dir_build} --config Release -j 8")
+        if build_debug:
+            run_cmd(f"cmake -S . -B {dir_build_debug} -GNinja -DCMAKE_BUILD_TYPE=Debug")
+            run_cmd(f"cmake --build {dir_build_debug} --config Debug -j 8")
+        tar_inputs = []
+        if build_release:
+            tar_inputs.append(f"{dir_build}/slack_tool")
+        if build_debug:
+            tar_inputs.append(f"{dir_build_debug}/slack_tool-debug")
+        tar_inputs.append("configs/design_period.yml")
         run_cmd(
-            f"tar -zcvf tools.tar.gz {dir_build}/slack_tool {dir_build_debug}/slack_tool-debug configs/design_period.yml"
+            f"tar -zcvf tools.tar.gz {' '.join(tar_inputs)}"
         )
         run_cmd(
             r'sed -i "s/set(Boost_USE_STATIC_LIBS ON)/# set(Boost_USE_STATIC_LIBS ON)/g" CMakeLists.txt'
@@ -51,15 +61,19 @@ def build(docker: bool = False):
                 os.environ["CC"] = str((gcc_bin / "gcc").resolve())
                 os.environ["CXX"] = str((gcc_bin / "g++").resolve())
                 cmake_defs += "-DENV_EL7=ON "
-        run_cmd(f"cmake -S . -B {dir_build} -GNinja {cmake_defs}")
-        run_cmd(f"cmake --build {dir_build} --config Release -j 8")
+        if build_release:
+            run_cmd(
+                f"cmake -S . -B {dir_build} -GNinja -DCMAKE_BUILD_TYPE=Release {cmake_defs}"
+            )
+            run_cmd(f"cmake --build {dir_build} --config Release -j 8")
         # run_cmd(
         #     f"cmake -S . -B {dir_build_debug} -GNinja -DCMAKE_BUILD_TYPE=Debug -DENABLE_TSAN=ON"
         # )
-        run_cmd(
-            f"cmake -S . -B {dir_build_debug} -GNinja -DCMAKE_BUILD_TYPE=Debug {cmake_defs}"
-        )
-        run_cmd(f"cmake --build {dir_build_debug} --config Debug -j 8")
+        if build_debug:
+            run_cmd(
+                f"cmake -S . -B {dir_build_debug} -GNinja -DCMAKE_BUILD_TYPE=Debug {cmake_defs}"
+            )
+            run_cmd(f"cmake --build {dir_build_debug} --config Debug -j 8")
 
 
 def clean():
@@ -71,6 +85,12 @@ if __name__ == "__main__":
     arg_parser = argparse.ArgumentParser()
     arg_parser.add_argument("--clean", action="store_true")
     arg_parser.add_argument("--docker", action="store_true")
+    arg_parser.add_argument(
+        "--build-mode",
+        choices=["all", "release", "debug"],
+        default="all",
+        help="Choose which build variants to compile.",
+    )
     args = arg_parser.parse_args()
 
     files = os.listdir(os.getcwd())
@@ -81,4 +101,4 @@ if __name__ == "__main__":
     if args.clean:
         clean()
     else:
-        build(args.docker)
+        build(args.docker, args.build_mode)
